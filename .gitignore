@@ -1,3 +1,6 @@
+build/
+node_modules/
+.blackbox/
 .blackboxcli/
-".blackbox/"  
-"*.log"  
+.claude/
+*.log

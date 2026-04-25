@@ -1,0 +1,14 @@
+[package]
+# Deployed to Sui Testnet: 2026-04-25
+# Package ID: 0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37
+
+package = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+chain_id = "de7cc4ec"
+
+[shared_objects]
+schema_registry = "0x5d3bebd993bb471764621bcc736be6799d5ce979f53134e9046f185508b301aa"
+oracle_registry = "0x0be66c40d272f7e69aa0fe2076938e86905167cf95300c7e0c3ab83a77f393ab"
+
+[gas]
+budget = 1000000000
+price = 1000

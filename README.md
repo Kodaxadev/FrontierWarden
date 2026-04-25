@@ -6,27 +6,31 @@ A Move-based smart contract suite enabling trust relationships, identity verific
 
 ---
 
-## Overview
+## Deployed Contract
 
-FrontierWarden implements a decentralized vouching and reputation system where:
-- **Vouchers** stake SUI to endorse other users
-- **Oracles** provide external identity verification
-- **Reputation scores** evolve based on vouching activity
-- **Slashing** occurs on misbehavior (no epoch dependencies)
+| Item | Value |
+|---|---|
+| **Network** | Sui Testnet |
+| **Package ID** | `0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37` |
+| **SchemaRegistry** | `0x5d3bebd993bb471764621bcc736be6799d5ce979f53134e9046f185508b301aa` |
+| **OracleRegistry** | `0x0be66c40d272f7e69aa0fe2076938e86905167cf95300c7e0c3ab83a77f393ab` |
+| **Deploy Cost** | ~$0.13 |
+| **Deployed** | 2026-04-25 |
 
 ---
 
-## Architecture
+## Modules
 
 | Module | Purpose |
 |---|---|
-| `reputation` | Core scoring, slashing, epoch-free |
-| `vouch` | Voucher registration, stakes, slashing |
-| `lending` | Loan-default→vouch-slash integration |
-| `schema_registry` | EVE schema definitions |
+| `attestation` | Cross-chain identity verification |
+| `lending` | Loan-default → vouch-slash integration |
 | `oracle_registry` | Off-chain oracle registration |
-| `oracle_profile` | Oracle identity & profile management |
-| `tests` | 24 Move unit tests (all passing) |
+| `profile` | User reputation profiles |
+| `schema_registry` | EVE schema definitions |
+| `singleton` | Global configuration |
+| `system_sdk` | Protocol-level utilities |
+| `vouch` | Voucher stakes, registration, slashing |
 
 ---
 

@@ -397,8 +397,6 @@ module reputation::vouch_lending_tests {
 
             // Force loan into defaulted state via test helper
             lending::expire_loan_for_testing(&mut loan);
-            // Advance epoch so epoch(ctx) > due_epoch(=0) → triggers default condition
-            test_scenario::next_tx(scenario, ADMIN);
             lending::slash_defaulted_vouch(&mut loan, &mut v, &cap, test_scenario::ctx(scenario));
 
             assert!(!vouch::is_active(&v), 0);
@@ -428,8 +426,6 @@ module reputation::vouch_lending_tests {
 
             // Force loan into defaulted state via test helper
             lending::expire_loan_for_testing(&mut loan);
-            // Advance epoch so epoch(ctx) > due_epoch(=0) → triggers default condition
-            test_scenario::next_tx(scenario, ADMIN);
             lending::slash_defaulted_vouch(&mut loan, &mut v, &cap, test_scenario::ctx(scenario));
 
             test_scenario::return_shared(loan);
@@ -441,8 +437,6 @@ module reputation::vouch_lending_tests {
         test_scenario::next_tx(scenario, BORROWER);
         {
             let mut loan = test_scenario::take_shared<Loan>(scenario);
-            // Advance epoch so repay's epoch check passes and reaches loan.defaulted check
-            test_scenario::next_tx(scenario, BORROWER);
             lending::repay_loan(
                 &mut loan,
                 balance::create_for_testing<SUI>(LOAN_AMOUNT),

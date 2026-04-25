@@ -142,6 +142,19 @@ module reputation::lending {
         transfer::public_transfer(coin::from_balance(repayment, ctx), loan.lender);
     }
 
+    // Anyone can mark a loan as defaulted once its due epoch has passed.
+    // Separating this from slashing makes the state transition observable on-chain
+    // and means slash_defaulted_vouch can stay a pure asset-handling step.
+    public entry fun mark_loan_defaulted(
+        loan: &mut Loan,
+        ctx: &mut TxContext
+    ) {
+        assert!(!loan.repaid, EAlreadyRepaid);
+        assert!(!loan.defaulted, ELoanDefaulted);
+        assert!(tx_context::epoch(ctx) > loan.due_epoch, ELoanNotDefaulted);
+        loan.defaulted = true;
+    }
+
     // FIX: actually performs vouch slash and marks loan defaulted
     // FIX: uses LendingCapability as access gate
     public entry fun slash_defaulted_vouch(

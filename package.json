@@ -1,0 +1,23 @@
+{
+  "name": "efrep",
+  "version": "0.1.0-testnet",
+  "description": "EVE Frontier Reputation Protocol - Sui Move smart contracts",
+  "type": "module",
+  "scripts": {
+    "test:integration": "vitest run tests/integration",
+    "test": "sui move test",
+    "build": "sui move build"
+  },
+  "keywords": ["sui", "move", "reputation", "eve", "web3"],
+  "author": "CCP",
+  "license": "MIT",
+  "dependencies": {
+    "@mysten/sui": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@vitest/ui": "^2.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}

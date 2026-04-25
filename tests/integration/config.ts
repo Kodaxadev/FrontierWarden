@@ -1,52 +1,38 @@
-import type { NetworkConfig } from './network';
+// EVE Frontier Reputation Protocol - Integration Test Configuration
+// Deployed to Sui Testnet: 2026-04-25
 
-export interface Addresses {
-  PACKAGE: string;
-  SCHEMA_REGISTRY: string;
-  ORACLE_REGISTRY: string;
-}
-
-export const TEST_ADDRESSES: Addresses = {
-  // These must be updated after running scripts/deploy.sh
-  PACKAGE: '0xREPLACE_WITH_DEPLOYED_ADDRESS',
-  SCHEMA_REGISTRY: '0xREPLACE_AFTER_SHARE_OBJECT',
-  ORACLE_REGISTRY: '0xREPLACE_AFTER_SHARE_OBJECT',
-};
-
-export function validateAddresses(addrs: Addresses): void {
-  const missing = Object.entries(addrs)
-    .filter(([, v]) => v.startsWith('0xREPLACE'))
-    .map(([k]) => k);
-
-  if (missing.length > 0) {
-    throw new Error(
-      `[IntegrationConfig] Missing address configuration: ${missing.join(', ')}. ` +
-      'Run scripts/deploy.sh and update scripts/testnet-addresses.json first.'
-    );
-  }
-}
-
-export const SCHEMAS = {
-  PIRATE_INDEX_V1: 'PIRATE_INDEX_V1',
-  CREDIT: 'CREDIT',
-  COMBAT_SCORE: 'COMBAT_SCORE',
-  GOV_SCORE: 'GOV_SCORE',
-  BUILDER_SCORE: 'BUILDER_SCORE',
+export const TEST_ADDRESSES = {
+  PACKAGE: '0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37',
+  SCHEMA_REGISTRY: '0x5d3bebd993bb471764621bcc736be6799d5ce979f53134e9046f185508b301aa',
+  ORACLE_REGISTRY: '0x0be66c40d272f7e69aa0fe2076938e86905167cf95300c7e0c3ab83a77f393ab',
 } as const;
 
-export const ORACLES = {
-  EF_MAP: '0xEfMapOracleAddress000000000000000000',
-  TRIBAL_ORACLE: '0xTribalOracleAddress0000000000000000',
+export const SCHEMAS = {
+  PIRATE_INDEX_V1: JSON.stringify({
+    schema_id: 'pirate_index_v1',
+    game: 'eve_frontier',
+    fields: ['character_id', 'sec_status', 'kill_rights', 'corp_history'],
+    version: 1,
+  }),
+  CREDIT: JSON.stringify({ schema_id: 'credit', version: 1 }),
+  COMBAT_SCORE: JSON.stringify({ schema_id: 'combat_score', version: 1 }),
+  GOV_SCORE: JSON.stringify({ schema_id: 'gov_score', version: 1 }),
 } as const;
 
 export const CONSTANTS = {
-  MIN_STAKE_MIST: 1_000_000_000n,  // 1 SUI
-  MIN_VOUCHER_SCORE: 500,
-  MIN_CREDIT_FOR_LOAN: 300,
-  MAX_LOAN_MULTIPLIER: 5,
-  VOUCH_DURATION_EPOCHS: 30,
-  LOAN_DURATION_EPOCHS: 30,
-  CHALLENGE_WINDOW_EPOCHS: 7,
-  SLASH_PERCENTAGE: 10,
-  CHALLENGER_REWARD: 50,
+  MIN_STAKE_MIST: 10_000_000_000n, // 10 SUI in MIST
+  MIN_SCORE: 500,
+  LENDING_COLLATERAL_RATIO: 200, // 200%
+  SLASH_PENALTY_PERCENT: 50,
+  EPOCHS_UNTIL_DEFAULT: 30,
 } as const;
+
+export function validateAddresses(addrs: typeof TEST_ADDRESSES): void {
+  const required = ['PACKAGE', 'SCHEMA_REGISTRY', 'ORACLE_REGISTRY'] as const;
+  for (const key of required) {
+    if (!addrs[key] || addrs[key].length !== 66) {
+      throw new Error(`Missing or invalid address: ${key}`);
+    }
+  }
+  console.log('[CONFIG] Addresses validated:', JSON.stringify(addrs, null, 2));
+}
