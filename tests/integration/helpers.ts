@@ -21,15 +21,15 @@ export function deriveTestPlayer(label: string, index: number): TestPlayer {
 }
 
 /**
- * Funds a test address from the faucet on testnet.
+ * Funds a test address from the faucet on devnet.
  */
 export async function fundAddress(
   client: SuiClient,
   address: string,
-  network: 'testnet' | 'local'
+  network: 'devnet' | 'local'
 ): Promise<void> {
-  const config = network === 'testnet'
-    ? { name: 'testnet', fullnode: 'https://fullnode.testnet.sui.io:443', faucet: 'https://faucet.testnet.sui.io/gas' }
+  const config = network === 'devnet'
+    ? { name: 'devnet', fullnode: 'https://fullnode.devnet.sui.io:443', faucet: 'https://faucet.devnet.sui.io/gas' }
     : { name: 'local', fullnode: 'http://0.0.0.0:9184' };
 
   if (config.faucet) {

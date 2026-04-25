@@ -7,10 +7,10 @@ export interface NetworkConfig {
 }
 
 export const NETWORKS: Record<string, NetworkConfig> = {
-  testnet: {
-    name: 'testnet',
-    fullnode: 'https://fullnode.testnet.sui.io:443',
-    faucet: 'https://faucet.testnet.sui.io/gas',
+  devnet: {
+    name: 'devnet',
+    fullnode: 'https://fullnode.devnet.sui.io:443',
+    faucet: 'https://faucet.devnet.sui.io/gas',
   },
   local: {
     name: 'local',
@@ -18,7 +18,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
   },
 };
 
-export function createClient(network: 'testnet' | 'local' = 'testnet'): SuiClient {
+export function createClient(network: 'devnet' | 'local' = 'devnet'): SuiClient {
   const config = NETWORKS[network];
   return new SuiClient({
     transport: new SuiHTTPTransport({ url: config.fullnode }),

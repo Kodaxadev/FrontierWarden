@@ -1,7 +1,8 @@
 {
-  "network": "testnet",
-  "chain_id": "de7cc4ec",
+  "network": "devnet",
+  "chain_id": "e8118007",
   "deployed_at": "2026-04-25",
+  "schemas_registered_tx": "8unGkdS3gNjuPfqcgmivcaejZsCXnsnDsVz9Ltt2dgPL",
   
   "package": {
     "id": "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37",

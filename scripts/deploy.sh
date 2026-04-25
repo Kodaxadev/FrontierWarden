@@ -1,14 +1,15 @@
 #!/bin/bash
 # ============================================================
 # deploy.sh — EVE Frontier Reputation System
-# Publishes the reputation package to Sui testnet.
+# Publishes the reputation package to Sui devnet.
+# (Devnet was chosen over testnet due to Windows-side testnet faucet issues.)
 # ============================================================
 #
 # Prerequisites:
-#   1. Install Sui CLI: cargo install --git https://github.com/MystenLabs/sui --branch testnet sui
-#   2. Derive or import a testnet-funded keystore key:
+#   1. Install Sui CLI: cargo install --git https://github.com/MystenLabs/sui --branch devnet sui
+#   2. Derive or import a devnet-funded keystore key:
 #      sui keytool new
-#   3. Request testnet SUI from the Sui Discord faucet
+#   3. Request devnet SUI from the faucet (https://faucet.devnet.sui.io/gas)
 #
 # Usage:
 #   ./scripts/deploy.sh <KEYSTORE_PATH> <GAS_BUDGET>
@@ -19,7 +20,7 @@
 # After deployment:
 #   1. Copy the published package address from the output
 #   2. Update Move.toml: reputation = "<PUBLISHED_ADDRESS>"
-#   3. Update the addresses in scripts/testnet-addresses.json
+#   3. Update the addresses in scripts/devnet-addresses.json
 #   4. Run integration tests: npm run test:integration
 # ============================================================
 
@@ -27,7 +28,7 @@ set -e
 
 KEYSTORE_PATH="${1:?Usage: ./scripts/deploy.sh <KEYSTORE_PATH> <GAS_BUDGET>}"
 GAS_BUDGET="${2:-50000}"
-NETWORK="testnet"
+NETWORK="devnet"
 
 echo "============================================"
 echo " EVE Frontier — Reputation System Deploy"

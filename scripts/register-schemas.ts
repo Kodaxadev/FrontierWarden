@@ -6,7 +6,7 @@
  *   SUI_PRIVATE_KEY=suiprivkey1... npx tsx scripts/register-schemas.ts
  *
  * Optional:
- *   SUI_RPC_URL=...                  override default testnet fullnode
+ *   SUI_RPC_URL=...                  override default devnet fullnode
  *   GAS_BUDGET=100000000             override gas budget (MIST)
  *   DRY_RUN=1                        build + simulate without submitting
  *
@@ -50,7 +50,7 @@ const SCHEMAS: SchemaSpec[] = [
 
 function loadAddresses() {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = resolve(here, 'testnet-addresses.json');
+  const path = resolve(here, 'devnet-addresses.json');
   const raw = JSON.parse(readFileSync(path, 'utf8'));
   return {
     package: raw.package.id as string,
@@ -75,7 +75,7 @@ async function main() {
   const { package: pkg, schemaRegistry } = loadAddresses();
   const keypair = loadKeypair();
   const sender = keypair.getPublicKey().toSuiAddress();
-  const rpc = process.env.SUI_RPC_URL ?? getFullnodeUrl('testnet');
+  const rpc = process.env.SUI_RPC_URL ?? getFullnodeUrl('devnet');
   const gasBudget = BigInt(process.env.GAS_BUDGET ?? '100000000');
   const dryRun = process.env.DRY_RUN === '1';
 
@@ -89,6 +89,7 @@ async function main() {
 
   const client = new SuiClient({ url: rpc });
   const tx = new Transaction();
+  tx.setSender(sender);
   tx.setGasBudget(gasBudget);
 
   for (const s of SCHEMAS) {

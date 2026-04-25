@@ -1,5 +1,5 @@
 // EVE Frontier Reputation Protocol - Integration Test Configuration
-// Deployed to Sui Testnet: 2026-04-25
+// Deployed to Sui Devnet: 2026-04-25 (chain e8118007)
 
 export const TEST_ADDRESSES = {
   PACKAGE: '0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37',

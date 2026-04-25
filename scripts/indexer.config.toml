@@ -1,5 +1,6 @@
 # EFRep indexer config — drop into a fork of longcipher/sui-indexer.
-# Deployed to Sui Testnet 2026-04-25. Tag: v0.1.0-testnet.
+# Deployed to Sui Devnet 2026-04-25 (chain e8118007). Tag: v0.1.0-testnet
+# (tag name predates the testnet→devnet pivot; the deployment is devnet).
 #
 # Usage in the indexer fork:
 #   1. Copy this file to ./config.toml in the indexer's working dir
@@ -10,8 +11,8 @@
 # (e.g. SUI_INDEXER_NETWORK_GRPC_URL=...).
 
 [network]
-grpc_url = "https://fullnode.testnet.sui.io:443"
-network  = "testnet"
+grpc_url = "https://fullnode.devnet.sui.io:443"
+network  = "devnet"
 
 [network.pool]
 max_connections = 16

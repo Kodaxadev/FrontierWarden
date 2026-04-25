@@ -37,7 +37,7 @@ describe('01 — Contract Deployment Verification', () => {
   beforeAll(async () => {
     validateAddresses(TEST_ADDRESSES);
     client = new SuiClient({
-      transport: new SuiHTTPTransport({ url: 'https://fullnode.testnet.sui.io:443' }),
+      transport: new SuiHTTPTransport({ url: 'https://fullnode.devnet.sui.io:443' }),
     });
     networkInfo = await getNetworkInfo(client);
     console.log('[INFO] Network chain ID:', networkInfo.chainId);
@@ -50,14 +50,14 @@ describe('01 — Contract Deployment Verification', () => {
     console.log('[✓] All addresses are valid 64-char Sui object IDs');
   });
 
-  it('connected to testnet network', () => {
+  it('connected to devnet network', () => {
     expect(networkInfo.connected).toBe(true);
     console.log('[✓] Connected to Sui network');
   });
 
-  it('network chain ID is testnet', () => {
-    // The deployed chain ID was de7cc4ec, localnet uses 4c78adac
-    const validChains = ['de7cc4ec', '4c78adac'];
+  it('network chain ID is devnet', () => {
+    // Devnet chain ID is e8118007; localnet uses 4c78adac
+    const validChains = ['e8118007', '4c78adac'];
     expect(validChains).toContain(networkInfo.chainId);
     console.log('[✓] Network chain ID:', networkInfo.chainId);
   });
@@ -69,7 +69,7 @@ describe('02 — Object State Validation', () => {
   beforeAll(async () => {
     validateAddresses(TEST_ADDRESSES);
     client = new SuiClient({
-      transport: new SuiHTTPTransport({ url: 'https://fullnode.testnet.sui.io:443' }),
+      transport: new SuiHTTPTransport({ url: 'https://fullnode.devnet.sui.io:443' }),
     });
   }, 30_000);
 
@@ -82,8 +82,8 @@ describe('02 — Object State Validation', () => {
       console.log('[✓] SchemaRegistry accessible, type:', obj.data?.type);
       console.log('[✓] Owner:', JSON.stringify(obj.data?.owner));
     } catch (err) {
-      // May not exist on testnet - this is expected for local deployments
-      console.log('[INFO] SchemaRegistry not on testnet (may be local-only):', String(err).slice(0, 80));
+      // May not exist on devnet - this is expected for local deployments
+      console.log('[INFO] SchemaRegistry not on devnet (may be local-only):', String(err).slice(0, 80));
     }
   });
 
@@ -95,7 +95,7 @@ describe('02 — Object State Validation', () => {
       });
       console.log('[✓] OracleRegistry accessible, type:', obj.data?.type);
     } catch (err) {
-      console.log('[INFO] OracleRegistry not on testnet (may be local-only):', String(err).slice(0, 80));
+      console.log('[INFO] OracleRegistry not on devnet (may be local-only):', String(err).slice(0, 80));
     }
   });
 }, 60_000);
@@ -106,7 +106,7 @@ describe('03 — Package Module Verification', () => {
   beforeAll(async () => {
     validateAddresses(TEST_ADDRESSES);
     client = new SuiClient({
-      transport: new SuiHTTPTransport({ url: 'https://fullnode.testnet.sui.io:443' }),
+      transport: new SuiHTTPTransport({ url: 'https://fullnode.devnet.sui.io:443' }),
     });
   }, 30_000);
 
@@ -134,7 +134,7 @@ describe('04 — Network State Validation', () => {
   beforeAll(async () => {
     validateAddresses(TEST_ADDRESSES);
     client = new SuiClient({
-      transport: new SuiHTTPTransport({ url: 'https://fullnode.testnet.sui.io:443' }),
+      transport: new SuiHTTPTransport({ url: 'https://fullnode.devnet.sui.io:443' }),
     });
   }, 30_000);
 
@@ -153,7 +153,7 @@ describe('04 — Network State Validation', () => {
     }
   });
 
-  it('client is properly configured for testnet', () => {
+  it('client is properly configured for devnet', () => {
     expect(client).toBeDefined();
     console.log('[✓] SuiClient configured successfully');
   });
