@@ -1,1 +1,3 @@
 .blackboxcli/
+".blackbox/"  
+"*.log"  
