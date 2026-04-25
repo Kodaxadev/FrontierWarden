@@ -1,0 +1,23 @@
+{
+  "name": "ef-reputation-tests",
+  "version": "0.0.1",
+  "private": true,
+  "description": "End-to-end integration tests for EVE Frontier Reputation System",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run tests/integration",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@mysten/bcs": "^1.1.0",
+    "@mysten/sui": "^1.11.0",
+    "@playwright/test": "^1.59.1",
+    "playwright": "^1.59.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

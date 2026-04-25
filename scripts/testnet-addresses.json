@@ -1,0 +1,9 @@
+{
+  "package": "0xREPLACE_WITH_DEPLOYED_ADDRESS",
+  "schemaRegistry": "0xREPLACE_AFTER_SHARE_OBJECT",
+  "oracleRegistry": "0xREPLACE_AFTER_SHARE_OBJECT",
+  "deployedAtEpoch": "REPLACE_WITH_CURRENT_EPOCH",
+  "deployer": "0xREPLACE_WITH_DEPLOYER_ADDRESS",
+  "testnetFaucet": "https://faucet.testnet.sui.io/gas",
+  "explorerBaseUrl": "https://testnet.sui.io/object"
+}
