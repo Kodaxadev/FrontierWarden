@@ -1,0 +1,78 @@
+# EFRep indexer config — drop into a fork of longcipher/sui-indexer.
+# Deployed to Sui Testnet 2026-04-25. Tag: v0.1.0-testnet.
+#
+# Usage in the indexer fork:
+#   1. Copy this file to ./config.toml in the indexer's working dir
+#   2. Set DATABASE_URL or fill in [database].url
+#   3. Run the indexer: cargo run --release -- --config config.toml
+#
+# Override any value with SUI_INDEXER_SECTION_KEY env vars
+# (e.g. SUI_INDEXER_NETWORK_GRPC_URL=...).
+
+[network]
+grpc_url = "https://fullnode.testnet.sui.io:443"
+network  = "testnet"
+
+[network.pool]
+max_connections = 16
+timeout         = 30
+keep_alive      = 60
+
+[network.retry]
+max_attempts       = 5
+backoff_multiplier = 2
+
+[database]
+url              = "postgres://efrep:efrep@localhost:5432/efrep_indexer"
+max_connections  = 10
+min_connections  = 2
+auto_migrate     = true
+
+[events]
+batch_size             = 500
+max_concurrent_batches = 4
+index_transactions     = true
+index_objects          = true
+
+# One filter per module that emits events. The package ID is
+# 0x11a3f8dd...adb47e37 — keep these in sync if the package is republished.
+
+[[events.filters]]
+package = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+module  = "schema_registry"
+# SchemaRegistered, SchemaDeprecated, GovernanceTransferred
+
+[[events.filters]]
+package = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+module  = "profile"
+# ProfileCreated, ScoreUpdated
+
+[[events.filters]]
+package = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+module  = "attestation"
+# AttestationIssued, AttestationRevoked
+
+[[events.filters]]
+package = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+module  = "oracle_registry"
+# OracleRegistered, FraudChallengeCreated, FraudChallengeResolved
+
+[[events.filters]]
+package = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+module  = "vouch"
+# VouchCreated, VouchRedeemed
+
+[[events.filters]]
+package = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+module  = "lending"
+# LoanIssued, LoanRepaid, LoanDefaulted
+
+[[events.filters]]
+package = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+module  = "system_sdk"
+# SystemAttestationEvent
+
+[[events.filters]]
+package = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+module  = "singleton"
+# SingletonAttestationIssued, SingletonAttestationRevoked

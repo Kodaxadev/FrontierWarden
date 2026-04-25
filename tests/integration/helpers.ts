@@ -1,25 +1,23 @@
-import { Ed25519Keypair, RawSigner } from '@mysten/sui/keypair/ed25519';
+import { createHash } from 'node:crypto';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiClient } from '@mysten/sui/client';
 
+// In @mysten/sui v1 the keypair is the signer — no separate RawSigner type.
 export interface TestPlayer {
   keypair: Ed25519Keypair;
-  signer: RawSigner;
   address: string;
   label: string;
 }
 
 /**
- * Derives a test keypair from a mnemonic for local testing.
+ * Deterministic test keypair derived from sha256(label:index).
  * DO NOT use in production — test wallets only.
  */
 export function deriveTestPlayer(label: string, index: number): TestPlayer {
-  // Deterministic test seed: label + index ensures unique keys per test
-  const seed = new TextEncoder().encode(`${label}:${index}`);
-  const keypair = Ed25519Keypair.fromSecretKey(
-    Buffer.from(seed.buffer) as unknown as Uint8Array
-  );
+  const seed = createHash('sha256').update(`${label}:${index}`).digest();
+  const keypair = Ed25519Keypair.fromSecretKey(seed);
   const address = keypair.getPublicKey().toSuiAddress();
-  return { keypair, address, label } as unknown as TestPlayer;
+  return { keypair, address, label };
 }
 
 /**
