@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #080c14;
+    color: #c0ccd8;
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+  }
+
+  /* Custom scrollbar — EVE dark style */
+  ::-webkit-scrollbar       { width: 4px; }
+  ::-webkit-scrollbar-track { background: #0d1420; }
+  ::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #00d4ff44; }
+
+  /* Sigma canvas should fill its container */
+  .sigma-container canvas {
+    display: block;
+  }
+}
