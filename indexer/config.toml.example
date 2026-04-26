@@ -1,0 +1,20 @@
+[network]
+rpc_url = "https://fullnode.devnet.sui.io:443"
+
+[package]
+# Canonical deployed package — do NOT re-publish; this address is the source of truth.
+id = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+
+# First checkpoint to index. 0 = from genesis. The deploy checkpoint was ~77;
+# set it here to skip pre-deploy history. Ignored if a cursor is already persisted.
+start_checkpoint = 77
+
+[database]
+url             = "postgres://postgres:password@localhost:5432/efrep"
+max_connections = 10
+
+[indexer]
+# Events fetched per RPC call. Sui fullnode caps at 1000.
+batch_size       = 100
+# Milliseconds to sleep when no new events are available.
+poll_interval_ms = 1000

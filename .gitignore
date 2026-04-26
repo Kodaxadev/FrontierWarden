@@ -4,3 +4,7 @@ node_modules/
 .blackboxcli/
 .claude/
 *.log
+
+# Indexer — live credentials, never commit
+indexer/config.toml
+indexer/target/

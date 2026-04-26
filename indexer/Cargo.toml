@@ -1,0 +1,32 @@
+[package]
+name    = "efrep-indexer"
+version = "0.1.0"
+edition = "2021"
+description = "Event indexer for the EVE Frontier Reputation Protocol on Sui devnet"
+
+[dependencies]
+# Sui RPC via JSON-RPC over HTTP — no git dep, fast compile, stable API
+reqwest = { version = "0.12", features = ["json"] }
+
+# PostgreSQL — runtime-tokio (no TLS needed for local dev)
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "json"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Config loading (TOML)
+toml = "0.8"
+
+# Structured logging
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# HTTP API server
+axum = "0.8"
+
+# Ergonomic error handling
+anyhow = "1"
