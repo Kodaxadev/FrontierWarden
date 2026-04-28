@@ -42,7 +42,7 @@ module reputation::profile {
         attestation_count: u64,
     }
 
-    // OracleCapability — issued by OracleRegistry only, authorizes score writes
+    // OracleCapability -- issued by OracleRegistry only, authorizes score writes
     public struct OracleCapability has key, store {
         id: UID,
         oracle_address: address,
@@ -50,7 +50,7 @@ module reputation::profile {
         issued_at: u64,
     }
 
-    // SystemCapability — for in-game contracts (CradleOS, Blood Contract, etc.)
+    // SystemCapability -- for in-game contracts (CradleOS, Blood Contract, etc.)
     public struct SystemCapability has key, store {
         id: UID,
         system_address: address,
@@ -58,7 +58,7 @@ module reputation::profile {
         issued_at: u64,
     }
 
-    // === Capability Issuance (package-internal — only OracleRegistry calls these) ===
+    // === Capability Issuance (package-internal -- only OracleRegistry calls these) ===
 
     public(package) fun issue_oracle_capability(
         oracle_address: address,
@@ -126,7 +126,7 @@ module reputation::profile {
         });
     }
 
-    // Requires OracleCapability — prevents unauthorized score writes
+    // Requires OracleCapability -- prevents unauthorized score writes
     public fun update_score(
         cap: &OracleCapability,
         profile: &mut ReputationProfile,
@@ -172,7 +172,7 @@ module reputation::profile {
         });
     }
 
-    // Score decay — oracle calls this on a schedule to fade inactive scores
+    // Score decay -- oracle calls this on a schedule to fade inactive scores
     public fun apply_decay(
         cap: &OracleCapability,
         profile: &mut ReputationProfile,
@@ -183,6 +183,8 @@ module reputation::profile {
         assert!(cap.oracle_address == tx_context::sender(ctx), ENotAuthorized);
         assert!(vector::contains(&cap.authorized_schemas, &schema_id), ENotAuthorized);
         assert!(decay_pct <= 100, EInvalidDecayPct);
+        // P3: zero-decay is a guaranteed no-op -- skip dynamic field access and event emission.
+        if (decay_pct == 0) { return };
 
         if (!dynamic_field::exists_(&profile.id, schema_id)) { return };
 

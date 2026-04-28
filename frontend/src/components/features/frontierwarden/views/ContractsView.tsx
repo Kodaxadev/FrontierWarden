@@ -1,0 +1,81 @@
+// ContractsView — contract queue with priority color coding
+
+import type { FwData, FwContract } from '../fw-data';
+
+type Priority = FwContract['priority'];
+
+const PRIORITY_COLOR: Record<Priority, string> = {
+  CRIT: 'var(--c-crimson)',
+  HIGH: 'var(--c-amber)',
+  MED:  'var(--c-mid)',
+  LOW:  'var(--c-lo)',
+};
+
+const STATE_LABEL: Record<string, string> = {
+  OPEN:    'c-badge--ok',
+  CLAIMED: 'c-badge--claimed',
+  EXPIRED: 'c-badge--expired',
+};
+
+interface Props { data: FwData; }
+
+export function ContractsView({ data }: Props) {
+  return (
+    <>
+      <div className="c-view__title">Contract Queue</div>
+
+      <table className="c-table">
+        <thead>
+          <tr>
+            <th>Priority</th>
+            <th>Contract</th>
+            <th>Kind</th>
+            <th>Target</th>
+            <th>Age</th>
+            <th style={{ textAlign: 'right' }}>Bounty</th>
+            <th style={{ textAlign: 'right' }}>State</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.contracts.map(c => (
+            <tr key={c.id}>
+              <td>
+                <span style={{
+                  display: 'inline-block',
+                  width: 3, height: 32,
+                  background: PRIORITY_COLOR[c.priority],
+                  verticalAlign: 'middle', marginRight: 10,
+                }} />
+                <span style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                  color: PRIORITY_COLOR[c.priority],
+                }}>
+                  {c.priority}
+                </span>
+              </td>
+              <td>
+                <div style={{ fontSize: 12 }}>{c.id}</div>
+              </td>
+              <td style={{ fontSize: 10, color: 'var(--c-mid)', letterSpacing: '0.08em' }}>
+                {c.kind}
+              </td>
+              <td style={{ fontSize: 12 }}>{c.target}</td>
+              <td style={{ fontSize: 11, color: 'var(--c-mid)' }}>{c.age}</td>
+              <td style={{
+                textAlign: 'right', fontSize: 14, fontWeight: 700,
+                color: 'var(--c-amber)', letterSpacing: '-0.02em',
+              }}>
+                {c.bounty}
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                <span className={`c-badge ${STATE_LABEL[c.state] ?? 'c-badge--claimed'}`}>
+                  {c.state}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}

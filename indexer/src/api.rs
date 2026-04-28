@@ -17,12 +17,12 @@ pub fn router(pool: PgPool) -> Router {
     START.get_or_init(Instant::now);
     Router::new()
         .route("/health",                            get(health))
-        .route("/scores/:profile_id",                get(scores_for_profile))
-        .route("/scores/:profile_id/:schema_id",     get(score_single))
-        .route("/attestations/:subject",             get(attestations_for_subject))
-        .route("/attestations/singleton/:item_id",   get(singleton_attestations))
-        .route("/leaderboard/:schema_id",            get(leaderboard))
-        .route("/intel/:system_id",                  get(system_intel))
+        .route("/scores/{profile_id}",                get(scores_for_profile))
+        .route("/scores/{profile_id}/{schema_id}",   get(score_single))
+        .route("/attestations/{subject}",            get(attestations_for_subject))
+        .route("/attestations/singleton/{item_id}",  get(singleton_attestations))
+        .route("/leaderboard/{schema_id}",           get(leaderboard))
+        .route("/intel/{system_id}",                 get(system_intel))
         .with_state(pool)
 }
 

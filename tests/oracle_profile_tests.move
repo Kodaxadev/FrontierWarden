@@ -16,7 +16,6 @@ module reputation::oracle_profile_tests {
     const ADMIN: address = @0xAD;
     const ORACLE: address = @0x0C;
     const PLAYER: address = @0xA1;
-    const COUNCIL_A: address = @0xC1;
     const VOUCHER: address = @0xCC;
     const BORROWER: address = @0xB0;
     const CREDIT_SCORE: u64 = 500;
@@ -24,10 +23,6 @@ module reputation::oracle_profile_tests {
 
     fun one_sui(): balance::Balance<SUI> {
         balance::create_for_testing<SUI>(1_000_000_000)
-    }
-
-    fun half_sui(): balance::Balance<SUI> {
-        balance::create_for_testing<SUI>(500_000_000)
     }
 
     // --- Oracle registration issues OracleCapability ---
@@ -217,70 +212,6 @@ module reputation::oracle_profile_tests {
 
             test_scenario::return_to_address(PLAYER, p);
             profile::destroy_oracle_capability(cap);
-        };
-
-        test_scenario::end(scenario_val);
-    }
-
-    // --- Council member cannot vote twice ---
-    #[test]
-    #[expected_failure(abort_code = oracle_registry::EAlreadyVoted)]
-    fun test_council_double_vote_rejected() {
-        let mut scenario_val = test_scenario::begin(ADMIN);
-        let scenario = &mut scenario_val;
-
-        test_scenario::next_tx(scenario, ADMIN);
-        { oracle_registry::init_for_testing(test_scenario::ctx(scenario)); };
-
-        // Add council member
-        test_scenario::next_tx(scenario, ADMIN);
-        {
-            let mut registry = test_scenario::take_shared<OracleRegistry>(scenario);
-            oracle_registry::add_council_member(&mut registry, COUNCIL_A, test_scenario::ctx(scenario));
-            test_scenario::return_shared(registry);
-        };
-
-        // Register oracle
-        test_scenario::next_tx(scenario, ORACLE);
-        {
-            let mut registry = test_scenario::take_shared<OracleRegistry>(scenario);
-            oracle_registry::register_oracle(&mut registry, b"BadOracle", vector[b"S1"], one_sui(), false, b"", false, test_scenario::ctx(scenario));
-            test_scenario::return_shared(registry);
-        };
-
-        // Create fraud challenge
-        test_scenario::next_tx(scenario, PLAYER);
-        {
-            let registry = test_scenario::take_shared<OracleRegistry>(scenario);
-            oracle_registry::create_fraud_challenge(
-                &registry,
-                sui::object::id_from_address(@0x99),
-                ORACLE,
-                b"evidence",
-                half_sui(),
-                test_scenario::ctx(scenario)
-            );
-            test_scenario::return_shared(registry);
-        };
-
-        // Vote 1 — OK
-        test_scenario::next_tx(scenario, COUNCIL_A);
-        {
-            let registry = test_scenario::take_shared<OracleRegistry>(scenario);
-            let mut challenge = test_scenario::take_shared<oracle_registry::FraudChallenge>(scenario);
-            oracle_registry::vote_on_challenge(&mut challenge, &registry, true, test_scenario::ctx(scenario));
-            test_scenario::return_shared(challenge);
-            test_scenario::return_shared(registry);
-        };
-
-        // Vote 2 — must fail with EAlreadyVoted
-        test_scenario::next_tx(scenario, COUNCIL_A);
-        {
-            let registry = test_scenario::take_shared<OracleRegistry>(scenario);
-            let mut challenge = test_scenario::take_shared<oracle_registry::FraudChallenge>(scenario);
-            oracle_registry::vote_on_challenge(&mut challenge, &registry, false, test_scenario::ctx(scenario));
-            test_scenario::return_shared(challenge);
-            test_scenario::return_shared(registry);
         };
 
         test_scenario::end(scenario_val);

@@ -9,7 +9,7 @@ description = "Event indexer for the EVE Frontier Reputation Protocol on Sui dev
 reqwest = { version = "0.12", features = ["json"] }
 
 # PostgreSQL — runtime-tokio (no TLS needed for local dev)
-sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "json"] }
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "json", "tls-native-tls"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

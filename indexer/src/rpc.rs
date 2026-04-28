@@ -51,15 +51,18 @@ impl RpcClient {
         Self { http: reqwest::Client::new(), url: url.into() }
     }
 
-    /// Fetch a page of events emitted by `package_id`, starting after `cursor`.
+    /// Fetch a page of events from a single Move module, starting after `cursor`.
     /// Returns events in ascending checkpoint order.
     pub async fn query_events(
         &self,
         package_id: &str,
+        module: &str,
         cursor: Option<&EventId>,
         limit: u32,
     ) -> Result<EventPage> {
-        let filter       = json!({ "Package": package_id });
+        let filter = json!({
+            "MoveModule": { "package": package_id, "module": module }
+        });
         let cursor_param = cursor.map(|c| json!(c)).unwrap_or(Value::Null);
 
         let body = json!({

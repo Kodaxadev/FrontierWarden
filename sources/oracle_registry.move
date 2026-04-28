@@ -1,13 +1,11 @@
 module reputation::oracle_registry {
     use std::vector;
-    use sui::object::{Self, UID, ID};
+    use sui::object::{Self, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::table::{Self, Table};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
-    use sui::coin;
-    use sui::vec_set::{Self, VecSet};
     use sui::event;
     use reputation::profile::{Self, OracleCapability, SystemCapability};
 
@@ -16,19 +14,13 @@ module reputation::oracle_registry {
     const EOracleAlreadyExists: u64 = 2;
     const EOracleNotFound: u64 = 3;
     const EInsufficientStake: u64 = 4;
-    const ENotCouncilMember: u64 = 6;
-    const EChallengeExpired: u64 = 7;
-    const EChallengeNotReady: u64 = 8;
-    const EAlreadyResolved: u64 = 9;
-    const EAlreadyVoted: u64 = 11;
     const ECapabilityMismatch: u64 = 13;
-    const ENotResolved: u64 = 14;
 
     // === Constants ===
     const MIN_STAKE: u64 = 1_000_000_000; // 1 SUI in MIST
-    const CHALLENGE_WINDOW_EPOCHS: u64 = 7;
-    const SLASH_PERCENTAGE: u64 = 10;
-    const CHALLENGER_REWARD_PERCENTAGE: u64 = 50;
+    // SLASH_PERCENTAGE and CHALLENGER_REWARD_PERCENTAGE live in fraud_challenge.move.
+    // They are passed as arguments to slash_oracle_stake so oracle_registry stays
+    // agnostic about fraud policy -- only fraud_challenge knows the percentages.
 
     // === Events ===
     public struct OracleRegistered has copy, drop {
@@ -36,19 +28,6 @@ module reputation::oracle_registry {
         name: vector<u8>,
         tee_verified: bool,
         is_system_oracle: bool,
-    }
-
-    public struct FraudChallengeCreated has copy, drop {
-        challenge_id: address,
-        attestation_id: ID,
-        challenger: address,
-        oracle: address,
-    }
-
-    public struct FraudChallengeResolved has copy, drop {
-        challenge_id: address,
-        guilty: bool,
-        slash_amount: u64,
     }
 
     // === Structs ===
@@ -83,23 +62,6 @@ module reputation::oracle_registry {
         staked_at: u64,
     }
 
-    // FIX: voters changed from Table<address,bool> to VecSet<address>
-    // VecSet has `drop`, preventing resource leak; O(n) lookup is fine for bounded council (max 9)
-    public struct FraudChallenge has key {
-        id: UID,
-        attestation_id: ID,
-        oracle: address,
-        challenger: address,
-        evidence_hash: vector<u8>,
-        challenger_stake: Balance<SUI>,
-        votes_guilty: u64,
-        votes_innocent: u64,
-        voters: VecSet<address>,
-        deadline_epoch: u64,
-        resolved: bool,
-        slash_amount: u64,
-    }
-
     // === Init ===
     fun init(ctx: &mut TxContext) {
         let registry = OracleRegistry {
@@ -115,9 +77,8 @@ module reputation::oracle_registry {
 
     // === Oracle Registration ===
 
-    // FIX: schemas_for_cap copied before move into OracleInfo (prevents use-after-move)
-    // FIX: separate branches — no type unification, no dummy capability objects
-    // FIX: use profile::get_oracle_address / get_system_address in add_schema functions
+    // schemas_for_cap is copied before move into OracleInfo (prevents use-after-move).
+    // Separate branches for system vs normal oracle -- no type unification required.
     public entry fun register_oracle(
         registry: &mut OracleRegistry,
         name: vector<u8>,
@@ -134,10 +95,7 @@ module reputation::oracle_registry {
         let min_required = if (is_system_oracle) { MIN_STAKE / 10 } else { MIN_STAKE };
         assert!(balance::value(&stake) >= min_required, EInsufficientStake);
 
-        // Get stake value before moving stake into struct
         let stake_val = balance::value(&stake);
-
-        // FIX: copy schemas before moving into struct so capability issuance can use them
         let schemas_for_cap = copy initial_schemas;
 
         let oracle = OracleInfo {
@@ -155,7 +113,6 @@ module reputation::oracle_registry {
         };
         table::add(&mut registry.oracles, sender, oracle);
 
-        // FIX: separate branches with no shared return type
         if (is_system_oracle) {
             let cap = profile::issue_system_capability(sender, schemas_for_cap, ctx);
             transfer::public_transfer(cap, sender);
@@ -167,8 +124,7 @@ module reputation::oracle_registry {
         event::emit(OracleRegistered { oracle_address: sender, name, tee_verified, is_system_oracle });
     }
 
-    // FIX: consumes old capability and issues fresh one with updated schema list
-    // FIX: uses profile::get_oracle_address() instead of private field access
+    // Consumes old capability and issues a fresh one with the updated schema list.
     public entry fun add_schema_to_oracle(
         registry: &mut OracleRegistry,
         old_cap: OracleCapability,
@@ -188,7 +144,6 @@ module reputation::oracle_registry {
         transfer::public_transfer(new_cap, sender);
     }
 
-    // FIX: uses profile::get_system_address() instead of private field access
     public entry fun add_schema_to_system_oracle(
         registry: &mut OracleRegistry,
         old_cap: SystemCapability,
@@ -209,6 +164,74 @@ module reputation::oracle_registry {
     }
 
     // === Delegation ===
+
+    // ---------------------------------------------------------------------------
+    // SPRINT 2 -- undelegate() implementation spec
+    // Do NOT implement until devnet publish is green (module upgrade compatibility
+    // must be verified before adding new on-chain objects/fields).
+    //
+    // STRUCT CHANGE -- replace Delegation with DelegatorPosition:
+    //
+    //   public struct DelegatorPosition has key, store {
+    //       id: UID,
+    //       oracle_id: address,
+    //       delegator: address,
+    //       shares: u64,        // proportional claim on oracle.staked_sui
+    //       staked_at: u64,
+    //   }
+    //
+    // FIELD CHANGE -- add to OracleInfo:
+    //
+    //   total_shares: u64,      // cumulative shares outstanding (starts at 0)
+    //
+    // UPDATE delegate() -- replace Delegation issuance with DelegatorPosition:
+    //
+    //   let balance_before = oracle.total_stake;   // snapshot before join
+    //   balance::join(&mut oracle.staked_sui, stake);
+    //   oracle.total_stake = oracle.total_stake + amount;
+    //   let shares = if (oracle.total_shares == 0) {
+    //       amount                                  // first deposit: 1 share per MIST
+    //   } else {
+    //       (amount * oracle.total_shares) / balance_before
+    //       // ROUNDING: truncates toward zero (user bears the loss on small
+    //       // deposits relative to total_shares). Same convention as Sui's
+    //       // staking_pool.move. Document and accept.
+    //   };
+    //   oracle.total_shares = oracle.total_shares + shares;
+    //   transfer::transfer(
+    //       DelegatorPosition { id: object::new(ctx), oracle_id: oracle_address,
+    //                           delegator: tx_context::sender(ctx),
+    //                           shares, staked_at: tx_context::epoch(ctx) },
+    //       tx_context::sender(ctx)
+    //   );
+    //
+    // NEW undelegate() entry function:
+    //
+    //   public entry fun undelegate(
+    //       registry: &mut OracleRegistry,
+    //       position: DelegatorPosition,
+    //       ctx: &mut TxContext
+    //   ) {
+    //       assert!(position.delegator == tx_context::sender(ctx), ENotAuthorized);
+    //       assert!(table::contains(&registry.oracles, position.oracle_id), EOracleNotFound);
+    //       let oracle = table::borrow_mut(&mut registry.oracles, position.oracle_id);
+    //       // Proportional withdrawal: shares/total_shares of current balance.
+    //       // Safe from divide-by-zero: total_shares >= position.shares > 0.
+    //       let withdraw_amount =
+    //           (balance::value(&oracle.staked_sui) * position.shares) / oracle.total_shares;
+    //       oracle.total_shares = oracle.total_shares - position.shares;
+    //       oracle.total_stake  = oracle.total_stake - withdraw_amount;
+    //       let payout = balance::split(&mut oracle.staked_sui, withdraw_amount);
+    //       let DelegatorPosition { id, oracle_id: _, delegator: _, shares: _, staked_at: _ }
+    //           = position;
+    //       object::delete(id);
+    //       transfer::public_transfer(coin::from_balance(payout, ctx), tx_context::sender(ctx));
+    //   }
+    //
+    // NOTE: undelegate() needs `coin` import added back to oracle_registry.move.
+    // NOTE: oracle reward distribution (sprint 3) uses the same total_shares field,
+    //       so the two features share one data structure with no further refactor needed.
+    // ---------------------------------------------------------------------------
 
     public entry fun delegate(
         registry: &mut OracleRegistry,
@@ -235,124 +258,6 @@ module reputation::oracle_registry {
         );
     }
 
-    // === Fraud Challenge System ===
-
-    public entry fun create_fraud_challenge(
-        registry: &OracleRegistry,
-        attestation_id: ID,
-        oracle_address: address,
-        evidence_hash: vector<u8>,
-        challenger_stake: Balance<SUI>,
-        ctx: &mut TxContext
-    ) {
-        assert!(table::contains(&registry.oracles, oracle_address), EOracleNotFound);
-        assert!(balance::value(&challenger_stake) >= MIN_STAKE / 2, EInsufficientStake);
-
-        let challenge_id;
-        let challenge = FraudChallenge {
-            id: object::new(ctx),
-            attestation_id,
-            oracle: oracle_address,
-            challenger: tx_context::sender(ctx),
-            evidence_hash,
-            challenger_stake,
-            votes_guilty: 0,
-            votes_innocent: 0,
-            voters: vec_set::empty(),
-            deadline_epoch: tx_context::epoch(ctx) + CHALLENGE_WINDOW_EPOCHS,
-            resolved: false,
-            slash_amount: 0,
-        };
-        challenge_id = object::id_address(&challenge);
-        transfer::share_object(challenge);
-
-        event::emit(FraudChallengeCreated {
-            challenge_id,
-            attestation_id,
-            challenger: tx_context::sender(ctx),
-            oracle: oracle_address,
-        });
-    }
-
-    // FIX: VecSet prevents double voting without needing Table lifecycle management
-    public entry fun vote_on_challenge(
-        challenge: &mut FraudChallenge,
-        registry: &OracleRegistry,
-        guilty: bool,
-        ctx: &mut TxContext
-    ) {
-        let sender = tx_context::sender(ctx);
-        assert!(table::contains(&registry.council, sender), ENotCouncilMember);
-        assert!(tx_context::epoch(ctx) <= challenge.deadline_epoch, EChallengeExpired);
-        assert!(!challenge.resolved, EAlreadyResolved);
-        assert!(!vec_set::contains(&challenge.voters, &sender), EAlreadyVoted);
-
-        vec_set::insert(&mut challenge.voters, sender);
-        if (guilty) {
-            challenge.votes_guilty = challenge.votes_guilty + 1;
-        } else {
-            challenge.votes_innocent = challenge.votes_innocent + 1;
-        };
-    }
-
-    public entry fun resolve_challenge(
-        challenge: &mut FraudChallenge,
-        registry: &mut OracleRegistry,
-        ctx: &mut TxContext
-    ) {
-        assert!(tx_context::epoch(ctx) > challenge.deadline_epoch, EChallengeNotReady);
-        assert!(!challenge.resolved, EAlreadyResolved);
-        challenge.resolved = true;
-
-        let quorum = registry.council_size * 2 / 3;
-        let total_votes = challenge.votes_guilty + challenge.votes_innocent;
-        let guilty = total_votes >= quorum && challenge.votes_guilty >= quorum;
-        let challenge_addr = object::id_address(challenge);
-
-        if (guilty) {
-            let oracle = table::borrow_mut(&mut registry.oracles, challenge.oracle);
-            let slash_amount = (oracle.total_stake * SLASH_PERCENTAGE) / 100;
-
-            if (slash_amount > 0) {
-                let mut slashed = balance::split(&mut oracle.staked_sui, slash_amount);
-                let reward = (slash_amount * CHALLENGER_REWARD_PERCENTAGE) / 100;
-                let reward_bal = balance::split(&mut slashed, reward);
-                transfer::public_transfer(coin::from_balance(reward_bal, ctx), challenge.challenger);
-                transfer::public_transfer(coin::from_balance(slashed, ctx), registry.treasury);
-                oracle.total_stake = oracle.total_stake - slash_amount;
-                oracle.slash_count = oracle.slash_count + 1;
-                oracle.reputation_score = oracle.reputation_score * (100 - SLASH_PERCENTAGE) / 100;
-                challenge.slash_amount = slash_amount;
-            };
-            transfer::public_transfer(
-                coin::from_balance(balance::withdraw_all(&mut challenge.challenger_stake), ctx),
-                challenge.challenger
-            );
-        } else {
-            let stake_half = balance::value(&challenge.challenger_stake) / 2;
-            let penalty = balance::split(&mut challenge.challenger_stake, stake_half);
-            transfer::public_transfer(coin::from_balance(penalty, ctx), registry.treasury);
-            transfer::public_transfer(
-                coin::from_balance(balance::withdraw_all(&mut challenge.challenger_stake), ctx),
-                challenge.challenger
-            );
-        };
-
-        event::emit(FraudChallengeResolved { challenge_id: challenge_addr, guilty, slash_amount: challenge.slash_amount });
-    }
-
-    // FIX: allows GC of resolved challenges — Balance is empty post-resolution, VecSet has drop
-    public entry fun delete_resolved_challenge(challenge: FraudChallenge, _ctx: &mut TxContext) {
-        assert!(challenge.resolved, ENotResolved);
-        let FraudChallenge {
-            id, attestation_id: _, oracle: _, challenger: _, evidence_hash: _,
-            challenger_stake, votes_guilty: _, votes_innocent: _, voters: _,
-            deadline_epoch: _, resolved: _, slash_amount: _,
-        } = challenge;
-        object::delete(id);
-        balance::destroy_zero(challenger_stake);
-    }
-
     // === Council Management ===
 
     public entry fun add_council_member(
@@ -365,6 +270,55 @@ module reputation::oracle_registry {
             table::add(&mut registry.council, member, true);
             registry.council_size = registry.council_size + 1;
         };
+    }
+
+    // === Bridge Functions (called by fraud_challenge.move) ===
+    // BRIDGE: These functions are coupling points between oracle_registry and
+    // fraud_challenge. If OracleRegistry fields (oracles, council) change shape,
+    // grep "// BRIDGE" in both files to find all affected sites.
+
+    /// BRIDGE -- Returns true if oracle_address is registered in the registry.
+    public fun contains_oracle(registry: &OracleRegistry, oracle: address): bool {
+        table::contains(&registry.oracles, oracle)
+    }
+
+    /// BRIDGE -- Returns true if addr is an active council member.
+    public fun is_council_member(registry: &OracleRegistry, addr: address): bool {
+        table::contains(&registry.council, addr)
+    }
+
+    /// BRIDGE -- Returns the current council member count (used for quorum calculation).
+    public fun get_council_size(registry: &OracleRegistry): u64 {
+        registry.council_size
+    }
+
+    /// BRIDGE -- Returns the treasury address (slash proceeds destination).
+    public fun get_treasury(registry: &OracleRegistry): address {
+        registry.treasury
+    }
+
+    /// BRIDGE -- Slashes an oracle's stake; returns (challenger_reward, treasury_amount, slash_total).
+    /// Caller is responsible for transferring both returned balances.
+    /// slash_pct and challenger_reward_pct are supplied by fraud_challenge.move so
+    /// oracle_registry stays agnostic about fraud policy.
+    public(package) fun slash_oracle_stake(
+        registry: &mut OracleRegistry,
+        oracle_addr: address,
+        slash_pct: u64,
+        challenger_reward_pct: u64,
+    ): (Balance<SUI>, Balance<SUI>, u64) {
+        let oracle = table::borrow_mut(&mut registry.oracles, oracle_addr);
+        let slash_amount = (oracle.total_stake * slash_pct) / 100;
+        if (slash_amount == 0) {
+            return (balance::zero(), balance::zero(), 0)
+        };
+        let mut slashed = balance::split(&mut oracle.staked_sui, slash_amount);
+        let reward = (slash_amount * challenger_reward_pct) / 100;
+        let reward_bal = balance::split(&mut slashed, reward);
+        oracle.total_stake = oracle.total_stake - slash_amount;
+        oracle.slash_count = oracle.slash_count + 1;
+        oracle.reputation_score = oracle.reputation_score * (100 - slash_pct) / 100;
+        (reward_bal, slashed, slash_amount)
     }
 
     // === View Functions ===
@@ -388,7 +342,9 @@ module reputation::oracle_registry {
     public fun is_system_oracle(info: &OracleInfo): bool { info.is_system_oracle }
     public fun get_reputation_score(info: &OracleInfo): u64 { info.reputation_score }
 
-    public fun is_valid_oracle_for_schema_via_cap(cap: &OracleCapability, schema_id: vector<u8>): bool {
+    public fun is_valid_oracle_for_schema_via_cap(
+        cap: &OracleCapability, schema_id: vector<u8>
+    ): bool {
         profile::is_schema_authorized(cap, schema_id)
     }
 

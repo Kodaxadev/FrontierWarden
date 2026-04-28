@@ -1,0 +1,103 @@
+// Typed fetch wrappers for the Rust/Axum REST API.
+// All reads go through /api (proxied to localhost:3000 in dev via vite.config.ts).
+// Write tx goes through /gas (proxied to gas station on localhost:3001 in dev).
+
+import type {
+  HealthResponse,
+  ScoreRow,
+  AttestationRow,
+  LeaderboardEntry,
+  SystemIntelResponse,
+} from '../types/api.types';
+
+const BASE     = import.meta.env.VITE_API_BASE         ?? '/api';
+const GAS_BASE = import.meta.env.VITE_GAS_STATION_URL  ?? '/gas';
+
+async function get<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`);
+  if (!res.ok) {
+    throw new Error(`API ${path} -> ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// ── Health ────────────────────────────────────────────────────────────────────
+
+export const fetchHealth = (): Promise<HealthResponse> =>
+  get('/health');
+
+// ── Scores ────────────────────────────────────────────────────────────────────
+
+export const fetchScores = (profileId: string): Promise<ScoreRow[]> =>
+  get(`/scores/${encodeURIComponent(profileId)}`);
+
+export const fetchScore = (
+  profileId: string,
+  schemaId: string,
+): Promise<ScoreRow | null> =>
+  get(`/scores/${encodeURIComponent(profileId)}/${encodeURIComponent(schemaId)}`);
+
+// ── Attestations ──────────────────────────────────────────────────────────────
+
+export interface AttestationFilter {
+  schema_id?: string;
+  limit?:     number;
+  revoked?:   boolean;
+}
+
+export function fetchAttestations(
+  subject: string,
+  filter: AttestationFilter = {},
+): Promise<AttestationRow[]> {
+  const params = new URLSearchParams();
+  if (filter.schema_id) params.set('schema_id', filter.schema_id);
+  if (filter.limit     != null) params.set('limit',     String(filter.limit));
+  if (filter.revoked   != null) params.set('revoked',   String(filter.revoked));
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return get(`/attestations/${encodeURIComponent(subject)}${qs}`);
+}
+
+// ── Leaderboard ───────────────────────────────────────────────────────────────
+
+export const fetchLeaderboard = (
+  schemaId: string,
+  limit = 50,
+): Promise<LeaderboardEntry[]> =>
+  get(`/leaderboard/${encodeURIComponent(schemaId)}?limit=${limit}`);
+
+// ── Intel ─────────────────────────────────────────────────────────────────────
+
+export const fetchIntel = (systemId: string): Promise<SystemIntelResponse> =>
+  get(`/intel/${encodeURIComponent(systemId)}`);
+
+// ── Gas station ───────────────────────────────────────────────────────────────
+// POST /gas/sponsor-attestation (proxied to localhost:3001 in dev)
+
+export interface SponsorRequest {
+  /** Base64-encoded tx kind bytes (Transaction.build({ onlyTransactionKind: true })). */
+  txKindBytes: string;
+  /** Sender wallet address -- must match the signing wallet. */
+  sender: string;
+  /** Optional gas budget override (MIST). Defaults to server MAX_GAS_BUDGET. */
+  gasBudget?: number;
+}
+
+export interface SponsorResponse {
+  /** Base64-encoded full tx bytes with gas envelope set by sponsor. */
+  txBytes: string;
+  /** Sponsor's Ed25519 signature over txBytes. */
+  sponsorSignature: string;
+}
+
+export async function sponsorAttestation(req: SponsorRequest): Promise<SponsorResponse> {
+  const res = await fetch(`${GAS_BASE}/sponsor-attestation`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`Gas station ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<SponsorResponse>;
+}

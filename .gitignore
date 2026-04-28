@@ -8,6 +8,7 @@ node_modules/
 # Indexer — live credentials, never commit
 indexer/config.toml
 indexer/target/
+SPONSOR_KEYPAIR
 
 # Frontend
 frontend/node_modules/

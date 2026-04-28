@@ -1,5 +1,5 @@
 // Item-level reputation: ship provenance, combat history, ownership chain.
-// Addresses the "Singleton attestations" gap — CCP whitepaper explicitly calls for
+// Addresses the "Singleton attestations" gap -- CCP whitepaper explicitly calls for
 // "proving a ship was owned by a famous fleet commander or fought in a battle."
 module reputation::singleton {
     use std::option;
@@ -47,7 +47,7 @@ module reputation::singleton {
 
     // === Public Functions ===
 
-    // Returns attestation to caller — caller transfers to item owner or wraps in item object
+    // Returns attestation to caller -- caller transfers to item owner or wraps in item object
     public fun issue_singleton_attestation(
         schema_registry: &SchemaRegistry,
         oracle_registry: &OracleRegistry,

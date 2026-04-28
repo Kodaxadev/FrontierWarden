@@ -28,22 +28,24 @@ async fn init_indexer_state(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn load_cursor(pool: &PgPool) -> Result<Option<String>> {
+pub async fn load_cursor(pool: &PgPool, key: &str) -> Result<Option<String>> {
     let row: Option<(String,)> = sqlx::query_as(
-        "SELECT value FROM indexer_state WHERE key = 'event_cursor'",
+        "SELECT value FROM indexer_state WHERE key = $1",
     )
+    .bind(key)
     .fetch_optional(pool)
     .await?;
     Ok(row.map(|(v,)| v))
 }
 
-pub async fn save_cursor(pool: &PgPool, cursor_json: &str) -> Result<()> {
+pub async fn save_cursor(pool: &PgPool, key: &str, cursor_json: &str) -> Result<()> {
     sqlx::query(
         "INSERT INTO indexer_state (key, value, updated_at)
-         VALUES ('event_cursor', $1, NOW())
+         VALUES ($1, $2, NOW())
          ON CONFLICT (key) DO UPDATE
              SET value = EXCLUDED.value, updated_at = NOW()",
     )
+    .bind(key)
     .bind(cursor_json)
     .execute(pool)
     .await?;

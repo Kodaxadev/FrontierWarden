@@ -60,7 +60,7 @@ module reputation::lending {
         defaulted: bool,
     }
 
-    // Admin capability — minted once at init, held by deployer
+    // Admin capability -- minted once at init, held by deployer
     public struct LendingCapability has key, store {
         id: UID,
         lending_module: address,
@@ -157,19 +157,29 @@ module reputation::lending {
 
     // FIX: actually performs vouch slash and marks loan defaulted
     // FIX: uses LendingCapability as access gate
+    // FIX: recover loan.collateral to lender -- was permanently locked before this patch
     public entry fun slash_defaulted_vouch(
         loan: &mut Loan,
         vouch: &mut Vouch,
         _cap: &LendingCapability,
-        _ctx: &mut TxContext
+        ctx: &mut TxContext
     ) {
         assert!(loan.borrower == vouch::get_vouchee(vouch), EMismatch);
         assert!(loan.defaulted, ELoanNotDefaulted);
 
-        let slashed = vouch::slash_for_default(vouch, _ctx);
+        // Slash the vouch stake     lender
+        let slashed = vouch::slash_for_default(vouch, ctx);
         let slash_amount = balance::value(&slashed);
+        transfer::public_transfer(coin::from_balance(slashed, ctx), loan.lender);
 
-        transfer::public_transfer(coin::from_balance(slashed, _ctx), loan.lender);
+        // FIX: also recover the loan collateral to the lender.
+        // Prior to this patch, loan.collateral was sealed in the Loan object
+        // with no recovery path once defaulted == true.
+        let collateral_amount = balance::value(&loan.collateral);
+        if (collateral_amount > 0) {
+            let collateral = balance::withdraw_all(&mut loan.collateral);
+            transfer::public_transfer(coin::from_balance(collateral, ctx), loan.lender);
+        };
 
         event::emit(LoanDefaulted {
             loan_id: object::id_address(loan),

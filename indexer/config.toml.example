@@ -18,3 +18,15 @@ max_connections = 10
 batch_size       = 100
 # Milliseconds to sleep when no new events are available.
 poll_interval_ms = 1000
+
+[sponsor]
+# Gas station sponsor keypair (suiprivkey1... format).
+# Required to sign sponsored transactions. Set via env var: SPONSOR_KEYPAIR=...
+# or in this config. If both are set, env var takes precedence.
+# WARNING: Never commit this to version control. Use .gitignore and env vars in production.
+keypair = ""
+
+# Rate limit for sponsor requests (requests per second).
+# Set to 0 for unlimited (not recommended for production).
+# Default: 10 req/s
+rate_limit = 10

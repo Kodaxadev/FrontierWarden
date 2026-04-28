@@ -10,9 +10,11 @@ use crate::{
     rpc::{EventId, RpcClient},
 };
 
-// system_heat is a materialized view over kill_mails; refresh it every 5 min.
-// CONCURRENTLY means reads are not blocked during refresh (requires unique index
-// on system_heat.system_id — added in 0002_efrep_indexes.sql).
+const MODULES: &[&str] = &[
+    "schema_registry", "profile", "attestation", "oracle_registry",
+    "vouch", "lending", "system_sdk", "singleton",
+];
+
 const HEAT_REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 
 pub fn spawn_heat_refresh(pool: PgPool) {
@@ -30,50 +32,58 @@ pub fn spawn_heat_refresh(pool: PgPool) {
     });
 }
 
-/// Main indexer loop. Polls `suix_queryEvents` for the deployed package,
-/// dispatches each event through the processor, and persists the cursor so
-/// restarts resume from where they left off.
+/// Main indexer loop. Polls each Move module separately (the devnet fullnode
+/// does not support Package or Any filters), persists a cursor per module so
+/// restarts resume correctly.
 pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
     let rpc        = RpcClient::new(&cfg.network.rpc_url);
     let package_id = cfg.package.id.clone();
 
-    let mut cursor: Option<EventId> = restore_cursor(&pool).await;
-    if cursor.is_none() {
-        info!(
-            deploy_checkpoint = cfg.package.start_checkpoint,
-            "no saved cursor — indexing from genesis (suix_queryEvents will return all package events)"
-        );
+    // Load saved cursors for each module.
+    let mut cursors: Vec<(&str, Option<EventId>)> = Vec::with_capacity(MODULES.len());
+    for &module in MODULES {
+        let cursor = restore_cursor(&pool, module).await;
+        cursors.push((module, cursor));
     }
 
-    info!(package = %package_id, "indexer started");
+    info!(
+        package = %package_id,
+        deploy_checkpoint = cfg.package.start_checkpoint,
+        "indexer started ({} modules)",
+        MODULES.len()
+    );
 
     loop {
-        let page = match rpc.query_events(&package_id, cursor.as_ref(), cfg.indexer.batch_size).await {
-            Ok(p)  => p,
-            Err(e) => {
-                warn!("RPC query failed, backing off: {e:#}");
-                sleep(Duration::from_millis(cfg.indexer.poll_interval_ms * 5)).await;
-                continue;
+        let mut any_new = false;
+
+        for (module, cursor) in &mut cursors {
+            let page = match rpc.query_events(&package_id, module, cursor.as_ref(), cfg.indexer.batch_size).await {
+                Ok(p)  => p,
+                Err(e) => {
+                    warn!(module, "RPC query failed, skipping: {e:#}");
+                    continue;
+                }
+            };
+
+            let count = page.data.len();
+            for ev in &page.data {
+                processor::process(&pool, ev).await;
             }
-        };
 
-        let count = page.data.len();
-        for ev in &page.data {
-            processor::process(&pool, ev).await;
+            if count > 0 {
+                info!(module, count, "processed event batch");
+            }
+            if count > 0 || page.has_next_page {
+                any_new = true;
+            }
+
+            if let Some(next) = page.next_cursor {
+                persist_cursor(&pool, module, &next).await;
+                *cursor = Some(next);
+            }
         }
 
-        if count > 0 {
-            info!(count, "processed event batch");
-        }
-
-        // Advance cursor whether or not there are more pages — the fullnode returns
-        // next_cursor even on the last page so we resume correctly after new events arrive.
-        if let Some(next) = page.next_cursor {
-            persist_cursor(&pool, &next).await;
-            cursor = Some(next);
-        }
-
-        if !page.has_next_page {
+        if !any_new {
             sleep(Duration::from_millis(cfg.indexer.poll_interval_ms)).await;
         }
     }
@@ -81,21 +91,27 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
 
 // ── Cursor helpers ────────────────────────────────────────────────────────────
 
-async fn restore_cursor(pool: &PgPool) -> Option<EventId> {
-    let json = db::load_cursor(pool).await.ok()??;
+fn cursor_key(module: &str) -> String {
+    format!("cursor:{module}")
+}
+
+async fn restore_cursor(pool: &PgPool, module: &str) -> Option<EventId> {
+    let key  = cursor_key(module);
+    let json = db::load_cursor(pool, &key).await.ok()??;
     match serde_json::from_str::<EventId>(&json) {
-        Ok(c)  => { info!(tx = %c.tx_digest, seq = %c.event_seq, "restored cursor"); Some(c) }
-        Err(e) => { warn!("cursor JSON invalid, starting from genesis: {e}"); None }
+        Ok(c)  => { info!(module, tx = %c.tx_digest, seq = %c.event_seq, "restored cursor"); Some(c) }
+        Err(e) => { warn!(module, "cursor JSON invalid, starting from genesis: {e}"); None }
     }
 }
 
-async fn persist_cursor(pool: &PgPool, cursor: &EventId) {
+async fn persist_cursor(pool: &PgPool, module: &str, cursor: &EventId) {
+    let key = cursor_key(module);
     match serde_json::to_string(cursor) {
         Ok(json) => {
-            if let Err(e) = db::save_cursor(pool, &json).await {
-                warn!("cursor persist failed: {e:#}");
+            if let Err(e) = db::save_cursor(pool, &key, &json).await {
+                warn!(module, "cursor persist failed: {e:#}");
             }
         }
-        Err(e) => warn!("cursor serialize failed: {e}"),
+        Err(e) => warn!(module, "cursor serialize failed: {e}"),
     }
 }

@@ -93,6 +93,8 @@ module reputation::schema_registry {
         event::emit(SchemaRegistered { schema_id, version, resolver });
     }
 
+    // Re-deprecation is intentional: governance can correct a wrong successor
+    // by calling this again. superseded_by will be overwritten with the new value.
     public entry fun deprecate_schema(
         registry: &mut SchemaRegistry,
         old_schema_id: vector<u8>,
@@ -140,7 +142,7 @@ module reputation::schema_registry {
         schema.superseded_by
     }
 
-    // FIX: public accessors for Schema private fields — needed by attestation.move and singleton.move
+    // FIX: public accessors for Schema private fields -- needed by attestation.move and singleton.move
     public fun get_resolver(schema: &Schema): &Option<address> {
         &schema.resolver
     }

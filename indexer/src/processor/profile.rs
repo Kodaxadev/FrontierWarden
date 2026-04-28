@@ -43,6 +43,19 @@ async fn score_updated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
 
+    // score_cache.schema_id has a FK → schemas(schema_id).
+    // update_score on-chain does NOT require the schema to be in SchemaRegistry
+    // (it only checks OracleCapability.authorized_schemas). Guard: synthesise a
+    // schemas row so the FK never blocks a legitimate score write.
+    sqlx::query(
+        "INSERT INTO schemas (schema_id, version, registered_tx)
+         VALUES ($1, 1, 'synthetic-score-update')
+         ON CONFLICT (schema_id) DO NOTHING",
+    )
+    .bind(&schema_id)
+    .execute(pool)
+    .await?;
+
     sqlx::query(
         "INSERT INTO score_cache
              (profile_id, schema_id, value, issuer, last_tx_digest, last_checkpoint)

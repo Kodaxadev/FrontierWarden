@@ -3,7 +3,7 @@ module reputation::attestation {
     use sui::object::{Self, UID, ID};
     use sui::tx_context::{Self, TxContext};
     use sui::event;
-    // FIX: missing imports — schema and oracle registries are same-package dependencies
+    // FIX: missing imports -- schema and oracle registries are same-package dependencies
     use reputation::schema_registry::{Self, SchemaRegistry};
     use reputation::oracle_registry::{Self, OracleRegistry};
 
@@ -123,4 +123,49 @@ module reputation::attestation {
     public fun get_subject(attestation: &Attestation): address {
         attestation.subject
     }
+
+    public fun get_schema_id(attestation: &Attestation): vector<u8> {
+        attestation.schema_id
+    }
+
+    public fun is_revoked(attestation: &Attestation): bool {
+        attestation.revoked
+    }
+
+    // === Test Helpers ===
+
+    /// Bypass oracle validation and construct an Attestation with explicit fields.
+    /// Allows unit tests to inject expired, revoked, or wrong-subject attestations
+    /// without wiring up a full oracle/schema registry.
+    #[test_only]
+    public fun create_for_testing(
+        schema_id:        vector<u8>,
+        issuer:           address,
+        subject:          address,
+        value:            u64,
+        expiration_epoch: u64,
+        revoked:          bool,
+        ctx:              &mut TxContext,
+    ): Attestation {
+        Attestation {
+            id: object::new(ctx),
+            schema_id,
+            issuer,
+            subject,
+            value,
+            expiration_epoch,
+            revoked,
+            issued_at: tx_context::epoch(ctx),
+        }
+    }
+
+    /// Destroy an Attestation in tests (needed to clean up owned objects that
+    /// were not consumed by check_passage or transfer).
+    #[test_only]
+    public fun destroy_for_testing(attestation: Attestation) {
+        let Attestation { id, schema_id: _, issuer: _, subject: _, value: _,
+                          expiration_epoch: _, revoked: _, issued_at: _ } = attestation;
+        object::delete(id);
+    }
+
 }
