@@ -6,7 +6,7 @@
 # ============================================================
 #
 # Prerequisites:
-#   1. Install Sui CLI: cargo install --git https://github.com/MystenLabs/sui --branch devnet sui
+#   1. Install Sui CLI.
 #   2. Derive or import a devnet-funded keystore key:
 #      sui keytool new
 #   3. Request devnet SUI from the faucet (https://faucet.devnet.sui.io/gas)
@@ -55,12 +55,13 @@ echo " Deployer : $ACTIVE_ADDRESS"
 # Dry-run first to catch any compile errors
 echo ""
 echo "[1/2] Compiling package..."
-sui move build
+sui move build --build-env testnet
 
 echo ""
 echo "[2/2] Publishing to $NETWORK..."
 PUBLISH_OUTPUT=$(sui client publish \
   --json \
+  --build-env testnet \
   --gas-budget "$GAS_BUDGET" \
   "$KEYSTORE_PATH" \
   2>&1)

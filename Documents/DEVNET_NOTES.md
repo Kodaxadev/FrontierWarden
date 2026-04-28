@@ -12,6 +12,8 @@ you'll need after each reset so you're not re-discovering the same fixes.
 | Package ID         | `0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37` |
 | Published at       | `2026-04-25 13:45 UTC`        |
 | Devnet epoch       | `77` (at publish time)        |
+| Active client env  | `devnet`                     |
+| Move build env     | `testnet`                    |
 | Sui CLI version    | `(check with: sui --version)` |
 | Move edition       | `2024.beta`                   |
 
@@ -55,7 +57,8 @@ Remove-Item -Recurse -Force -Path "C:\path\to\dir"
 
 ```bash
 cd /mnt/c/Users/Justi/Downloads/Alpha/EFRep
-sui client publish --gas-budget 200000000
+sui client switch --env devnet
+sui client publish --build-env testnet --gas-budget 200000000
 ```
 
 After a successful publish, capture the `PackageID` from the output and update
@@ -87,10 +90,10 @@ sui client active-address
 sui client balance
 
 # Run all tests before publish
-sui move test
+sui move test --build-env testnet
 
 # Publish
-sui client publish --gas-budget 200000000
+sui client publish --build-env testnet --gas-budget 200000000
 
 # Query a shared object (substitute real ID)
 sui client object <OBJECT_ID>
@@ -108,6 +111,9 @@ sui client call \
 
 ## Known Issues
 
+- **Build env naming**: The active Sui client env is `devnet`, but Move
+  framework dependencies currently resolve with `--build-env testnet`. Plain
+  `sui move test` is expected to fail with a dependency environment error.
 - **Windows path errors**: Always use WSL2 for CLI operations (see above).
 - **Devnet epoch resets to 0**: FraudChallenge deadlines use `tx_context::epoch`.
   After a reset, epoch-dependent tests pass cleanly but devnet timeline restarts.

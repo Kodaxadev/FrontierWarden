@@ -8,6 +8,10 @@ import type {
   AttestationRow,
   LeaderboardEntry,
   SystemIntelResponse,
+  GateSummaryRow,
+  GatePolicyRow,
+  GatePassageRow,
+  FraudChallengeRow,
 } from '../types/api.types';
 
 const BASE     = import.meta.env.VITE_API_BASE         ?? '/api';
@@ -72,6 +76,33 @@ export const fetchIntel = (systemId: string): Promise<SystemIntelResponse> =>
 
 // ── Gas station ───────────────────────────────────────────────────────────────
 // POST /gas/sponsor-attestation (proxied to localhost:3001 in dev)
+
+export const fetchGates = (): Promise<GateSummaryRow[]> =>
+  get('/gates');
+
+export const fetchGate = (gateId: string): Promise<GateSummaryRow | null> =>
+  get(`/gates/${encodeURIComponent(gateId)}`);
+
+export const fetchGatePolicy = (gateId: string): Promise<GatePolicyRow | null> =>
+  get(`/gates/${encodeURIComponent(gateId)}/policy`);
+
+export const fetchGatePassages = (
+  gateId: string,
+  limit = 50,
+): Promise<GatePassageRow[]> =>
+  get(`/gates/${encodeURIComponent(gateId)}/passages?limit=${limit}`);
+
+export const fetchChallenges = (limit = 50): Promise<FraudChallengeRow[]> =>
+  get(`/challenges?limit=${limit}`);
+
+export const fetchChallenge = (challengeId: string): Promise<FraudChallengeRow | null> =>
+  get(`/challenges/${encodeURIComponent(challengeId)}`);
+
+export const fetchOracleChallenges = (
+  oracle: string,
+  limit = 50,
+): Promise<FraudChallengeRow[]> =>
+  get(`/oracles/${encodeURIComponent(oracle)}/challenges?limit=${limit}`);
 
 export interface SponsorRequest {
   /** Base64-encoded tx kind bytes (Transaction.build({ onlyTransactionKind: true })). */

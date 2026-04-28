@@ -16,7 +16,7 @@ export function FwHeader({ data }: FwHeaderProps) {
 
       <div className="c-header__chain">
         <span className="c-header__dot" />
-        <span>MAINNET</span>
+        <span>DEVNET</span>
         <span className="c-header__sep">·</span>
         <span>BLOCK 18,402,114</span>
         <span className="c-header__sep">·</span>

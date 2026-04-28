@@ -1,8 +1,10 @@
 pub mod attestation;
+pub mod fraud_challenge;
 pub mod lending;
 pub mod oracle_registry;
 pub mod profile;
 pub mod raw;
+pub mod reputation_gate;
 pub mod schema_registry;
 pub mod singleton;
 pub mod system_sdk;
@@ -35,6 +37,8 @@ pub async fn process(pool: &PgPool, ev: &SuiEvent) {
         "oracle_registry" => oracle_registry::handle(pool, ev).await,
         "vouch"           => vouch::handle(pool, ev).await,
         "lending"         => lending::handle(pool, ev).await,
+        "fraud_challenge" => fraud_challenge::handle(pool, ev).await,
+        "reputation_gate" => reputation_gate::handle(pool, ev).await,
         "system_sdk"      => system_sdk::handle(pool, ev).await,
         "singleton"       => singleton::handle(pool, ev).await,
         other => {

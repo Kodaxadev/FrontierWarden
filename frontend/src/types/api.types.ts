@@ -58,6 +58,53 @@ export interface SystemIntelResponse {
   system_contested: GateIntelEntry | null;
 }
 
+export interface GateSummaryRow {
+  gate_id:           string;
+  ally_threshold:    number | null;
+  base_toll_mist:    number | null;
+  config_updated_at: string | null;
+  latest_checkpoint: number | null;
+  passages_24h:      number;
+  denies_24h:        number;
+}
+
+export interface GatePolicyRow {
+  gate_id:        string;
+  ally_threshold: number;
+  base_toll_mist: number;
+  tx_digest:      string;
+  checkpoint_seq: number;
+  indexed_at:     string;
+}
+
+export interface GatePassageRow {
+  gate_id:        string;
+  traveler:       string;
+  allowed:        boolean;
+  score:          number | null;
+  toll_paid:      number | null;
+  tier:           number | null;
+  reason:         number | null;
+  epoch:          number;
+  tx_digest:      string;
+  checkpoint_seq: number;
+  indexed_at:     string;
+}
+
+export interface FraudChallengeRow {
+  challenge_id:   string;
+  attestation_id: string;
+  challenger:     string;
+  oracle:         string;
+  created_tx:     string;
+  created_at:     string;
+  resolved:       boolean;
+  guilty:         boolean | null;
+  slash_amount:   number | null;
+  resolved_tx:    string | null;
+  resolved_at:    string | null;
+}
+
 // Derived threat level for UI rendering
 export type ThreatLevel = 'hostile' | 'camped' | 'clear' | 'unknown';
 

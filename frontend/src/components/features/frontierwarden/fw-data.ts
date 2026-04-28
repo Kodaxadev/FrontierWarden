@@ -16,6 +16,8 @@ export interface FwGate {
   id: string; from: string; to: string;
   status: 'open' | 'camped' | 'toll' | 'closed';
   toll: string; traffic: number; policy: string; updated: string; threat?: string;
+  sourceId?: string;
+  checkpoint?: number | null;
 }
 
 export interface FwKill {

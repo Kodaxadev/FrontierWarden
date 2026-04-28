@@ -10,9 +10,10 @@ use crate::{
     rpc::{EventId, RpcClient},
 };
 
-const MODULES: &[&str] = &[
+pub const TRACKED_MODULES: &[&str] = &[
     "schema_registry", "profile", "attestation", "oracle_registry",
-    "vouch", "lending", "system_sdk", "singleton",
+    "vouch", "lending", "fraud_challenge", "reputation_gate",
+    "system_sdk", "singleton",
 ];
 
 const HEAT_REFRESH_INTERVAL: Duration = Duration::from_secs(300);
@@ -40,8 +41,8 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
     let package_id = cfg.package.id.clone();
 
     // Load saved cursors for each module.
-    let mut cursors: Vec<(&str, Option<EventId>)> = Vec::with_capacity(MODULES.len());
-    for &module in MODULES {
+    let mut cursors: Vec<(&str, Option<EventId>)> = Vec::with_capacity(TRACKED_MODULES.len());
+    for &module in TRACKED_MODULES {
         let cursor = restore_cursor(&pool, module).await;
         cursors.push((module, cursor));
     }
@@ -50,7 +51,7 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
         package = %package_id,
         deploy_checkpoint = cfg.package.start_checkpoint,
         "indexer started ({} modules)",
-        MODULES.len()
+        TRACKED_MODULES.len()
     );
 
     loop {
@@ -113,5 +114,16 @@ async fn persist_cursor(pool: &PgPool, module: &str, cursor: &EventId) {
             }
         }
         Err(e) => warn!(module, "cursor serialize failed: {e}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TRACKED_MODULES;
+
+    #[test]
+    fn tracks_operational_protocol_modules() {
+        assert!(TRACKED_MODULES.contains(&"fraud_challenge"));
+        assert!(TRACKED_MODULES.contains(&"reputation_gate"));
     }
 }

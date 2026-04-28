@@ -119,12 +119,16 @@ export function useSubmitIntel(): UseSubmitIntelReturn {
 
       // -- Step 4: execute -----------------------------------------------------
       setState({ step: 'executing', digest: null, error: null });
-      const result = await client.executeTransaction({
+      const result = await client.core.executeTransaction({
         transaction: fromBase64(txBytes),
         signatures:  [sponsorSignature, signed.signature],
       });
 
-      setState({ step: 'done', digest: result.digest, error: null });
+      if (result.$kind === 'FailedTransaction') {
+        throw new Error(`Transaction failed: ${result.FailedTransaction.digest}`);
+      }
+
+      setState({ step: 'done', digest: result.Transaction.digest, error: null });
 
     } catch (err) {
       setState({ step: 'error', digest: null, error: humaniseError(err) });

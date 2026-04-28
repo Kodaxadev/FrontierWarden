@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "test:integration": "vitest run tests/integration",
-    "test": "sui move test",
-    "build": "sui move build",
+    "test": "sui move test --build-env testnet",
+    "build": "sui move build --build-env testnet",
     "register:schemas": "tsx scripts/register-schemas.ts",
     "register:schemas:dry": "cross-env DRY_RUN=1 tsx scripts/register-schemas.ts",
     "seed:devnet":  "tsx scripts/seed-devnet.ts",

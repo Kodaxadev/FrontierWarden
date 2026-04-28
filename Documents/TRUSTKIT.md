@@ -487,13 +487,13 @@ SPONSOR_MIN_BALANCE=1000  # SUI — alert if below
 
 - **Devnet resets wipe all deployed packages.** Package IDs in `config.ts` must be updated after every deploy. [^from project overview]
 - **Testnet addresses are the stable reference** — once published to testnet, IDs persist.
-- **Current status:** Package live on Sui devnet as of April 25, 2026. Indexer running, 9 schemas registered, all API endpoints operational. See `DEVNET_NOTES.md` for package ID and deployment details.
+- **Current status:** Package live on Sui devnet as of April 25, 2026. Active client env is `devnet`; Move dependency resolution uses `--build-env testnet`. Indexer tracks all 10 protocol modules, with `fraud_challenge` and `reputation_gate` currently raw-only. See `DEVNET_NOTES.md` for package ID and deployment details.
 
 ### 7.2 Windows Development Issues
 
 Your team is developing on Windows, which creates known friction with the Sui CLI:
 - Path resolution differences (`Move.toml` paths, artifact directories)
-- `sui move test` vs `sui client publish` behavior gaps
+- `sui move test --build-env testnet` vs `sui client publish --build-env testnet` behavior gaps
 - Terminal encoding issues with Move compiler output
 
 **Recommendation:** Maintain a `DEVNET_NOTES.md` at repo root tracking:
@@ -503,10 +503,14 @@ Your team is developing on Windows, which creates known friction with the Sui CL
 
 ### 7.3 Build Order Recommendation
 
+Current stabilization priority: gate/challenge projections first, frontend
+live-data pass second, and cross-package checks with
+`sui move test --build-env testnet`.
+
 | Priority | Task | Blocker |
 |---|---|---|
 | 1 | Gas station endpoint | None — unblocks testnet gate integration |
-| 2 | Frontend dapp-kit migration + visual pass | Gas station (dep) |
+| 2 | Frontend live-data pass | Needs typed gate/challenge API for full coverage |
 | 3 | Cross-package consistency test | None — parallelize with 1–2 |
 | 4 | `undelegate()` implementation | Green deploy |
 | 5 | TrustKit API (mock mode) | None — can parallelize |
