@@ -1,23 +1,21 @@
+# Build and dependencies
 build/
 node_modules/
+frontend/dist/
+frontend/node_modules/
+indexer/target/
+
+# IDE and tools
+.vscode/
 .blackbox/
 .blackboxcli/
 .claude/
+
+# Logs and research
 *.log
+.logs/
 research/
 UI_Mockups/
-
-# Indexer — live credentials, never commit
-
-# Indexer — live credentials, never commit
-indexer/config.toml
-indexer/target/
-SPONSOR_KEYPAIR
-
-# Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.env.local
 
 # Private/Strategic docs
 private_docs/
@@ -30,6 +28,11 @@ private_docs/
 *.seed
 config.local.toml
 Pub.local.toml
+SPONSOR_KEYPAIR
+indexer/config.toml
+frontend/.env.local
+
+# Database dumps
 *.db
 *.sql
 *.dump
