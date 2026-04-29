@@ -19,8 +19,8 @@
     "eve",
     "web3"
   ],
-  "author": "CCP",
-  "license": "MIT",
+  "author": "Kodaxadev",
+  "license": "BUSL-1.1",
   "dependencies": {
     "@evefrontier/dapp-kit": "^0.1.9",
     "@mysten/sui": "^1.0.0"

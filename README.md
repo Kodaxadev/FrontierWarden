@@ -143,3 +143,15 @@ Before production:
 - Keep database credentials out of committed config.
 
 See [SECURITY.md](./SECURITY.md) for the security model and disclosure policy.
+
+## License
+
+FrontierWarden / Sui TrustKit is licensed under the **Business Source License 1.1** (BSL).
+
+- **Non-Commercial Use**: You are free to use, modify, and redistribute the software for non-commercial purposes.
+- **Commercial Use**: Any production use for commercial purposes requires a separate commercial license from Kodaxadev.
+- **Data Protection**: This license does not grant rights to the proprietary data or datasets processed by the system. Unauthorized scraping or extraction of reputation data is prohibited.
+
+The software will automatically convert to the **Apache License, Version 2.0** on April 29, 2030.
+
+See [LICENSE](./LICENSE) for the full text.
