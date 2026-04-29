@@ -1,24 +1,24 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{SuiEvent, event_name, field_addr, field_str, field_u64};
+use crate::rpc::{event_name, field_addr, field_str, field_u64, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
-        "AttestationIssued"  => attestation_issued(pool, ev).await,
+        "AttestationIssued" => attestation_issued(pool, ev).await,
         "AttestationRevoked" => attestation_revoked(pool, ev).await,
-        _                    => Ok(()),
+        _ => Ok(()),
     }
 }
 
 // AttestationIssued → INSERT INTO attestations
 async fn attestation_issued(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p              = &ev.parsed_json;
+    let p = &ev.parsed_json;
     let attestation_id = field_addr(p, "attestation_id")?;
-    let schema_id      = field_str(p, "schema_id")?;
-    let issuer         = field_addr(p, "issuer")?;
-    let subject        = field_addr(p, "subject")?;
-    let value          = field_u64(p, "value")?;
+    let schema_id = field_str(p, "schema_id")?;
+    let issuer = field_addr(p, "issuer")?;
+    let subject = field_addr(p, "subject")?;
+    let value = field_u64(p, "value")?;
 
     sqlx::query(
         "INSERT INTO attestations
@@ -40,9 +40,9 @@ async fn attestation_issued(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 
 // AttestationRevoked → UPDATE attestations SET revoked = TRUE
 async fn attestation_revoked(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p              = &ev.parsed_json;
+    let p = &ev.parsed_json;
     let attestation_id = field_addr(p, "attestation_id")?;
-    let revoker        = field_addr(p, "revoker")?;
+    let revoker = field_addr(p, "revoker")?;
 
     sqlx::query(
         "UPDATE attestations

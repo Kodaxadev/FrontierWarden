@@ -4,15 +4,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { useWallets } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import type { UiWallet } from '@wallet-standard/ui';
+import { fetchGateWithdrawals } from '../../../../lib/api';
 import { useUpdateGatePolicy } from '../../../../hooks/useUpdateGatePolicy';
 import { useWithdrawTolls } from '../../../../hooks/useWithdrawTolls';
 import { gatePolicyConfigReady, missingGatePolicyConfig } from '../../../../lib/tx-gate-policy';
 import { LiveStatus } from '../LiveStatus';
+import { TollWithdrawalLedger } from '../TollWithdrawalLedger';
 import type { FwData } from '../fw-data';
+import type { TollWithdrawalRow } from '../../../../types/api.types';
+import { FALLBACK_POLICIES } from '../policy-fixtures';
 
 const ADMIN_WALLET =
   import.meta.env.VITE_GATE_ADMIN_OWNER
-  ?? '0xcfcf2247346d7a0676e2018168f94b86e1d1263fd3afd6862685725c8c49db8f';
+  ?? '0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f';
 const EVE_WALLET_NAME = 'Eve Vault';
 const EVE_SPONSORED_FEATURE = 'evefrontier:sponsoredTransaction';
 // wallet.features is IdentifierArray (readonly string[]) — use .includes(), not `in`
@@ -24,35 +28,7 @@ const eveWalletModalOptions = {
   sortFn: (a: UiWallet, b: UiWallet) => Number(isEveWallet(b)) - Number(isEveWallet(a)),
 };
 
-const POLICIES = [
-  {
-    label:  'Standing Threshold',
-    value:  62,
-    pct:    0.062,
-    min:    'Enemy  −1000',
-    max:    'Ally 1000+',
-    note:   'Pass at +247 or above · neutral bracket',
-    unit:   '62',
-  },
-  {
-    label:  'Pirate Index Cap',
-    value:  73,
-    pct:    0.73,
-    min:    'Clean  0',
-    max:    'Wanted  100',
-    note:   'Deny transit above 73 · override: CRIT contract',
-    unit:   '73',
-  },
-  {
-    label:  'Toll Bracket',
-    value:  28,
-    pct:    0.28,
-    min:    'Free  (Ally)',
-    max:    '10×  (Enemy)',
-    note:   'Neutral pass at 2.0× base · approx 14M ISK / transit',
-    unit:   '2.0×',
-  },
-];
+const POLICIES = FALLBACK_POLICIES;
 interface Props { data?: FwData; live?: boolean; loading?: boolean; error?: string | null; }
 const formatSui = (mist: number) =>
   mist === 0 ? '0 SUI' : `${(mist / 1_000_000_000).toFixed(3)} SUI`;
@@ -66,6 +42,8 @@ export function PolicyView({ data, live = false, loading = false, error = null }
   const policy = data?.policy;
   const [draftThreshold, setDraftThreshold] = useState(policy?.allyThreshold ?? 62);
   const [draftTollMist, setDraftTollMist] = useState(policy?.baseTollMist ?? 0);
+  const [withdrawals, setWithdrawals] = useState<TollWithdrawalRow[]>([]);
+  const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
   const pilot = data?.pilot;
   const selectedGate = data?.gates.find(g => g.sourceId === policy?.gateId) ?? data?.gates[0];
   const standingProof = data?.proofs.find(p => p.schema === 'TRIBE_STANDING')
@@ -79,7 +57,7 @@ export function PolicyView({ data, live = false, loading = false, error = null }
   const missingConfig = useMemo(() => missingGatePolicyConfig(), []);
   const configReady = gatePolicyConfigReady();
   const draftValid = Number.isInteger(draftThreshold)
-    && draftThreshold > 0
+    && draftThreshold >= 0
     && Number.isInteger(draftTollMist)
     && draftTollMist >= 0;
   const txBusy = ['building', 'sponsoring', 'signing', 'executing'].includes(txState.step);
@@ -88,7 +66,7 @@ export function PolicyView({ data, live = false, loading = false, error = null }
   const eveWallets = wallets.filter(isEveWallet);
   const detectedWallets = eveWallets.length > 0 ? eveWallets : wallets;
   // When EVE Vault is absent fall back to showing all wallets in the connect modal
-  // (e.g. Slush, Sui Wallet) so dev testing isn't blocked on EVE Vault being installed.
+  // so dev testing isn't blocked on EVE Vault being installed.
   const connectModalOptions = eveWallets.length > 0 ? eveWalletModalOptions : {};
   const connectLabel = eveWallets.length > 0 ? 'CONNECT EVE WALLET' : 'CONNECT WALLET';
   const detectedWalletText = detectedWallets.length > 0
@@ -114,6 +92,27 @@ export function PolicyView({ data, live = false, loading = false, error = null }
     setDraftThreshold(policy.allyThreshold);
     setDraftTollMist(policy.baseTollMist);
   }, [policy?.allyThreshold, policy?.baseTollMist]);
+
+  useEffect(() => {
+    if (!policy?.gateId) {
+      setWithdrawals([]);
+      return;
+    }
+
+    let cancelled = false;
+    fetchGateWithdrawals(policy.gateId, 5)
+      .then(rows => {
+        if (!cancelled) {
+          setWithdrawals(rows);
+          setWithdrawalError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setWithdrawalError(err instanceof Error ? err.message : String(err));
+      });
+
+    return () => { cancelled = true; };
+  }, [policy?.gateId, wdState.step]);
 
   const policyCards = policy
     ? [
@@ -280,7 +279,7 @@ export function PolicyView({ data, live = false, loading = false, error = null }
             <input
               className="c-input"
               inputMode="numeric"
-              min={1}
+              min={0}
               step={1}
               type="number"
               value={draftThreshold}
@@ -389,6 +388,8 @@ export function PolicyView({ data, live = false, loading = false, error = null }
           </span>
         )}
       </div>
+
+      <TollWithdrawalLedger error={withdrawalError} rows={withdrawals} />
     </>
   );
 }

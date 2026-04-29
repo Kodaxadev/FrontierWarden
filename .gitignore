@@ -4,6 +4,8 @@ node_modules/
 .blackboxcli/
 .claude/
 *.log
+research/
+UI_Mockups/
 
 # Indexer — live credentials, never commit
 indexer/config.toml

@@ -66,6 +66,12 @@ module reputation::reputation_gate {
         base_toll_mist:  u64,
     }
 
+    public struct TollsWithdrawn has copy, drop {
+        gate_id: ID,
+        owner:   address,
+        amount:  u64,
+    }
+
     // === Structs ===
 
     /// Shared object -- deployed once per gate. Stores policy params + toll accumulator.
@@ -248,7 +254,8 @@ module reputation::reputation_gate {
         if (amount > 0) {
             let payout = coin::from_balance(balance::split(&mut gate.treasury, amount), ctx);
             transfer::public_transfer(payout, gate.owner);
-        }
+        };
+        event::emit(TollsWithdrawn { gate_id: object::id(gate), owner: gate.owner, amount });
     }
 
     // === View Functions ===

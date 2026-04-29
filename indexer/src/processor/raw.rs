@@ -1,20 +1,37 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{SuiEvent, event_name};
+use crate::rpc::{event_name, SuiEvent};
 
-/// Appends every incoming Sui event to the raw_events firehose.
+/// Appends a Sui event to the raw firehose once.
 ///
-/// This runs before the type-specific projection handler so the audit log
-/// is always complete — even if a projection insert fails, the raw record
-/// exists for replay.
-pub async fn insert(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
+/// Returns false when the event has already been indexed. The caller should
+/// skip projections in that case, because the original pass already handled it.
+pub async fn insert(pool: &PgPool, ev: &SuiEvent) -> Result<bool> {
     let event_seq: i64 = ev.id.event_seq.parse().unwrap_or(0);
-    let checkpoint_seq: i64 = ev.checkpoint.as_deref()
+    let checkpoint_seq: i64 = ev
+        .checkpoint
+        .as_deref()
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
-    let timestamp_ms: Option<i64> = ev.timestamp_ms.as_deref()
-        .and_then(|s| s.parse().ok());
+    let timestamp_ms: Option<i64> = ev.timestamp_ms.as_deref().and_then(|s| s.parse().ok());
+    let mut tx = pool.begin().await?;
+
+    let inserted: Option<(String,)> = sqlx::query_as(
+        "INSERT INTO raw_event_dedup (tx_digest, event_seq)
+         VALUES ($1, $2)
+         ON CONFLICT (tx_digest, event_seq) DO NOTHING
+         RETURNING tx_digest",
+    )
+    .bind(&ev.id.tx_digest)
+    .bind(event_seq)
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    if inserted.is_none() {
+        tx.commit().await?;
+        return Ok(false);
+    }
 
     sqlx::query(
         "INSERT INTO raw_events
@@ -32,8 +49,9 @@ pub async fn insert(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     .bind(ev.sender.as_deref())
     .bind(timestamp_ms)
     .bind(&ev.parsed_json)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
 
-    Ok(())
+    tx.commit().await?;
+    Ok(true)
 }

@@ -1,23 +1,23 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{SuiEvent, event_name, field_addr, field_opt_addr, field_str, field_u64};
+use crate::rpc::{event_name, field_addr, field_opt_addr, field_str, field_u64, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
-        "SchemaRegistered"      => schema_registered(pool, ev).await,
-        "SchemaDeprecated"      => schema_deprecated(pool, ev).await,
+        "SchemaRegistered" => schema_registered(pool, ev).await,
+        "SchemaDeprecated" => schema_deprecated(pool, ev).await,
         "GovernanceTransferred" => governance_transferred(pool, ev).await,
-        _                       => Ok(()),
+        _ => Ok(()),
     }
 }
 
 // SchemaRegistered → INSERT INTO schemas
 async fn schema_registered(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p         = &ev.parsed_json;
+    let p = &ev.parsed_json;
     let schema_id = field_str(p, "schema_id")?;
-    let version   = field_u64(p, "version")?;
-    let resolver  = field_opt_addr(p, "resolver");
+    let version = field_u64(p, "version")?;
+    let resolver = field_opt_addr(p, "resolver");
 
     sqlx::query(
         "INSERT INTO schemas (schema_id, version, resolver, registered_tx)
@@ -36,7 +36,7 @@ async fn schema_registered(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 
 // SchemaDeprecated → UPDATE schemas SET deprecated_by / deprecated_tx / deprecated_at
 async fn schema_deprecated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p      = &ev.parsed_json;
+    let p = &ev.parsed_json;
     let old_id = field_str(p, "old_schema_id")?;
     let new_id = field_str(p, "new_schema_id")?;
 
@@ -58,8 +58,8 @@ async fn schema_deprecated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 
 // GovernanceTransferred → INSERT INTO governance_history
 async fn governance_transferred(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p              = &ev.parsed_json;
-    let old_admin      = field_opt_addr(p, "old_admin");
+    let p = &ev.parsed_json;
+    let old_admin = field_opt_addr(p, "old_admin");
     let new_governance = field_addr(p, "new_governance")?;
 
     sqlx::query(

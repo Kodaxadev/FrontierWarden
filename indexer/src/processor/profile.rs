@@ -1,21 +1,21 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{SuiEvent, event_name, field_addr, field_str, field_u64};
+use crate::rpc::{event_name, field_addr, field_str, field_u64, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
         "ProfileCreated" => profile_created(pool, ev).await,
-        "ScoreUpdated"   => score_updated(pool, ev).await,
-        _                => Ok(()),
+        "ScoreUpdated" => score_updated(pool, ev).await,
+        _ => Ok(()),
     }
 }
 
 // ProfileCreated → INSERT INTO profiles
 async fn profile_created(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p          = &ev.parsed_json;
+    let p = &ev.parsed_json;
     let profile_id = field_addr(p, "profile_id")?;
-    let owner      = field_addr(p, "owner")?;
+    let owner = field_addr(p, "owner")?;
 
     sqlx::query(
         "INSERT INTO profiles (profile_id, owner, created_tx)
@@ -34,12 +34,14 @@ async fn profile_created(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // ScoreUpdated → UPSERT score_cache
 // new_value wins; old_value is only used for analytics via raw_events.
 async fn score_updated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p          = &ev.parsed_json;
+    let p = &ev.parsed_json;
     let profile_id = field_addr(p, "profile_id")?;
-    let schema_id  = field_str(p, "schema_id")?;
-    let new_value  = field_u64(p, "new_value")?;
-    let issuer     = field_addr(p, "issuer")?;
-    let checkpoint: i64 = ev.checkpoint.as_deref()
+    let schema_id = field_str(p, "schema_id")?;
+    let new_value = field_u64(p, "new_value")?;
+    let issuer = field_addr(p, "issuer")?;
+    let checkpoint: i64 = ev
+        .checkpoint
+        .as_deref()
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
 

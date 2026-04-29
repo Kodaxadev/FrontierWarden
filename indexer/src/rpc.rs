@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 // ── Wire types ────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,11 @@ pub struct SuiEvent {
     #[serde(rename = "timestampMs")]
     pub timestamp_ms: Option<String>,
     pub checkpoint: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TransactionBlock {
+    checkpoint: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -43,12 +49,15 @@ pub struct EventPage {
 
 pub struct RpcClient {
     http: reqwest::Client,
-    url:  String,
+    url: String,
 }
 
 impl RpcClient {
     pub fn new(url: impl Into<String>) -> Self {
-        Self { http: reqwest::Client::new(), url: url.into() }
+        Self {
+            http: reqwest::Client::new(),
+            url: url.into(),
+        }
     }
 
     /// Fetch a page of events from a single Move module, starting after `cursor`.
@@ -72,7 +81,8 @@ impl RpcClient {
             "params":  [filter, cursor_param, limit, false]
         });
 
-        let resp: Value = self.http
+        let resp: Value = self
+            .http
             .post(&self.url)
             .json(&body)
             .send()
@@ -86,8 +96,67 @@ impl RpcClient {
             anyhow::bail!("Sui RPC error: {err}");
         }
 
-        let result = resp.get("result").context("missing 'result' in RPC response")?;
-        serde_json::from_value(result.clone()).context("EventPage deserialize failed")
+        let result = resp
+            .get("result")
+            .context("missing 'result' in RPC response")?;
+        let mut page: EventPage =
+            serde_json::from_value(result.clone()).context("EventPage deserialize failed")?;
+        self.fill_missing_checkpoints(&mut page.data).await?;
+        Ok(page)
+    }
+
+    async fn fill_missing_checkpoints(&self, events: &mut [SuiEvent]) -> Result<()> {
+        let mut cache = HashMap::<String, Option<String>>::new();
+
+        for ev in events.iter_mut().filter(|ev| ev.checkpoint.is_none()) {
+            let checkpoint = match cache.get(&ev.id.tx_digest) {
+                Some(cached) => cached.clone(),
+                None => {
+                    let checkpoint = self.transaction_checkpoint(&ev.id.tx_digest).await?;
+                    cache.insert(ev.id.tx_digest.clone(), checkpoint.clone());
+                    checkpoint
+                }
+            };
+            ev.checkpoint = checkpoint;
+        }
+
+        Ok(())
+    }
+
+    async fn transaction_checkpoint(&self, tx_digest: &str) -> Result<Option<String>> {
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id":      1,
+            "method":  "sui_getTransactionBlock",
+            "params":  [tx_digest, {
+                "showInput": false,
+                "showRawInput": false,
+                "showEffects": false,
+                "showEvents": false,
+                "showObjectChanges": false,
+                "showBalanceChanges": false
+            }]
+        });
+
+        let resp: Value = self
+            .http
+            .post(&self.url)
+            .json(&body)
+            .send()
+            .await
+            .context("transaction checkpoint RPC HTTP request failed")?
+            .json()
+            .await
+            .context("transaction checkpoint response JSON decode failed")?;
+
+        if let Some(err) = resp.get("error") {
+            anyhow::bail!("Sui transaction RPC error: {err}");
+        }
+
+        let result = resp.get("result").context("missing transaction 'result'")?;
+        let tx: TransactionBlock = serde_json::from_value(result.clone())
+            .context("TransactionBlock deserialize failed")?;
+        Ok(tx.checkpoint)
     }
 }
 
@@ -105,10 +174,13 @@ pub fn event_name(type_: &str) -> &str {
 /// If the value is already a string (e.g. a pre-decoded representation),
 /// it is returned as-is.
 pub fn field_str(payload: &Value, key: &'static str) -> Result<String> {
-    let v = payload.get(key).with_context(|| format!("missing field '{key}'"))?;
+    let v = payload
+        .get(key)
+        .with_context(|| format!("missing field '{key}'"))?;
     match v {
         Value::Array(arr) => {
-            let bytes: Vec<u8> = arr.iter()
+            let bytes: Vec<u8> = arr
+                .iter()
                 .filter_map(|n| n.as_u64().map(|b| b as u8))
                 .collect();
             String::from_utf8(bytes)
@@ -124,15 +196,16 @@ pub fn field_str(payload: &Value, key: &'static str) -> Result<String> {
 /// Plain addresses arrive as "0x..." strings.
 /// `ID` structs arrive as {"bytes": "0x..."} in some SDK versions.
 pub fn field_addr(payload: &Value, key: &'static str) -> Result<String> {
-    let v = payload.get(key).with_context(|| format!("missing field '{key}'"))?;
+    let v = payload
+        .get(key)
+        .with_context(|| format!("missing field '{key}'"))?;
     match v {
         Value::String(s) => Ok(s.clone()),
-        Value::Object(obj) => {
-            obj.get("bytes")
-                .and_then(|b| b.as_str())
-                .map(|s| s.to_owned())
-                .with_context(|| format!("field '{key}': no 'bytes' key in ID object"))
-        }
+        Value::Object(obj) => obj
+            .get("bytes")
+            .and_then(|b| b.as_str())
+            .map(|s| s.to_owned())
+            .with_context(|| format!("field '{key}': no 'bytes' key in ID object")),
         _ => anyhow::bail!("field '{key}': expected string or ID object"),
     }
 }
@@ -152,11 +225,15 @@ pub fn field_opt_addr(payload: &Value, key: &'static str) -> Option<String> {
 /// Parse a `u64` field. Sui encodes large integers as JSON strings to avoid
 /// JS precision loss, so we handle both string and number representations.
 pub fn field_u64(payload: &Value, key: &'static str) -> Result<i64> {
-    let v = payload.get(key).with_context(|| format!("missing field '{key}'"))?;
+    let v = payload
+        .get(key)
+        .with_context(|| format!("missing field '{key}'"))?;
     match v {
-        Value::String(s) => s.parse::<i64>()
+        Value::String(s) => s
+            .parse::<i64>()
             .with_context(|| format!("field '{key}': cannot parse '{s}' as i64")),
-        Value::Number(n) => n.as_i64()
+        Value::Number(n) => n
+            .as_i64()
             .with_context(|| format!("field '{key}': number out of i64 range")),
         _ => anyhow::bail!("field '{key}': expected string or number"),
     }
@@ -164,7 +241,8 @@ pub fn field_u64(payload: &Value, key: &'static str) -> Result<i64> {
 
 /// Parse a bool field.
 pub fn field_bool(payload: &Value, key: &'static str) -> Result<bool> {
-    payload.get(key)
+    payload
+        .get(key)
         .and_then(|v| v.as_bool())
         .with_context(|| format!("missing bool field '{key}'"))
 }

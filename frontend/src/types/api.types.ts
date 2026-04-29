@@ -95,6 +95,16 @@ export interface GatePassageRow {
   indexed_at:     string;
 }
 
+export interface TollWithdrawalRow {
+  gate_id:        string;
+  owner:          string;
+  amount_mist:    number;
+  tx_digest:      string;
+  event_seq:      number;
+  checkpoint_seq: number;
+  indexed_at:     string;
+}
+
 export interface FraudChallengeRow {
   challenge_id:   string;
   attestation_id: string;
@@ -107,6 +117,16 @@ export interface FraudChallengeRow {
   slash_amount:   number | null;
   resolved_tx:    string | null;
   resolved_at:    string | null;
+}
+
+export interface ChallengeStatsRow {
+  total:         number;
+  active:        number;
+  resolved:      number;
+  guilty_count:  number;
+  cleared_count: number;
+  total_slashed: number;
+  guilty_rate:   number | null;
 }
 
 export interface VouchRow {
@@ -147,6 +167,68 @@ export interface ProfileRow {
   owner:      string;
   created_tx: string;
   created_at: string;
+}
+
+export type TrustDecision = 'ALLOW_FREE' | 'ALLOW_TAXED' | 'DENY' | 'INSUFFICIENT_DATA';
+
+export type TrustReason =
+  | 'ALLOW_FREE'
+  | 'ALLOW_TAXED'
+  | 'DENY_SCORE_BELOW_THRESHOLD'
+  | 'DENY_NO_STANDING_ATTESTATION'
+  | 'DENY_GATE_PAUSED'
+  | 'DENY_GATE_HOSTILE'
+  | 'DENY_ATTESTATION_REVOKED'
+  | 'DENY_ATTESTATION_EXPIRED'
+  | 'ERROR_GATE_NOT_FOUND'
+  | 'ERROR_UNSUPPORTED_ACTION';
+
+export interface TrustEvaluateRequest {
+  entity: string;
+  action: 'gate_access' | string;
+  context: {
+    gateId: string;
+    schemaId?: string;
+  };
+}
+
+export interface TrustRequirements {
+  schema: string;
+  threshold: number | null;
+  minimumPassScore: number;
+}
+
+export interface TrustObserved {
+  score: number | null;
+  attestationId: string | null;
+}
+
+export interface TrustProof {
+  gateId: string;
+  subject: string;
+  checkpoint: number | null;
+  source: 'indexed_protocol_state' | string;
+  schemas: string[];
+  attestationIds: string[];
+  txDigests: string[];
+  warnings: string[];
+}
+
+export interface TrustEvaluateResponse {
+  decision: TrustDecision;
+  allow: boolean;
+  tollMultiplier: number | null;
+  tollMist: number | null;
+  confidence: number;
+  reason: TrustReason;
+  explanation: string;
+  subject: string;
+  gateId: string;
+  score: number | null;
+  threshold: number | null;
+  requirements: TrustRequirements;
+  observed: TrustObserved;
+  proof: TrustProof;
 }
 
 // Derived threat level for UI rendering

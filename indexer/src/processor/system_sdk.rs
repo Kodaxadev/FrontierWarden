@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{SuiEvent, event_name, field_addr, field_str, field_u64};
+use crate::rpc::{event_name, field_addr, field_str, field_u64, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     if event_name(&ev.type_) == "SystemAttestationEvent" {
@@ -15,10 +15,10 @@ pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // Note: `timestamp` in the Move event is the Sui epoch number, stored as sui_timestamp.
 // The UNIQUE constraint on (tx_digest, schema_id, subject) prevents double-inserts.
 async fn system_attestation(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p             = &ev.parsed_json;
-    let schema_id     = field_str(p, "schema_id")?;
-    let subject       = field_addr(p, "subject")?;
-    let value         = field_u64(p, "value")?;
+    let p = &ev.parsed_json;
+    let schema_id = field_str(p, "schema_id")?;
+    let subject = field_addr(p, "subject")?;
+    let value = field_u64(p, "value")?;
     let system_oracle = field_addr(p, "system_oracle")?;
     let sui_timestamp = field_u64(p, "timestamp")?;
 

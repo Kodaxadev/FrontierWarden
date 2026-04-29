@@ -1,283 +1,437 @@
 # FrontierWarden Updated Roadmap
 
+Last updated: 2026-04-29
+
 ## Current Baseline
 
-The project has crossed from concept into a credible infrastructure prototype.
-The Move protocol is the strongest part of the system: profiles, schema
-registry, oracle registry, attestations, vouching, lending, fraud challenges,
-system SDK helpers, singleton attestations, and reputation-gated passage are all
-implemented. The current Move suite passes 36/36 tests with:
+FrontierWarden is now a working trust-protocol prototype on Sui testnet.
+The strongest surface is the protocol plus indexer/API spine:
 
-```bash
-sui move test --build-env testnet
-```
+- Move test suite passes `38/38` with `sui move test --build-env testnet`.
+- Current upgraded package: `0xe41ddd1a2126af8b4bae52ea0526959f76b4e4f445c1054a53cbecfb15ac0ea2`.
+- Original package/type origin: `0xfd1b1315f9002b65ac2a214d2b7d312db75836c8e67f8f00a747206b5a61876c`.
+- Upgrade proof tx: `5818FL8UHSiUvMYsWycLFDEudRtEAQNpm4eQuKoGGpaa`.
+- The frontend build passes and all current operator tabs compile.
+- The release indexer is running against Supabase through `EFREP_DATABASE_URL`.
+- Supabase public `anon` and `authenticated` table/function grants are revoked; the Rust API is the controlled read surface.
+- `raw_events` is replay-safe through `raw_event_dedup`, while projections can still be replayed to repair handler bugs.
 
-The frontend now builds, the indexer tracks all 10 protocol modules, and the
-docs now state the current network posture:
+Live proven flows:
 
-- Active Sui client environment: `testnet`
-- Move dependency build environment: `testnet`
+- Sponsored `SEAL & COMMIT` gate policy update.
+- Sponsored `check_passage`, indexed into `gate_passages`.
+- Sponsored `withdraw_tolls`, indexed into `toll_withdrawals`.
+- Schema/oracle/profile/attestation/vouch seed data.
+- API-backed schema, oracle, profile, vouch, gate, passage, withdrawal, attestation, leaderboard, and challenge routes.
+- Trust decision API v0:
+  - `POST /v1/trust/evaluate`
+  - `POST /v1/trust/explain`
+  - `POST /v1/cradleos/gate/evaluate`
+  - Live smoke proof: Slush `TRIBE_STANDING` returns `ALLOW_FREE`; the EVE wallet currently returns `DENY` with `NO_STANDING_ATTESTATION`.
+- Trust API integration docs now live at `Documents/TRUST_API.md`.
+- Local TypeScript client now lives at `sdk/trustkit`.
+- Frontend has a `TRUST` tab for direct API demos.
 
-The remaining work is product completion: broad live frontend data, operator
-workflows, smart-gate demo paths, and production hardening.
+## Wallet And Currency Note
 
-Latest implementation pass:
-
-- `reputation_gate` and `fraud_challenge` events now have typed indexer
-  processors.
-- Gate passage/config and fraud challenge projections now have database
-  migrations.
-- The API exposes gates, gate policy, gate passages, challenges, and
-  oracle-specific challenges.
-- The frontend has typed fetchers and a live-data adapter for the
-  FrontierWarden gate view, with static design data kept as the empty-indexer
-  fallback.
-- The header now reports live indexed checkpoint freshness instead of a
-  hardcoded block, and the frontend bundle is split into app, React, and dapp
-  chunks.
-- A first GUI/UX hardening pass added compact live-state badges, better
-  responsive behavior, horizontal table safety, and clearer disabled-action
-  affordances.
-- The testnet package, schema registry, oracle registry, gate policy, live
-  schema registration, oracle seed, and killboard singleton feed are wired.
-- Indexer database credentials now load from `EFREP_DATABASE_URL`; checked-in
-  config must not contain live database URLs.
-
----
-
-## Phase 1: Truthful Live Backend
-
-Goal: make the indexer and API represent the real protocol surface.
-
-### Gate Projections
-
-Add typed projections for `reputation_gate` events:
-
-- [done] Gate threshold/policy updated
-- [done] Passage granted
-- [done] Passage denied
-- [blocked by protocol events] Gate created
-- [blocked by protocol events] Toll charged as a standalone event
-- [blocked by protocol events] Gate paused/unpaused
-- [blocked by protocol events] Toll withdrawal
-
-### Fraud Challenge Projections
-
-Add typed projections for `fraud_challenge` events:
-
-- [done] Challenge created
-- [done] Challenge resolved
-- [done] Verdict, status, challenged oracle, challenged attestation, and slash amount
-- [blocked by protocol events] Vote cast
-- [blocked by protocol events] Challenge deleted
-
-### API Endpoints
-
-Add REST endpoints for the projected data:
+Primary game wallet for EVE Frontier work:
 
 ```text
-GET /gates
-GET /gates/:id
-GET /gates/:id/passages
-GET /gates/:id/policy
-GET /challenges
-GET /challenges/:id
-GET /oracles/:address/challenges
+0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f
 ```
 
-Current status:
+This EVE Wallet should become the default game-context wallet for future
+in-game/browser integration tests. Current test flows still use SUI because no
+EVT balance is available. Later toll/payment work must abstract the payment
+coin instead of assuming SUI-only economics.
 
-- [done] `GET /gates`
-- [done] `GET /gates/:id`
-- [done] `GET /gates/:id/passages`
-- [done] `GET /gates/:id/policy`
-- [done] `GET /challenges`
-- [done] `GET /challenges/:id`
-- [done] `GET /oracles/:address/challenges`
+Evidence and caution:
 
-### Completion Bar
+- EVE Frontier's roadmap states Sui migration/testnet first, then `$EVE` on Sui mainnet later. Source: [EVE Frontier Roadmap](https://whitepaper.evefrontier.com/development-update-and-roadmap/eve-frontier-roadmap).
+- The wallet currently showing EVT is a useful runtime signal, but token symbol, coin type, and production payment semantics should be verified against live wallet metadata or official EVE Frontier contracts before hardcoding.
 
-The dashboard can ask the backend what happened at gates and in fraud disputes
-without manually reading raw events.
+## Verified Competitive Context
 
----
+### CradleOS
 
-## Phase 2: Replace Mock Frontend Data
+CradleOS is broad tribe/civilization infrastructure, not just a gate tool.
+Its README claims:
 
-Goal: turn the strong visual shell into a live product.
+- 24 Move modules and 6,533 lines of Move code.
+- Live Sui testnet v5 deployment.
+- Full dApp for web and EVE Frontier in-game browser.
+- 34 panels.
+- EVE Vault wallet integration.
+- Economy, defense, infrastructure, social, Keeper AI, and data/model assets.
+- CradleOS took first place in the EVE Frontier x Sui 2026 hackathon.
 
-The current `frontend/src/components/features/frontierwarden/fw-data.ts` is
-mock/static design data. Replace it tab by tab with live hooks.
+Sources:
 
-### Gates Tab
+- [CradleOS GitHub](https://github.com/r4wf0d0g23/CradleOS)
+- [EVE Frontier hackathon winners announcement](https://evefrontier.com/en/news/eve-frontier-sui-2026-hackathon-winners-announcement)
 
-- [in progress] Live gate intel
-- [done] Live passage history drilldown
-- [in progress] Gate policy status
-- [in progress] Toll state
-- [done] Last indexed checkpoint/freshness
+Decision:
 
-### Reputation Tab
+Do not compete with CradleOS on breadth. Their lane is the operating console.
+FrontierWarden's lane should be trust decisions with proof.
 
-- [done] Live profile scores
-- [done] Live attestations
-- [done] Live vouches
-- [done] Score freshness and issuer proof
+### CivilizationControl
 
-### Killboard Tab
+CivilizationControl is closer to infrastructure/gate-control territory. Its
+README shows:
 
-- [done] Start with `SHIP_KILL` attestations
-- [done] Show verified/unverified status
-- [done] Show oracle issuer and transaction proof
+- Sui Move extension package on Stillness/testnet.
+- React 19 + TypeScript + Vite frontend.
+- `@evefrontier/dapp-kit` / EveVault wallet stack.
+- Browser-side Sui JSON-RPC reads.
+- Optional Cloudflare Worker sponsor signer.
+- Owner-capability model for structure administration.
+- Gate owner-cap borrowing/returning inside a single PTB.
 
-### Policy Tab
+Source:
 
-- [done] Display live gate policy first
-- [pending] Add policy editing after read path is solid
+- [CivilizationControl GitHub](https://github.com/Diabolacal/CivilizationControl)
 
-### Contracts Tab
+Decision:
 
-- [done] Keep polished demo fallback until bounty/mercenary contracts exist
-- [done] Connect first live path to `PLAYER_BOUNTY` attestations
-- [pending] Contract marketplace data beyond bounty attestations
+Do not race CivilizationControl on structure management breadth. Integrate with
+that category by exposing reputation-backed evaluation endpoints.
 
-### Completion Bar
+Local research copies:
 
-A user can open the app and see live protocol state, not just the intended
-product story.
+- `research/CradleOS`
+- `research/CivilizationControl`
+- CivilizationControl patterns to reuse: EVE coin discovery/selection in `src/lib/currency.ts`, sponsor-with-wallet-fallback in `src/hooks/useSponsoredExecution.ts`, and runtime-package vs original-type-origin separation in `config/chain/stillness.ts`.
 
----
+## Strategic Repositioning
 
-## Phase 3: Operator Workflows
+Old risk:
 
-Goal: make FrontierWarden usable by protocol admins, tribes, and oracles without
-hand-written CLI calls.
+```text
+FrontierWarden becomes a smaller, less complete tribe dashboard.
+```
 
-Build screens and actions for:
+New position:
 
-- Registering schemas
-- Deprecating schemas
-- Registering oracles
-- Viewing oracle authorized schemas
-- Submitting intel attestations
-- Viewing and revoking attestations
-- Creating profiles
-- Viewing vouches
-- Creating vouches
-- Issuing loans
-- Repaying loans
-- Marking defaults
-- Opening fraud challenges
-- Voting on fraud challenges
-- Resolving fraud challenges
-- Viewing gate policies
+```text
+CradleOS runs the tribe. FrontierWarden tells the tribe who to trust.
+```
 
-### Completion Bar
+Product thesis:
 
-A devnet operator can run normal protocol workflows from the UI.
+```text
+FrontierWarden is the trust engine other EVE Frontier tools call when a
+decision has consequences.
+```
 
----
+The high-leverage wedge is a narrow API and SDK that answers:
 
-## Phase 4: Smart Gate Product Demo
+- Should this pilot pass a gate?
+- Should this pilot be taxed?
+- Should this bounty poster be trusted?
+- Should this cargo counterparty be trusted?
+- Should this scout report be believed?
+- Which on-chain evidence supports the decision?
 
-Goal: make the killer feature demonstrable end to end.
+## Seven-Day Wedge
 
-Build a real Smart Gate experience around `reputation_gate.move`:
+Goal:
 
-- [done] Select pilot/profile
-- [done] Select gate
-- [done] Simulate passage result
-- [done] Show allow/deny/toll outcome
-- [done] Explain which score or attestation caused the result
-- [done] Show transaction digest and attestation proof
-- [done] Show live passage history
-- [done] Add policy update transaction flow
-- [pending] Add toll withdrawal flow
+```text
+Any EVE Frontier tool can call one endpoint and receive a
+reputation-backed trust decision with proof.
+```
 
-### Completion Bar
+### Day 1: Trust Evaluation API
 
-You can demo: "this pilot is denied or tolled because of live on-chain
-reputation," with transaction proof.
+Status: shipped v0 on 2026-04-29.
 
----
+Add:
 
-## Phase 5: Killboard And Intelligence Layer
+```text
+POST /v1/trust/evaluate
+POST /v1/cradleos/gate/evaluate
+```
 
-Goal: move from reputation protocol to tribal intel product.
+Minimum request:
 
-Start with the data already available on-chain:
+```json
+{
+  "entity": "0xplayer",
+  "action": "gate_access",
+  "context": {
+    "gateId": "0xgate",
+    "tribeId": "optional",
+    "systemId": "optional"
+  }
+}
+```
 
-- Use `SHIP_KILL` attestations as the first killboard source
-- Filter by system, tribe, attacker, victim, and verification state
-- Add route planner risk weighting from live intel schemas
-- Add tribe standing overlays
-- Add scout accuracy scoring
+Minimum response:
 
-Later integrations:
+```json
+{
+  "decision": "ALLOW_FREE",
+  "allow": true,
+  "tollMultiplier": 0,
+  "confidence": 0.82,
+  "reason": "ALLY_SCORE_MET",
+  "explanation": "TRIBE_STANDING score meets this gate policy.",
+  "proof": {
+    "checkpoint": 331269067,
+    "schemas": ["TRIBE_STANDING"],
+    "attestationIds": ["0x..."],
+    "txDigests": ["..."]
+  }
+}
+```
 
-- EVM/MUD ingestion
-- External bootstrap data
-- Rich killmail parsing
-- Historical EF-Map style data import if legally and technically acceptable
+Implemented v0 response fields:
 
-### Completion Bar
+- `decision`: `ALLOW_FREE`, `ALLOW_TAXED`, `DENY`, or `INSUFFICIENT_DATA`.
+- `allow`: boolean gate result.
+- `tollMultiplier`: `0` for ally/free, `1` for neutral/taxed, `null` when denied or insufficient.
+- `tollMist`: actual base toll in MIST for neutral passage.
+- `confidence`: deterministic `1.0` when policy plus active attestation prove the result, `0.0` when required data is missing.
+- `reason`: machine-readable reason code.
+- `explanation`: concise human explanation.
+- `subject`, `gateId`, `score`, `threshold`.
+- `proof`: checkpoint, schemas, attestation IDs, tx digests, warnings.
 
-The app becomes useful as a live tactical tool, not only a protocol explorer.
+### Day 2: Real Score Inputs
 
----
+Status: partially shipped in v0.
 
-## Phase 6: Economic Layer
+Use:
 
-Goal: implement the revenue-facing systems.
+- `score_cache`
+- subject attestations
+- gate policy
+- latest gate config
+
+No mock trust decisions in API responses.
+
+Current implementation uses live subject attestations and latest indexed gate
+config. It does not yet use `score_cache` for profile-level credit decisions;
+that remains part of the counterparty/bounty expansion.
+
+### Day 3: Gate Intel Inputs
+
+Fold in active operational schemas:
+
+- `GATE_HOSTILE`
+- `GATE_CAMPED`
+- `GATE_CLEAR`
+- `GATE_TOLL`
+- `HEAT_TRAP`
+- `ROUTE_VERIFIED`
+- `SYSTEM_CONTESTED`
+
+### Day 4: Proof Object
+
+Every decision must include:
+
+- schemas consulted
+- attestation IDs
+- tx digests
+- checkpoint
+- stale-data warnings when applicable
+
+### Day 5: TypeScript SDK
+
+Add:
+
+```text
+packages/trust-sdk
+```
+
+Initial API:
+
+```ts
+trust.evaluateGateAccess(...)
+trust.evaluateCounterparty(...)
+trust.explainDecision(...)
+```
+
+### Day 6: Demo Page
+
+Build a narrow public demo:
+
+- paste pilot address
+- paste gate ID
+- click evaluate
+- show allow/deny/toll
+- show proof and explanation
+
+### Day 7: Integration README
+
+Publish:
+
+```text
+FrontierWarden Trust Decision API
+For CradleOS, CivilizationControl, Blood Contract, and tribe tools.
+```
+
+Tone:
+
+```text
+FrontierWarden complements tribe operating consoles; it does not replace them.
+```
+
+## Phase 1: Keep The Backend Truthful
+
+Status: mostly complete.
+
+Done:
+
+- Track all protocol modules.
+- Project `reputation_gate` config/passages/withdrawals.
+- Project fraud challenge create/resolve paths.
+- Add API route modules under the 400-line cap.
+- Lock Supabase public browser roles.
+- Add raw event replay dedup.
+- Enrich missing Sui event checkpoints through transaction block lookup.
+
+Next:
+
+- Add indexer replay CLI for a module or tx digest.
+- Add projection repair commands.
+- Add `cargo clippy --all-targets --all-features` to acceptance.
+
+## Phase 2: Trust Decision API
+
+Status: v0 shipped; expand next.
+
+Done:
+
+- `trust_evaluator` Rust module.
+- `/v1/trust/evaluate`.
+- `/v1/trust/explain`.
+- `/v1/cradleos/gate/evaluate`.
+- `Decision`, `ReasonCode`, and proof bundle response shape.
+- `requirements`, `observed`, and `proof.source` explanation fields.
+- `Documents/TRUST_API.md`.
+- `sdk/trustkit` TypeScript client.
+- Frontend `TRUST` demo tab.
+- Smoke tested against live Supabase/indexer data:
+  - Slush `0x9cc0...20e1` against gate `0xb63c...3e36` returns `ALLOW_FREE`, score `750`, threshold `500`.
+  - EVE wallet `0xabff...430f` currently returns `DENY`, reason `NO_STANDING_ATTESTATION`.
+- Rust tests cover reason classification, proof checkpoint selection, and tx digest dedupe.
+
+Still build:
+
+- API tests with seeded DB rows or a lightweight SQL fixture harness.
+- Counterparty/bounty evaluation using `score_cache`.
+- Stale-data warnings based on indexer freshness and checkpoint age.
+
+Completion bar:
+
+An external app can call FrontierWarden and receive a deterministic trust
+decision with enough proof to audit it. Gate-access v0 now clears this bar;
+non-gate trust actions still need implementation.
+
+## Phase 3: Frontend As Proof Console
+
+Status: functional, but no longer the main strategic race.
+
+Keep:
+
+- Gate Intel
+- Reputation
+- Policy
+- Oracle
+- Social
+- Disputes
+
+Add:
+
+- Trust API demo tab.
+- EVE Wallet detection as first-class path.
+- SUI now, EVT/payment-coin abstraction later.
+- Wallet-authenticated frontend access after API auth design.
+
+Do not add broad CradleOS-like panels unless they directly prove trust logic.
+
+## Phase 4: Operator And Protocol Workflows
+
+Status: mostly functional.
+
+Keep hardening:
+
+- Schema register/deprecate.
+- Oracle register/authorize.
+- Attestation issue/revoke.
+- Profile create.
+- Vouch create/redeem.
+- Challenge open/vote/resolve.
+- Gate policy update.
+- Toll withdrawal.
+
+Deferred:
+
+- Full loan origination UX, because current protocol shape needs a multi-party flow.
+
+## Phase 5: SDK And Integrations
 
 Build:
 
-- Bounty placement flow from `PLAYER_BOUNTY`
-- Contract board for bounty, escort, gate-hold, and intel tasks
-- Fee accounting
-- Oracle licensing/admin controls
-- Gate toll analytics
-- Tribe-level premium intel controls
+- TypeScript SDK.
+- CradleOS-shaped adapter endpoint.
+- Keeper-compatible tool schema:
 
-### Completion Bar
+```text
+frontierwarden_assess_trust(entity, action, context)
+```
 
-There is a real path from protocol activity to monetizable product usage.
+Return:
 
----
+- decision
+- confidence
+- explanation
+- recommended policy
+- proof bundle
 
-## Phase 7: Production Hardening
+## Phase 6: Production Hardening
 
-Goal: prepare for public use.
+Required:
 
-Required work:
+- API authentication.
+- Wallet-signed session model.
+- Rate limits.
+- Observability.
+- Query budgets and pagination review.
+- Supabase backups/migration runbook.
+- Move entrypoint security review.
+- Payment coin abstraction for SUI vs EVT/EVE-token flows.
+- Public docs with source-of-truth package IDs.
 
-- Governance transfer away from deployer admin
-- Rate limits and API auth where needed
-- Error observability
-- Indexer replay tooling
-- Database migrations for gate/challenge projections
-- Frontend loading, error, and empty states
-- Frontend bundle split and stale header checkpoint cleanup
-- Devnet reset runbook
-- Security review of Move entrypoints
-- Decision on long-term devnet vs testnet deployment posture
-- One-time formatting cleanup if the team wants `cargo fmt --check` enforced
+## Deprioritized For Now
 
-### Completion Bar
+Do not spend the next sprint on:
 
-A new contributor can deploy, index, operate, and demo the system from docs.
+- broad bounty marketplace
+- cargo board
+- SRP clone
+- general tribe OS dashboard
+- DEX
+- large route planner
+- large AI assistant surface
+- lore/wiki/recruiting
 
----
+Those are breadth plays. They favor teams already building operating consoles.
 
 ## Recommended Build Order
 
-1. Gate/challenge indexer projections
-2. Live frontend gates and reputation tabs
-3. Gate policy and passage demo
-4. Oracle/admin workflows
-5. Killboard from `SHIP_KILL`
-6. Bounty/contracts
-7. Production hardening
+1. Add seeded DB/API tests that exercise the HTTP routes, not only evaluator helpers.
+2. Add stale-data warnings using indexer health/checkpoint freshness.
+3. Add wallet-authenticated API/frontend access.
+4. Add EVT/payment-coin abstraction.
+5. Expand evaluation beyond gates into bounty/counterparty/scout-report decisions.
+6. Publish integration examples for CradleOS/CivilizationControl maintainers.
 
-The north star is simple: make the app prove the protocol. Every next task
-should reduce the gap between the dashboard and live on-chain truth.
+North star:
+
+```text
+Make FrontierWarden the proof-backed trust backend other EVE Frontier tools
+would rather call than rebuild.
+```

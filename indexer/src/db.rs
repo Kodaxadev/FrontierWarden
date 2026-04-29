@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 
 use crate::config::DatabaseConfig;
 
@@ -29,12 +29,10 @@ async fn init_indexer_state(pool: &PgPool) -> Result<()> {
 }
 
 pub async fn load_cursor(pool: &PgPool, key: &str) -> Result<Option<String>> {
-    let row: Option<(String,)> = sqlx::query_as(
-        "SELECT value FROM indexer_state WHERE key = $1",
-    )
-    .bind(key)
-    .fetch_optional(pool)
-    .await?;
+    let row: Option<(String,)> = sqlx::query_as("SELECT value FROM indexer_state WHERE key = $1")
+        .bind(key)
+        .fetch_optional(pool)
+        .await?;
     Ok(row.map(|(v,)| v))
 }
 

@@ -8,6 +8,7 @@ pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
         "PassageGranted" => passage_granted(pool, ev).await,
         "PassageDenied" => passage_denied(pool, ev).await,
         "GateConfigUpdated" => gate_config_updated(pool, ev).await,
+        "TollsWithdrawn" => tolls_withdrawn(pool, ev).await,
         _ => {
             tracing::debug!(
                 event = event_name(&ev.type_),
@@ -98,6 +99,32 @@ async fn gate_config_updated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     .bind(gate_id)
     .bind(ally_threshold)
     .bind(base_toll_mist)
+    .bind(&ev.id.tx_digest)
+    .bind(event_seq)
+    .bind(checkpoint_seq)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn tolls_withdrawn(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
+    let p = &ev.parsed_json;
+    let gate_id = field_addr(p, "gate_id")?;
+    let owner = field_addr(p, "owner")?;
+    let amount = field_u64(p, "amount")?;
+    let event_seq = event_seq(ev);
+    let checkpoint_seq = checkpoint_seq(ev);
+
+    sqlx::query(
+        "INSERT INTO toll_withdrawals
+            (gate_id, owner, amount_mist, tx_digest, event_seq, checkpoint_seq)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (tx_digest, event_seq) DO NOTHING",
+    )
+    .bind(gate_id)
+    .bind(owner)
+    .bind(amount)
     .bind(&ev.id.tx_digest)
     .bind(event_seq)
     .bind(checkpoint_seq)

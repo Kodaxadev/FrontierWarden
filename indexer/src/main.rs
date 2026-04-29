@@ -1,12 +1,24 @@
 mod api;
+mod api_attestations;
+mod api_challenges;
+mod api_common;
+mod api_gate_ops;
+mod api_gates;
+mod api_registry;
+mod api_reputation;
+mod api_trust;
 mod config;
 mod db;
 mod ingester;
 mod processor;
 mod rpc;
+mod trust_evaluator;
+#[cfg(test)]
+mod trust_evaluator_tests;
+mod trust_types;
 
 use anyhow::Result;
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::{fmt, EnvFilter};
 
 /// efrep-indexer — EVE Frontier Reputation Protocol event indexer + REST API
 ///
@@ -26,7 +38,7 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    let cfg  = config::Config::load("config.toml")?;
+    let cfg = config::Config::load("config.toml")?;
     let pool = db::create_pool(&cfg.database).await?;
 
     // Materialized view refresh — fire-and-forget background task
@@ -38,7 +50,9 @@ async fn main() -> Result<()> {
     tracing::info!(addr = api_addr, "API server listening");
     let app = api::router(pool.clone());
     tokio::spawn(async move {
-        axum::serve(listener, app).await.expect("API server crashed");
+        axum::serve(listener, app)
+            .await
+            .expect("API server crashed");
     });
 
     // Indexer loop — runs forever; returns only on fatal error

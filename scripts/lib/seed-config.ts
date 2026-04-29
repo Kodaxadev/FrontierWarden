@@ -66,8 +66,8 @@ export const ORACLE_SCHEMAS: string[] = [
 // Stake amounts
 // ---------------------------------------------------------------------------
 // MIN_STAKE in oracle_registry.move = 1_000_000_000 MIST (1 SUI).
-// Using 1.1 SUI to leave gas headroom inside the split.
-export const ORACLE_STAKE_MIST = 1_100_000_000n;
+export const ORACLE_STAKE_MIST =
+  BigInt(process.env.ORACLE_STAKE_MIST ?? '1100000000');
 // Vouch stake for create_vouch — must cover MIN_COLLATERAL_PCT of any loan.
 export const VOUCH_STAKE_MIST  =   200_000_000n;
 

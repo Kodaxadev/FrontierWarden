@@ -12,11 +12,15 @@ import type {
   GateSummaryRow,
   GatePolicyRow,
   GatePassageRow,
+  TollWithdrawalRow,
   FraudChallengeRow,
+  ChallengeStatsRow,
   VouchRow,
   SchemaRow,
   OracleRow,
   ProfileRow,
+  TrustEvaluateRequest,
+  TrustEvaluateResponse,
 } from '../types/api.types';
 
 const BASE     = import.meta.env.VITE_API_BASE         ?? '/api';
@@ -26,6 +30,19 @@ async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
   if (!res.ok) {
     throw new Error(`API ${path} -> ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`API ${path} -> ${res.status}: ${text}`);
   }
   return res.json() as Promise<T>;
 }
@@ -114,6 +131,12 @@ export const fetchGatePassages = (
 ): Promise<GatePassageRow[]> =>
   get(`/gates/${encodeURIComponent(gateId)}/passages?limit=${limit}`);
 
+export const fetchGateWithdrawals = (
+  gateId: string,
+  limit = 50,
+): Promise<TollWithdrawalRow[]> =>
+  get(`/gates/${encodeURIComponent(gateId)}/withdrawals?limit=${limit}`);
+
 export const fetchChallenges = (limit = 50): Promise<FraudChallengeRow[]> =>
   get(`/challenges?limit=${limit}`);
 
@@ -125,6 +148,15 @@ export const fetchOracleChallenges = (
   limit = 50,
 ): Promise<FraudChallengeRow[]> =>
   get(`/oracles/${encodeURIComponent(oracle)}/challenges?limit=${limit}`);
+
+export const fetchChallengeStats = (): Promise<ChallengeStatsRow> =>
+  get('/challenges/stats');
+
+export const fetchChallengesByChallenger = (
+  address: string,
+  limit = 50,
+): Promise<FraudChallengeRow[]> =>
+  get(`/challenges/by-challenger/${encodeURIComponent(address)}?limit=${limit}`);
 
 // ── Registry listings ─────────────────────────────────────────────────────────
 
@@ -144,6 +176,11 @@ export const fetchGivenVouches = (
   limit = 50,
 ): Promise<VouchRow[]> =>
   get(`/profiles/${encodeURIComponent(address)}/given-vouches?limit=${limit}`);
+
+export const evaluateTrust = (
+  input: TrustEvaluateRequest,
+): Promise<TrustEvaluateResponse> =>
+  post('/v1/trust/evaluate', input);
 
 export interface SponsorRequest {
   /** Base64-encoded tx kind bytes (Transaction.build({ onlyTransactionKind: true })). */

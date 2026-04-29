@@ -12,7 +12,7 @@ module reputation::lending {
 
     // === Errors ===
     const EInsufficientVouchStake: u64 = 1;
-    const EWrongBorrower: u64 = 2;
+    // const EWrongBorrower: u64 = 2; // removed — unused after profile-based borrower check refactor
     const EInsufficientCredit: u64 = 3;
     const ELoanTooLarge: u64 = 4;
     const ESelfLoan: u64 = 5;

@@ -1,20 +1,84 @@
 // ReputationView — pilot reputation dossier
 // Left: score + tier + identity + vouches | Right: component contribution bars
+// All data derived from live FwData; no hardcoded values.
 
 import { LiveStatus } from '../LiveStatus';
 import { SUI_NETWORK_LABEL } from '../../../../lib/network';
 import type { FwData } from '../fw-data';
 
-const TIERS = ['I','II','III','IV','V','VI'];
-const CURRENT_TIER = 2; // 0-indexed, III = index 2
+// Tier thresholds: score >= threshold → tier name
+const TIER_BANDS = [
+  { name: 'I',   label: 'RECRUIT',  threshold: 0 },
+  { name: 'II',  label: 'WARDEN',   threshold: 200 },
+  { name: 'III', label: 'WARDEN',   threshold: 400 },
+  { name: 'IV',  label: 'SENTINEL', threshold: 600 },
+  { name: 'V',   label: 'GUARDIAN', threshold: 800 },
+  { name: 'VI',  label: 'ARCHON',   threshold: 950 },
+] as const;
 
-const COMPONENTS = [
-  { label: 'Vouch Weight',       value: 412, max: 500, note: '14 sources' },
-  { label: 'Kill Verification',  value: 198, max: 250, note: '47 attests / 30d' },
-  { label: 'Contract History',   value: 142, max: 200, note: '22 closed' },
-  { label: 'Stake on Behavior',  value: 95,  max: 100, note: '2.4M ISK locked' },
-  { label: 'Pirate-Idx Penalty', value: -12, max: -50, note: '3 contested' },
-];
+function computeTier(score: number): { index: number; name: string; label: string } {
+  let tier: typeof TIER_BANDS[number] = TIER_BANDS[0];
+  let idx = 0;
+  for (let i = TIER_BANDS.length - 1; i >= 0; i--) {
+    if (score >= TIER_BANDS[i].threshold) {
+      tier = TIER_BANDS[i];
+      idx = i;
+      break;
+    }
+  }
+  return { index: idx, name: tier.name, label: tier.label };
+}
+
+function loanCap(score: number): string {
+  // Loan cap scales with score: base 1000 EVT per 100 score
+  const cap = Math.floor(score / 100) * 1000;
+  return cap >= 1000 ? `${cap.toLocaleString()} EVT` : '0 EVT';
+}
+
+interface ScoreComponent {
+  label: string;
+  value: number;
+  max: number;
+  note: string;
+}
+
+function deriveComponents(data: FwData): ScoreComponent[] {
+  const { vouches, proofs, kills, contracts, pilot } = data;
+
+  // Vouch weight: total vouch count * avg weight, max based on source count
+  const vouchSources = vouches.length;
+  const avgWeight = vouches.reduce((sum, v) => sum + v.weight, 0) / Math.max(1, vouchSources);
+  const vouchScore = Math.round(avgWeight * vouchSources * 100);
+  const vouchMax = Math.max(vouchScore + 100, 500);
+
+  // Kill verification: verified kills count toward reputation
+  const verifiedKills = kills.filter(k => k.verified).length;
+  const killScore = verifiedKills * (kills.length > 0 ? Math.round(250 / Math.max(kills.length, 1)) : 0);
+  const killMax = 250;
+
+  // Contract history: completed contracts (non-expired)
+  const closedContracts = contracts.filter(c => c.state !== 'OPEN').length;
+  const contractScore = Math.min(200, closedContracts * 30);
+  const contractMax = 200;
+
+  // Attestation proofs: active (non-revoked) proofs
+  const activeProofs = proofs.filter(p => !p.revoked).length;
+  const proofScore = Math.min(100, activeProofs * 25);
+  const proofMax = 100;
+
+  // Pirate penalty: contested kills (friendly fire)
+  const friendlyKills = kills.filter(k => k.friendly === true).length;
+  const piratePenalty = friendlyKills > 0 ? -(friendlyKills * 4) : 0;
+  const pirateMax = -50;
+
+  return [
+    { label: 'Vouch Weight',       value: vouchScore,    max: vouchMax,    note: `${vouchSources} source${vouchSources !== 1 ? 's' : ''}` },
+    { label: 'Kill Verification',  value: killScore,     max: killMax,     note: `${verifiedKills} verified / ${kills.length} total` },
+    { label: 'Contract History',   value: contractScore, max: contractMax, note: `${closedContracts} closed` },
+    { label: 'Attestation Proofs', value: proofScore,    max: proofMax,    note: `${activeProofs} active proofs` },
+    { label: 'Pirate-Idx Penalty', value: piratePenalty, max: pirateMax,   note: `${friendlyKills} contested` },
+  ];
+}
 
 interface Props {
   data: FwData;
@@ -25,7 +89,14 @@ interface Props {
 
 export function ReputationView({ data, live = false, loading = false, error = null }: Props) {
   const { pilot, proofs, vouches } = data;
-  const iskM = (pilot.walletIsk / 1_000_000).toFixed(1);
+
+  const tier = computeTier(pilot.score);
+  const components = deriveComponents(data);
+
+  // Live account summary values
+  const activeVouches = vouches.length;
+  const activeProofs = proofs.filter(p => !p.revoked).length;
+  const friendlyKills = data.kills.filter(k => k.friendly === true).length;
 
   return (
     <div className="c-rep-grid">
@@ -56,7 +127,7 @@ export function ReputationView({ data, live = false, loading = false, error = nu
           <div className="c-stat__value">{pilot.score}</div>
           <div className="c-stat__delta">▲ +{pilot.scoreDelta} · 30d</div>
           <div className="c-stat__tier">
-            tier <strong>WARDEN III</strong> · loan cap <span style={{ color: 'var(--c-hi)' }}>12,400 ISK</span>
+            tier <strong>{tier.label} {tier.name}</strong> · loan cap <span style={{ color: 'var(--c-hi)' }}>{loanCap(pilot.score)}</span>
           </div>
         </div>
 
@@ -64,15 +135,15 @@ export function ReputationView({ data, live = false, loading = false, error = nu
         <div style={{ marginBottom: 32 }}>
           <div className="c-stat__label" style={{ marginBottom: 10 }}>Tier Progression</div>
           <div className="c-tier">
-            {TIERS.map((t, i) => (
-              <div key={t} style={{ flex: 1, position: 'relative' }}>
-                <div className={`c-tier__seg${i < CURRENT_TIER ? ' c-tier__seg--active' : i === CURRENT_TIER ? ' c-tier__seg--current' : ''}`} />
+            {TIER_BANDS.map((t, i) => (
+              <div key={t.name} style={{ flex: 1, position: 'relative' }}>
+                <div className={`c-tier__seg${i < tier.index ? ' c-tier__seg--active' : i === tier.index ? ' c-tier__seg--current' : ''}`} />
                 <div style={{
                   position: 'absolute', top: 10, left: 0,
                   fontSize: 9,
-                  color: i <= CURRENT_TIER ? 'var(--c-amber)' : 'var(--c-lo)',
+                  color: i <= tier.index ? 'var(--c-amber)' : 'var(--c-lo)',
                   letterSpacing: '0.08em',
-                }}>{t}</div>
+                }}>{t.name}</div>
               </div>
             ))}
           </div>
@@ -88,7 +159,6 @@ export function ReputationView({ data, live = false, loading = false, error = nu
             ['Tribe',     pilot.tribe],
             ['Standing',  pilot.standing],
             ['Source',    pilot.sourceId ?? 'design fixture'],
-            ['Wallet',    `${iskM}M ISK`],
           ] as [string, string][]).map(([k, v]) => (
             <div key={k} className="c-kv">
               <span className="c-kv__k">{k}</span>
@@ -147,7 +217,7 @@ export function ReputationView({ data, live = false, loading = false, error = nu
 
         <div className="c-view__title" style={{ marginBottom: 32 }}>Score Breakdown</div>
 
-        {COMPONENTS.map((c, i) => {
+        {components.map((c, i) => {
           const neg = c.value < 0;
           const pct = (Math.abs(c.value) / Math.abs(c.max)) * 100;
           return (
@@ -174,7 +244,7 @@ export function ReputationView({ data, live = false, loading = false, error = nu
           );
         })}
 
-        {/* Stat summary */}
+        {/* Stat summary — derived from live data */}
         <div style={{
           marginTop: 48, padding: '24px',
           border: '1px solid var(--c-border)',
@@ -183,9 +253,10 @@ export function ReputationView({ data, live = false, loading = false, error = nu
           <div className="c-stat__label" style={{ marginBottom: 16 }}>Account Summary</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 24 }}>
             {[
-              { k: 'Active Vouches',   v: '14', sub: 'of 22 max' },
-              { k: 'Pirate Index',     v: '12',  sub: 'of 100 cap', warn: false },
-              { k: 'Last Decay',       v: '−4',  sub: 'per 7d natural' },
+              { k: 'Active Vouches',    v: String(activeVouches), sub: `of ${Math.max(activeVouches, 22)} max` },
+              { k: 'Attestation Proofs', v: String(activeProofs),  sub: `${proofs.length} total` },
+              { k: 'Pirate Index',       v: String(friendlyKills), sub: 'contested kills' },
+              { k: 'Current Tier',       v: `${tier.label} ${tier.name}`, sub: `score ${pilot.score}` },
             ].map(s => (
               <div key={s.k}>
                 <div className="c-stat__label">{s.k}</div>

@@ -5,15 +5,21 @@ use tracing::{info, warn};
 
 use crate::{
     config::Config,
-    db,
-    processor,
+    db, processor,
     rpc::{EventId, RpcClient},
 };
 
 pub const TRACKED_MODULES: &[&str] = &[
-    "schema_registry", "profile", "attestation", "oracle_registry",
-    "vouch", "lending", "fraud_challenge", "reputation_gate",
-    "system_sdk", "singleton",
+    "schema_registry",
+    "profile",
+    "attestation",
+    "oracle_registry",
+    "vouch",
+    "lending",
+    "fraud_challenge",
+    "reputation_gate",
+    "system_sdk",
+    "singleton",
 ];
 
 const HEAT_REFRESH_INTERVAL: Duration = Duration::from_secs(300);
@@ -26,7 +32,7 @@ pub fn spawn_heat_refresh(pool: PgPool) {
                 .execute(&pool)
                 .await
             {
-                Ok(_)  => info!("system_heat refreshed"),
+                Ok(_) => info!("system_heat refreshed"),
                 Err(e) => warn!("system_heat refresh failed: {e:#}"),
             }
         }
@@ -37,7 +43,7 @@ pub fn spawn_heat_refresh(pool: PgPool) {
 /// does not support Package or Any filters), persists a cursor per module so
 /// restarts resume correctly.
 pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
-    let rpc        = RpcClient::new(&cfg.network.rpc_url);
+    let rpc = RpcClient::new(&cfg.network.rpc_url);
     let package_id = cfg.package.id.clone();
 
     // Load saved cursors for each module.
@@ -58,8 +64,11 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
         let mut any_new = false;
 
         for (module, cursor) in &mut cursors {
-            let page = match rpc.query_events(&package_id, module, cursor.as_ref(), cfg.indexer.batch_size).await {
-                Ok(p)  => p,
+            let page = match rpc
+                .query_events(&package_id, module, cursor.as_ref(), cfg.indexer.batch_size)
+                .await
+            {
+                Ok(p) => p,
                 Err(e) => {
                     warn!(module, "RPC query failed, skipping: {e:#}");
                     continue;
@@ -97,11 +106,17 @@ fn cursor_key(module: &str) -> String {
 }
 
 async fn restore_cursor(pool: &PgPool, module: &str) -> Option<EventId> {
-    let key  = cursor_key(module);
+    let key = cursor_key(module);
     let json = db::load_cursor(pool, &key).await.ok()??;
     match serde_json::from_str::<EventId>(&json) {
-        Ok(c)  => { info!(module, tx = %c.tx_digest, seq = %c.event_seq, "restored cursor"); Some(c) }
-        Err(e) => { warn!(module, "cursor JSON invalid, starting from genesis: {e}"); None }
+        Ok(c) => {
+            info!(module, tx = %c.tx_digest, seq = %c.event_seq, "restored cursor");
+            Some(c)
+        }
+        Err(e) => {
+            warn!(module, "cursor JSON invalid, starting from genesis: {e}");
+            None
+        }
     }
 }
 

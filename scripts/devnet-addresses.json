@@ -2,11 +2,14 @@
   "network": "testnet",
   "chain_id": "4c78adac",
   "deployed_at": "2026-04-28",
-  "note": "Republished 2026-04-28 as fixed shared-profile package with system-oracle admin guard. Reseeding is in progress.",
+  "note": "Upgraded 2026-04-29 to v2 package with reputation_gate::TollsWithdrawn event. On-chain reseed remains valid on original shared objects.",
   "package": {
-    "id": "0xfd1b1315f9002b65ac2a214d2b7d312db75836c8e67f8f00a747206b5a61876c",
-    "version": "1",
+    "id": "0xe41ddd1a2126af8b4bae52ea0526959f76b4e4f445c1054a53cbecfb15ac0ea2",
+    "original_id": "0xfd1b1315f9002b65ac2a214d2b7d312db75836c8e67f8f00a747206b5a61876c",
+    "version": "2",
     "publish_tx": "2nG49mv8Erzob76XXmemok3KFPjTrcbmdkifrhtHzXuT",
+    "upgrade_tx": "5818FL8UHSiUvMYsWycLFDEudRtEAQNpm4eQuKoGGpaa",
+    "upgrade_checkpoint": 331265863,
     "schemas_registered_tx": "9kqMa7tM7Ro5GRAaWzEVBSrgEPR8JsbX1SsV5E2pVmCo",
     "upgrade_cap": "0x60913b9130eecf0966d30bcb211a55369107de68083e0692dfe263a782058fea",
     "modules": [
@@ -57,12 +60,12 @@
       "role": "Pays sponsored transaction gas only; does not own GateAdminCap"
     },
     "reputation_profile": {
-      "id": "0x1c308aa9256e605df063a30f0414fd2e2f4c2162a669657a01c84c772be9d2a0",
+      "id": "0xc3ffccede53e1ee7fb8388362a841b0cfa0ee621f13f8f89e4bf551267515bbf",
       "type": "...::profile::ReputationProfile",
-      "note": "SBT owned by deployer 0xcfcf...db8f; seeded via TX-1 seed-devnet.ts"
+      "note": "Shared profile for deployer 0xcfcf...db8f; seeded via TX-1 seed-devnet.ts"
     },
     "oracle_cap": {
-      "id": "0x22d5bec7e677e36dca6d3d4dd6b1de799f46411ef6205b97e81cc0b72ea19f8b",
+      "id": "0xdd27c7ab2d385a597d60cbda3b2c541009b54fc76dbe91dc50c670be21c00ff9",
       "type": "...::oracle_registry::OracleCapability",
       "owner": "0xcfcf2247346d7a0676e2018168f94b86e1d1263fd3afd6862685725c8c49db8f",
       "authorized_schemas": [
@@ -78,22 +81,22 @@
         "PLAYER_BOUNTY",
         "TRIBE_STANDING"
       ],
-      "note": "Seeded via TX-1 seed-devnet.ts (1.1 SUI stake)"
+      "note": "Seeded via TX-1 seed-devnet.ts (1.0 SUI stake)"
     },
     "tribe_standing_attestation_slush": {
-      "id": "0xdbcd4f81119c2713de0e5bd2e2a7342ac1fd7bd3214e01e2e8e38bf0554e8e88",
+      "id": "0x308d20a6dd7e98f9d212d2a9b3066fd5a0208f7f5c66231c2a9ab802a258be49",
       "type": "...::attestation::Attestation",
       "owner": "0x9cc038e5f0045dbf75ce191870fd7c483020d12bc23f3ebaef7a6f4f22d820e1",
       "schema": "TRIBE_STANDING",
       "value": 750,
-      "issued_tx": "Hu7r3dgMGq4iksMdihRq5QQSwRdgwKboYFUHifKaEV5D"
+      "issued_tx": "AwN5rdhQNopjaCZ8GNSdLpoBez8FPQKa1t1KEuz1pYSi"
     }
   },
   "seed_transactions": {
-    "bootstrap": "E5W1b7NuZ9kNBLLpd82W2ntHqQMoHaj1bJggB1cirJ5d",
-    "self_score_credit_700": "6ts8U5TnrUo7m1v8MC7NQCgrSM4iPE22ynMpujd8GwRG",
-    "vouch_deployer_to_player_a": "FcSXRXm4SHYMamARpdGwFYaVAwWatwG35MwpCrPh5bVA",
-    "attestations_12gate_3kill": "FQdWJku9Csa8HtdL5yTCwNbDk26jybodACSjVZHnCYWr"
+    "bootstrap": "7KgHY5fRc8wnJZHAEfubFkN6hoRQwHCBjadwVTwbcC97",
+    "self_score_credit_700": "8BMoJufMLZBoqx57kZpFLkNt6cc6sNALSJhn11fygbDZ",
+    "vouch_deployer_to_player_a": "44XCMLRFTbKhxhix8JXoSi5aLMQUCTK5vrsFVRKAdVbr",
+    "attestations_12gate_3kill": "Dz4aokXRzorurm7HyM7vV9FP1yWjp2XmG9vyYTuaRbaq"
   },
   "previous_deployment": {
     "network": "devnet",

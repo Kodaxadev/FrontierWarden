@@ -1,23 +1,23 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{SuiEvent, event_name, field_addr, field_u64};
+use crate::rpc::{event_name, field_addr, field_u64, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
-        "VouchCreated"  => vouch_created(pool, ev).await,
+        "VouchCreated" => vouch_created(pool, ev).await,
         "VouchRedeemed" => vouch_redeemed(pool, ev).await,
-        _               => Ok(()),
+        _ => Ok(()),
     }
 }
 
 // VouchCreated → INSERT INTO vouches
 // Event field is `stake` (not `stake_amount`) — matches the Move struct.
 async fn vouch_created(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p            = &ev.parsed_json;
-    let vouch_id     = field_addr(p, "vouch_id")?;
-    let voucher      = field_addr(p, "voucher")?;
-    let vouchee      = field_addr(p, "vouchee")?;
+    let p = &ev.parsed_json;
+    let vouch_id = field_addr(p, "vouch_id")?;
+    let voucher = field_addr(p, "voucher")?;
+    let vouchee = field_addr(p, "vouchee")?;
     let stake_amount = field_u64(p, "stake")?;
 
     sqlx::query(
@@ -38,8 +38,8 @@ async fn vouch_created(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 
 // VouchRedeemed → UPDATE vouches SET redeemed fields
 async fn vouch_redeemed(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p               = &ev.parsed_json;
-    let vouch_id        = field_addr(p, "vouch_id")?;
+    let p = &ev.parsed_json;
+    let vouch_id = field_addr(p, "vouch_id")?;
     let amount_returned = field_u64(p, "amount_returned")?;
 
     sqlx::query(

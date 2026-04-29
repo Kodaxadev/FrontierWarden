@@ -4,10 +4,10 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
-    pub network:  NetworkConfig,
-    pub package:  PackageConfig,
+    pub network: NetworkConfig,
+    pub package: PackageConfig,
     pub database: DatabaseConfig,
-    pub indexer:  IndexerConfig,
+    pub indexer: IndexerConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]

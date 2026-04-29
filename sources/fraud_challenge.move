@@ -42,6 +42,14 @@ module reputation::fraud_challenge {
         slash_amount: u64,
     }
 
+    public struct ChallengeVoted has copy, drop {
+        challenge_id: address,
+        voter: address,
+        guilty: bool,
+        votes_guilty: u64,
+        votes_innocent: u64,
+    }
+
     // === Structs ===
     // voters uses VecSet<address> (has `drop`) rather than Table to prevent resource
     // leaks on object deletion. O(n) membership checks are fine: council is small (~9).
@@ -117,6 +125,14 @@ module reputation::fraud_challenge {
         } else {
             challenge.votes_innocent = challenge.votes_innocent + 1;
         };
+
+        event::emit(ChallengeVoted {
+            challenge_id: object::id_address(challenge),
+            voter: sender,
+            guilty,
+            votes_guilty: challenge.votes_guilty,
+            votes_innocent: challenge.votes_innocent,
+        });
     }
 
     // Resolves a challenge after deadline_epoch has passed.
