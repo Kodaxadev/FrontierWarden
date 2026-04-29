@@ -13,9 +13,9 @@ sui move test --build-env testnet
 ```
 
 The frontend now builds, the indexer tracks all 10 protocol modules, and the
-docs now state the current network split:
+docs now state the current network posture:
 
-- Active Sui client environment: `devnet`
+- Active Sui client environment: `testnet`
 - Move dependency build environment: `testnet`
 
 The remaining work is product completion: broad live frontend data, operator
@@ -32,6 +32,16 @@ Latest implementation pass:
 - The frontend has typed fetchers and a live-data adapter for the
   FrontierWarden gate view, with static design data kept as the empty-indexer
   fallback.
+- The header now reports live indexed checkpoint freshness instead of a
+  hardcoded block, and the frontend bundle is split into app, React, and dapp
+  chunks.
+- A first GUI/UX hardening pass added compact live-state badges, better
+  responsive behavior, horizontal table safety, and clearer disabled-action
+  affordances.
+- The testnet package, schema registry, oracle registry, gate policy, live
+  schema registration, oracle seed, and killboard singleton feed are wired.
+- Indexer database credentials now load from `EFREP_DATABASE_URL`; checked-in
+  config must not contain live database URLs.
 
 ---
 
@@ -109,26 +119,27 @@ mock/static design data. Replace it tab by tab with live hooks.
 
 ### Reputation Tab
 
-- Live profile scores
-- Live attestations
-- Live vouches
-- Score freshness and issuer proof
+- [done] Live profile scores
+- [done] Live attestations
+- [done] Live vouches
+- [done] Score freshness and issuer proof
 
 ### Killboard Tab
 
-- Start with `SHIP_KILL` attestations
-- Show verified/unverified status
-- Show oracle issuer and transaction proof
+- [done] Start with `SHIP_KILL` attestations
+- [done] Show verified/unverified status
+- [done] Show oracle issuer and transaction proof
 
 ### Policy Tab
 
-- Display live gate policy first
-- Add policy editing after read path is solid
+- [done] Display live gate policy first
+- [pending] Add policy editing after read path is solid
 
 ### Contracts Tab
 
-- Keep as demo until bounty/mercenary contracts exist
-- Later connect to `PLAYER_BOUNTY` and contract marketplace data
+- [done] Keep polished demo fallback until bounty/mercenary contracts exist
+- [done] Connect first live path to `PLAYER_BOUNTY` attestations
+- [pending] Contract marketplace data beyond bounty attestations
 
 ### Completion Bar
 
@@ -173,15 +184,15 @@ Goal: make the killer feature demonstrable end to end.
 
 Build a real Smart Gate experience around `reputation_gate.move`:
 
-- Select pilot/profile
-- Select gate
-- Simulate passage result
-- Show allow/deny/toll outcome
-- Explain which score or attestation caused the result
-- Show transaction digest and attestation proof
-- Show live passage history
-- Add policy update transaction flow
-- Add toll withdrawal flow
+- [done] Select pilot/profile
+- [done] Select gate
+- [done] Simulate passage result
+- [done] Show allow/deny/toll outcome
+- [done] Explain which score or attestation caused the result
+- [done] Show transaction digest and attestation proof
+- [done] Show live passage history
+- [done] Add policy update transaction flow
+- [pending] Add toll withdrawal flow
 
 ### Completion Bar
 
@@ -246,6 +257,7 @@ Required work:
 - Indexer replay tooling
 - Database migrations for gate/challenge projections
 - Frontend loading, error, and empty states
+- Frontend bundle split and stale header checkpoint cleanup
 - Devnet reset runbook
 - Security review of Move entrypoints
 - Decision on long-term devnet vs testnet deployment posture

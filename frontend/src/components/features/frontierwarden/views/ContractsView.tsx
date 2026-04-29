@@ -1,6 +1,7 @@
 // ContractsView — contract queue with priority color coding
 
 import type { FwData, FwContract } from '../fw-data';
+import { LiveStatus } from '../LiveStatus';
 
 type Priority = FwContract['priority'];
 
@@ -17,12 +18,24 @@ const STATE_LABEL: Record<string, string> = {
   EXPIRED: 'c-badge--expired',
 };
 
-interface Props { data: FwData; }
+interface Props {
+  data: FwData;
+  live?: boolean;
+  loading?: boolean;
+  error?: string | null;
+}
 
-export function ContractsView({ data }: Props) {
+export function ContractsView({ data, live = false, loading = false, error = null }: Props) {
   return (
     <>
       <div className="c-view__title">Contract Queue</div>
+      <LiveStatus
+        loading={loading}
+        live={live}
+        error={error}
+        liveText="Live bounties"
+        emptyText="Design fallback"
+      />
 
       <table className="c-table">
         <thead>
@@ -32,6 +45,7 @@ export function ContractsView({ data }: Props) {
             <th>Kind</th>
             <th>Target</th>
             <th>Age</th>
+            <th>Issuer</th>
             <th style={{ textAlign: 'right' }}>Bounty</th>
             <th style={{ textAlign: 'right' }}>State</th>
           </tr>
@@ -61,6 +75,12 @@ export function ContractsView({ data }: Props) {
               </td>
               <td style={{ fontSize: 12 }}>{c.target}</td>
               <td style={{ fontSize: 11, color: 'var(--c-mid)' }}>{c.age}</td>
+              <td>
+                <div style={{ fontSize: 10, color: 'var(--c-mid)', fontFamily: 'var(--c-mono)' }}>
+                  {c.issuer ?? 'design'}
+                </div>
+                {c.tx && <div className="c-sub">{c.tx}</div>}
+              </td>
               <td style={{
                 textAlign: 'right', fontSize: 14, fontWeight: 700,
                 color: 'var(--c-amber)', letterSpacing: '-0.02em',

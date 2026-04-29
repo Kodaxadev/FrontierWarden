@@ -10,6 +10,7 @@ module reputation::vouch {
 
     // === Errors ===
     const EInsufficientReputation: u64 = 1;
+    const EProfileOwnerMismatch: u64 = 5;
     const ENotExpired: u64 = 6;
     const EVouchInactive: u64 = 7;
 
@@ -51,6 +52,7 @@ module reputation::vouch {
         ctx: &mut TxContext
     ) {
         let voucher = tx_context::sender(ctx);
+        assert!(profile::get_owner(voucher_profile) == voucher, EProfileOwnerMismatch);
         assert!(
             profile::get_score(voucher_profile, b"CREDIT") >= MIN_VOUCHER_SCORE,
             EInsufficientReputation

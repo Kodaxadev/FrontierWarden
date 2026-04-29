@@ -1,9 +1,13 @@
-// GateIntelView — full-width gate network table
+// GateIntelView — full-width gate network table + CHECK PASSAGE action
 // Filter: ALL | OPEN | CAMPED | TOLL | CLOSED
 
 import { useEffect, useState } from 'react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { fetchGatePassages } from '../../../../lib/api';
+import { SUI_NETWORK } from '../../../../lib/network';
 import type { GatePassageRow } from '../../../../types/api.types';
+import { useCheckPassage } from '../../../../hooks/useCheckPassage';
+import { LiveStatus } from '../LiveStatus';
 import type { FwData, FwGate } from '../fw-data';
 
 type GateFilter = 'ALL' | 'open' | 'camped' | 'toll' | 'closed';
@@ -24,6 +28,17 @@ function formatMist(value: number | null): string {
   return `${value.toLocaleString()} MIST`;
 }
 
+function gateTime(value: string | null | undefined): string {
+  if (!value) return '--:--:--';
+  const parsed = Date.parse(value);
+  if (Number.isFinite(parsed)) {
+    return new Date(parsed).toISOString().split('T')[1].replace('Z', '');
+  }
+
+  const [, time] = value.split('T');
+  return time?.replace('Z', '') ?? value;
+}
+
 interface Props {
   data: FwData;
   live?: boolean;
@@ -37,6 +52,16 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
   const [passages, setPassages] = useState<GatePassageRow[]>([]);
   const [passageError, setPassageError] = useState<string | null>(null);
   const [passageLoading, setPassageLoading] = useState(false);
+
+  const {
+    account,
+    state: passageState,
+    attestationId,
+    attestationLoading,
+    attestationError,
+    checkPassage,
+    reset: resetPassage,
+  } = useCheckPassage();
 
   const gates = filter === 'ALL'
     ? data.gates
@@ -80,15 +105,13 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
   return (
     <>
       <div className="c-view__title">Gate Network Intercept</div>
-      <div className="c-sub" style={{ marginBottom: 12 }}>
-        {loading
-          ? 'SYNCING INDEXER'
-          : live
-            ? 'LIVE DEVNET INDEXER'
-            : error
-              ? 'DESIGN FALLBACK - INDEXER OFFLINE'
-              : 'DESIGN FALLBACK - NO LIVE GATE EVENTS'}
-      </div>
+      <LiveStatus
+        loading={loading}
+        live={live}
+        error={error}
+        liveText={`Live ${SUI_NETWORK} gates`}
+        emptyText="Design fallback"
+      />
 
       <div className="c-filters">
         {FILTERS.map(f => (
@@ -124,7 +147,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
             >
               <td>
                 <div style={{ fontSize: 12 }}>{g.id}</div>
-                <div className="c-sub">{g.updated.split('T')[1].replace('Z','')}</div>
+                <div className="c-sub">{gateTime(g.updated)}</div>
               </td>
               <td style={{ color: 'var(--c-mid)', fontSize: 11 }}>
                 {g.from} <span style={{ color: 'var(--c-lo)' }}>→</span> {g.to}
@@ -164,6 +187,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
       )}
 
       {selectedGate && (
+        <>
         <div style={{
           marginTop: 28,
           borderTop: '1px solid var(--c-border)',
@@ -175,7 +199,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
 
           {!live && (
             <div className="c-sub" style={{ padding: '12px 0 4px' }}>
-              Live passage feed appears when the devnet indexer has gate events.
+              Live passage feed appears when the {SUI_NETWORK} indexer has gate events.
             </div>
           )}
 
@@ -222,6 +246,99 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
             </table>
           )}
         </div>
+
+        {/* ── CHECK PASSAGE panel ───────────────────────────────────────── */}
+        <div style={{
+          marginTop: 24,
+          padding: 20,
+          border: '1px solid var(--c-border)',
+          background: 'rgba(0,210,255,0.018)',
+        }}>
+          <div className="c-stat__label" style={{ marginBottom: 14 }}>
+            Attempt Gate Passage · {selectedGate.id}
+          </div>
+
+          {!account && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div className="c-wallet-connect">
+                <ConnectButton>CONNECT WALLET</ConnectButton>
+              </div>
+              <span className="c-sub">Connect wallet to attempt passage as traveler.</span>
+            </div>
+          )}
+
+          {account && (
+            <div>
+              <div className="c-kv">
+                <span className="c-kv__k">Traveler</span>
+                <span className="c-kv__v">{account.address}</span>
+              </div>
+              <div className="c-kv">
+                <span className="c-kv__k">Attestation</span>
+                <span className="c-kv__v">
+                  {attestationLoading
+                    ? 'fetching…'
+                    : attestationId
+                      ? shortAddr(attestationId)
+                      : <span style={{ color: 'var(--c-amber)' }}>{attestationError ?? 'none'}</span>
+                  }
+                </span>
+              </div>
+
+              <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
+                <button
+                  className="c-commit"
+                  disabled={
+                    !attestationId
+                    || ['building', 'sponsoring', 'signing', 'executing'].includes(passageState.step)
+                  }
+                  title={
+                    !attestationId
+                      ? (attestationError ?? 'No TRIBE_STANDING attestation')
+                      : passageState.step !== 'idle' && passageState.step !== 'done' && passageState.step !== 'error'
+                        ? `Transaction ${passageState.step}`
+                        : 'Submit gate passage attempt'
+                  }
+                  onClick={() => {
+                    if (passageState.step === 'done' || passageState.step === 'error') {
+                      resetPassage();
+                    } else {
+                      void checkPassage();
+                    }
+                  }}
+                >
+                  {['building', 'sponsoring', 'signing', 'executing'].includes(passageState.step)
+                    ? passageState.step.toUpperCase()
+                    : passageState.step === 'done'
+                      ? 'CLEAR'
+                      : passageState.step === 'error'
+                        ? 'RETRY'
+                        : 'CHECK PASSAGE'
+                  }
+                </button>
+
+                <span style={{
+                  fontSize: 10,
+                  color: passageState.step === 'error'
+                    ? 'var(--c-crimson)'
+                    : passageState.step === 'done'
+                      ? 'var(--c-green)'
+                      : 'var(--c-mid)',
+                }}>
+                  {passageState.step === 'done' && passageState.digest
+                    ? `✓ passage recorded · tx ${shortAddr(passageState.digest)}`
+                    : passageState.step === 'error' && passageState.error
+                      ? passageState.error
+                      : attestationId
+                        ? `TRIBE_STANDING ready · ${shortAddr(attestationId)}`
+                        : 'Awaiting attestation'
+                  }
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+        </>
       )}
     </>
   );

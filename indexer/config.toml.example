@@ -1,17 +1,18 @@
 [network]
-rpc_url = "https://fullnode.devnet.sui.io:443"
+rpc_url = "https://fullnode.testnet.sui.io:443"
 
 [package]
 # Canonical deployed package — do NOT re-publish; this address is the source of truth.
-id = "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37"
+id = "0x5a2c11eecb782820e2247d11103427cf19ea3c61f4aea00c0a330add597f6c13"
 
-# First checkpoint to index. 0 = from genesis. The deploy checkpoint was ~77;
+# First checkpoint to index. 0 = from genesis. The deploy checkpoint was 349181586;
 # set it here to skip pre-deploy history. Ignored if a cursor is already persisted.
-start_checkpoint = 77
+start_checkpoint = 349181586
 
 [database]
-url             = "postgres://postgres:password@localhost:5432/efrep"
-max_connections = 10
+# Set EFREP_DATABASE_URL in the environment; never commit live credentials.
+url             = "env:EFREP_DATABASE_URL"
+max_connections = 5
 
 [indexer]
 # Events fetched per RPC call. Sui fullnode caps at 1000.

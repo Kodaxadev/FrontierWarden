@@ -3,10 +3,12 @@
  * SchemaRegistry shared object. Single PTB, atomic.
  *
  * Usage:
- *   SUI_PRIVATE_KEY=suiprivkey1... npx tsx scripts/register-schemas.ts
+ *   npx tsx scripts/register-schemas.ts
  *
  * Optional:
- *   SUI_RPC_URL=...                  override default devnet fullnode
+ *   DEPLOYER_KEY=suiprivkey1...      override local Sui keystore
+ *   SUI_PRIVATE_KEY=suiprivkey1...   legacy key override
+ *   SUI_RPC_URL=...                  override default fullnode from devnet-addresses.json
  *   GAS_BUDGET=100000000             override gas budget (MIST)
  *   DRY_RUN=1                        build + simulate without submitting
  *
@@ -17,9 +19,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
+import { loadKeypair } from './lib/seed-wallet.js';
 
 interface SchemaSpec {
   id: string;            // schema_id as ASCII (encoded to vector<u8>)
@@ -53,35 +54,25 @@ function loadAddresses() {
   const path = resolve(here, 'devnet-addresses.json');
   const raw = JSON.parse(readFileSync(path, 'utf8'));
   return {
+    network: raw.network as 'devnet' | 'testnet' | 'mainnet' | 'localnet',
     package: raw.package.id as string,
     schemaRegistry: raw.shared_objects.schema_registry.id as string,
     schemaRegistryInitialVersion: raw.shared_objects.schema_registry.initial_version as number,
   };
 }
 
-function loadKeypair(): Ed25519Keypair {
-  const secret = process.env.SUI_PRIVATE_KEY;
-  if (!secret) {
-    throw new Error('SUI_PRIVATE_KEY not set. Export the admin key in suiprivkey1... format.');
-  }
-  const { schema, secretKey } = decodeSuiPrivateKey(secret);
-  if (schema !== 'ED25519') {
-    throw new Error(`Unsupported key schema: ${schema}. SchemaRegistry admin must be Ed25519.`);
-  }
-  return Ed25519Keypair.fromSecretKey(secretKey);
-}
-
 async function main() {
-  const { package: pkg, schemaRegistry } = loadAddresses();
+  const { network, package: pkg, schemaRegistry } = loadAddresses();
   const keypair = loadKeypair();
   const sender = keypair.getPublicKey().toSuiAddress();
-  const rpc = process.env.SUI_RPC_URL ?? getFullnodeUrl('devnet');
+  const rpc = process.env.SUI_RPC_URL ?? getFullnodeUrl(network);
   const gasBudget = BigInt(process.env.GAS_BUDGET ?? '100000000');
   const dryRun = process.env.DRY_RUN === '1';
 
   console.log('[register-schemas]');
   console.log('  package         :', pkg);
   console.log('  schema_registry :', schemaRegistry);
+  console.log('  network         :', network);
   console.log('  sender          :', sender);
   console.log('  rpc             :', rpc);
   console.log('  schemas         :', SCHEMAS.map(s => s.id).join(', '));

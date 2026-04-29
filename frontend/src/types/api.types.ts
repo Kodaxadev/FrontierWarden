@@ -25,6 +25,10 @@ export interface AttestationRow {
   revoked:        boolean;
 }
 
+export interface AttestationFeedRow extends AttestationRow {
+  issued_at: string;
+}
+
 export interface SingletonRow {
   attestation_id: string;
   schema_id:      string;
@@ -103,6 +107,46 @@ export interface FraudChallengeRow {
   slash_amount:   number | null;
   resolved_tx:    string | null;
   resolved_at:    string | null;
+}
+
+export interface VouchRow {
+  vouch_id:        string;
+  voucher:         string;
+  vouchee:         string;
+  stake_amount:    number;
+  created_tx:      string;
+  created_at:      string;
+  redeemed:        boolean;
+  amount_returned: number | null;
+  redeemed_tx:     string | null;
+  redeemed_at:     string | null;
+}
+
+export interface SchemaRow {
+  schema_id:     string;
+  version:       number;
+  resolver:      string | null;
+  deprecated_by: string | null;
+  registered_tx: string;
+  registered_at: string;
+  deprecated_tx: string | null;
+  deprecated_at: string | null;
+}
+
+export interface OracleRow {
+  oracle_address:   string;
+  name:             string;
+  tee_verified:     boolean;
+  is_system_oracle: boolean;
+  registered_tx:    string;
+  registered_at:    string;
+}
+
+export interface ProfileRow {
+  profile_id: string;
+  owner:      string;
+  created_tx: string;
+  created_at: string;
 }
 
 // Derived threat level for UI rendering

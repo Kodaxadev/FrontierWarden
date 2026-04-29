@@ -1,0 +1,5 @@
+    Blocking waiting for file lock on artifact directory
+    Finished `release` profile [optimized] target(s) in 3.93s
+     Running `target\release\efrep-indexer.exe`
+Error: Only one usage of each socket address (protocol/network address/port) is normally permitted. (os error 10048)
+error: process didn't exit successfully: `target\release\efrep-indexer.exe` (exit code: 1)

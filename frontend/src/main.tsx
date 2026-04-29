@@ -5,10 +5,17 @@
 
 import { StrictMode }          from 'react';
 import { createRoot }          from 'react-dom/client';
-import { QueryClient }         from '@tanstack/react-query';
-import { EveFrontierProvider } from '@evefrontier/dapp-kit';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { DAppKitProvider }      from '@mysten/dapp-kit-react';
+import {
+  NotificationProvider,
+  SmartObjectProvider,
+  VaultProvider,
+} from '@evefrontier/dapp-kit';
 import './globals.css';
 import App from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { dAppKit } from './lib/dapp-kit';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,8 +33,18 @@ if (!root) throw new Error('#root not found -- check index.html');
 
 createRoot(root).render(
   <StrictMode>
-    <EveFrontierProvider queryClient={queryClient}>
-      <App />
-    </EveFrontierProvider>
+    <QueryClientProvider client={queryClient}>
+      <DAppKitProvider dAppKit={dAppKit}>
+        <VaultProvider>
+          <SmartObjectProvider>
+            <NotificationProvider>
+              <ErrorBoundary>
+                <App />
+              </ErrorBoundary>
+            </NotificationProvider>
+          </SmartObjectProvider>
+        </VaultProvider>
+      </DAppKitProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );

@@ -40,6 +40,21 @@ impl Config {
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let text = std::fs::read_to_string(path.as_ref())
             .with_context(|| format!("cannot read {:?}", path.as_ref()))?;
-        toml::from_str(&text).context("config.toml parse failed")
+        let mut cfg: Self = toml::from_str(&text).context("config.toml parse failed")?;
+        cfg.database.url = resolve_database_url(&cfg.database.url)?;
+        Ok(cfg)
     }
+}
+
+fn resolve_database_url(value: &str) -> Result<String> {
+    if let Some(env_key) = value.strip_prefix("env:") {
+        return std::env::var(env_key)
+            .with_context(|| format!("{env_key} must be set for database.url"));
+    }
+
+    if let Ok(url) = std::env::var("EFREP_DATABASE_URL") {
+        return Ok(url);
+    }
+
+    Ok(value.to_owned())
 }

@@ -12,13 +12,14 @@ import { fileURLToPath } from 'node:url';
 // Runtime config (env overrides)
 // ---------------------------------------------------------------------------
 export const RPC_URL =
-  process.env.SUI_RPC_URL ?? 'https://fullnode.devnet.sui.io:443';
+  process.env.SUI_RPC_URL ?? defaultRpcUrl();
 export const GAS_BUDGET = BigInt(process.env.GAS_BUDGET ?? '200000000');
 
 // ---------------------------------------------------------------------------
 // Devnet addresses (loaded from scripts/devnet-addresses.json)
 // ---------------------------------------------------------------------------
 interface DevnetAddresses {
+  network?: string;
   package: { id: string };
   shared_objects: {
     schema_registry: { id: string; initial_version: number };
@@ -30,6 +31,14 @@ function loadAddresses(): DevnetAddresses {
   const here = dirname(fileURLToPath(import.meta.url));
   const path = resolve(here, '..', 'devnet-addresses.json');
   return JSON.parse(readFileSync(path, 'utf8')) as DevnetAddresses;
+}
+
+function defaultRpcUrl(): string {
+  const network = loadAddresses().network ?? 'testnet';
+  if (network === 'mainnet') return 'https://fullnode.mainnet.sui.io:443';
+  if (network === 'devnet') return 'https://fullnode.devnet.sui.io:443';
+  if (network === 'localnet') return 'http://127.0.0.1:9000';
+  return 'https://fullnode.testnet.sui.io:443';
 }
 
 const addrs = loadAddresses();

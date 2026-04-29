@@ -92,6 +92,9 @@ module reputation::oracle_registry {
         let sender = tx_context::sender(ctx);
         assert!(!table::contains(&registry.oracles, sender), EOracleAlreadyExists);
 
+        if (is_system_oracle) {
+            assert!(sender == registry.admin, ENotAuthorized);
+        };
         let min_required = if (is_system_oracle) { MIN_STAKE / 10 } else { MIN_STAKE };
         assert!(balance::value(&stake) >= min_required, EInsufficientStake);
 

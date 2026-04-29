@@ -10,4 +10,5 @@ Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-fram
 reputation = "0x0"
 
 [environments]
-devnet = { reset = true }
+testnet = { reset = true }
+devnet  = { reset = true }

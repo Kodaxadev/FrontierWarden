@@ -2,10 +2,12 @@
  * gas-station.ts — HTTP server exposing POST /sponsor-attestation.
  *
  * Routes:
- *   GET  /health              → { ok, service, sponsor, time }
- *   POST /sponsor-attestation → { txBytes, sponsorSignature } | { error, message }
+ *   GET  /health                       → { ok, service, sponsor, time }
+ *   POST /sponsor-transaction          → { txBytes, sponsorSignature }
+ *   POST /oracle/issue-attestation     → { digest, attestationId }
  *
- * POST body: { txKindBytes: string, sender: string, gasBudget?: number }
+ * Sponsor body: { txKindBytes: string, sender: string, gasBudget?: number }
+ * Oracle body:  { schema_id: string, subject: string, value: number, expiration_epochs?: number }
  *
  * Start:
  *   PORT=3001 SPONSOR_PRIVATE_KEY=suiprivkey1... tsx scripts/gas-station.ts
@@ -18,12 +20,14 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http';
-import { decodeSuiPrivateKey }  from '@mysten/sui/cryptography';
-import { Ed25519Keypair }       from '@mysten/sui/keypairs/ed25519';
+import { SuiClient }    from '@mysten/sui/client';
 import {
+  RPC_URL,
+  loadSponsorKeypair,
   sponsorTransaction,
   type SponsorRequest,
 } from './lib/gas-sponsor.js';
+import { buildIssueAttestationTx } from './lib/oracle-actions.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -57,16 +61,18 @@ function readBody(req: IncomingMessage): Promise<string> {
   });
 }
 
-/** Derive sponsor address from env key for /health output. Never throws. */
-function sponsorAddress(): string {
+/** Derive sponsor readiness from env key for /health output. Never throws. */
+function sponsorStatus(): { ready: boolean; address: string } {
   try {
-    const raw = process.env.SPONSOR_PRIVATE_KEY ?? '';
-    const { schema, secretKey } = decodeSuiPrivateKey(raw);
-    if (schema !== 'ED25519') return '(bad key schema)';
-    return Ed25519Keypair.fromSecretKey(secretKey).toSuiAddress();
-  } catch {
-    return '(SPONSOR_PRIVATE_KEY not set)';
+    return { ready: true, address: loadSponsorKeypair().toSuiAddress() };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'sponsor key unavailable';
+    return { ready: false, address: `(${message})` };
   }
+}
+
+function sponsorAddress(): string {
+  return sponsorStatus().address;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,10 +80,13 @@ function sponsorAddress(): string {
 // ---------------------------------------------------------------------------
 
 async function handleHealth(res: ServerResponse): Promise<void> {
+  const sponsor = sponsorStatus();
   json(res, 200, {
     ok:      true,
+    ready:   sponsor.ready,
     service: 'frontierwarden-gas-station',
-    sponsor: sponsorAddress(),
+    rpcUrl:  RPC_URL,
+    sponsor: sponsor.address,
     time:    new Date().toISOString(),
   });
 }
@@ -132,6 +141,83 @@ async function handleSponsor(
 }
 
 // ---------------------------------------------------------------------------
+// Oracle route: POST /oracle/issue-attestation
+// ---------------------------------------------------------------------------
+// The gas station key IS the oracle key (deployer = oracle).
+// This endpoint signs and submits directly — no user co-sign needed.
+// NOTE: No auth header in dev. Add API key middleware before production use.
+
+async function handleOracleIssue(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  let body: unknown;
+  try {
+    body = JSON.parse(await readBody(req));
+  } catch {
+    json(res, 400, { error: 'invalid_json', message: 'Request body must be valid JSON.' });
+    return;
+  }
+
+  const b = body as Record<string, unknown>;
+  if (
+    typeof b.schema_id !== 'string' || !b.schema_id ||
+    typeof b.subject   !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(b.subject) ||
+    (typeof b.value !== 'number' && typeof b.value !== 'string')
+  ) {
+    json(res, 400, {
+      error:   'missing_fields',
+      message: 'Body must include { schema_id: string, subject: "0x…", value: number }.',
+    });
+    return;
+  }
+
+  try {
+    const keypair = loadSponsorKeypair();
+    const client  = new SuiClient({ url: RPC_URL });
+    const sender  = keypair.toSuiAddress();
+    const expEpochs = typeof b.expiration_epochs === 'number'
+      ? BigInt(b.expiration_epochs)
+      : 200n;
+
+    const tx = buildIssueAttestationTx({
+      sender,
+      schemaId:         b.schema_id,
+      subject:          b.subject,
+      value:            BigInt(b.value as number | string),
+      expirationEpochs: expEpochs,
+    });
+    tx.setGasBudget(100_000_000n);
+
+    const result = await client.signAndExecuteTransaction({
+      transaction: tx,
+      signer:      keypair,
+      options:     { showEffects: true, showObjectChanges: true },
+    });
+
+    if (result.effects?.status.status !== 'success') {
+      json(res, 500, {
+        error:   'tx_failed',
+        message: result.effects?.status.error ?? 'Transaction failed.',
+      });
+      return;
+    }
+
+    type ObjChange = { type: string; objectType?: string; objectId: string };
+    const attestationId = ((result.objectChanges ?? []) as ObjChange[])
+      .find(c => c.type === 'created' && c.objectType?.includes('::attestation::Attestation'))
+      ?.objectId ?? null;
+
+    console.log(`[oracle] issued ${b.schema_id} → ${b.subject} value=${b.value} tx=${result.digest}`);
+    json(res, 200, { digest: result.digest, attestationId });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[oracle] issue error:', message);
+    json(res, 500, { error: 'oracle_error', message });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Server
 // ---------------------------------------------------------------------------
 
@@ -151,8 +237,13 @@ const server = createServer(async (req, res) => {
   try {
     if (method === 'GET' && url === '/health') {
       await handleHealth(res);
-    } else if (method === 'POST' && url === '/sponsor-attestation') {
+    } else if (
+      method === 'POST' &&
+      (url === '/sponsor-transaction' || url === '/sponsor-attestation')
+    ) {
       await handleSponsor(req, res);
+    } else if (method === 'POST' && url === '/oracle/issue-attestation') {
+      await handleOracleIssue(req, res);
     } else {
       json(res, 404, {
         error:   'not_found',

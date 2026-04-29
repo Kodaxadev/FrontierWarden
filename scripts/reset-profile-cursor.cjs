@@ -9,8 +9,12 @@
  */
 const { Client } = require('pg');
 
-const DB_URL =
-  'postgresql://postgres:u9XTxYYUUzBCONfg@db.bkjzfemhsssppbchjogc.supabase.co:5432/postgres';
+const DB_URL = process.env.EFREP_DATABASE_URL;
+
+if (!DB_URL) {
+  console.error('EFREP_DATABASE_URL is required.');
+  process.exit(1);
+}
 
 async function main() {
   const client = new Client({

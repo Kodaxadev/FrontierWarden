@@ -1,6 +1,8 @@
 // ReputationView — pilot reputation dossier
 // Left: score + tier + identity + vouches | Right: component contribution bars
 
+import { LiveStatus } from '../LiveStatus';
+import { SUI_NETWORK_LABEL } from '../../../../lib/network';
 import type { FwData } from '../fw-data';
 
 const TIERS = ['I','II','III','IV','V','VI'];
@@ -14,10 +16,15 @@ const COMPONENTS = [
   { label: 'Pirate-Idx Penalty', value: -12, max: -50, note: '3 contested' },
 ];
 
-interface Props { data: FwData; }
+interface Props {
+  data: FwData;
+  live?: boolean;
+  loading?: boolean;
+  error?: string | null;
+}
 
-export function ReputationView({ data }: Props) {
-  const { pilot, vouches } = data;
+export function ReputationView({ data, live = false, loading = false, error = null }: Props) {
+  const { pilot, proofs, vouches } = data;
   const iskM = (pilot.walletIsk / 1_000_000).toFixed(1);
 
   return (
@@ -25,7 +32,23 @@ export function ReputationView({ data }: Props) {
 
       {/* ── Left col ──────────────────────────────── */}
       <div>
-        <div className="c-view__title" style={{ marginBottom: 32 }}>Pilot Dossier</div>
+        <div className="c-view__title" style={{ marginBottom: 12 }}>Pilot Dossier</div>
+        <LiveStatus
+          loading={loading}
+          live={live}
+          error={error}
+          liveText={pilot.checkpoint ? `Live profile / checkpoint ${pilot.checkpoint}` : 'Live profile'}
+          emptyText="Design fallback"
+        />
+        <div className="c-sub" style={{ display: 'none' }}>
+          {loading
+            ? 'SYNCING REPUTATION INDEX'
+            : live
+              ? `LIVE ${SUI_NETWORK_LABEL} PROFILE${pilot.checkpoint ? ` · CHECKPOINT ${pilot.checkpoint}` : ''}`
+              : error
+                ? 'DESIGN FALLBACK - INDEXER OFFLINE'
+                : 'DESIGN FALLBACK - NO LIVE PROFILES'}
+        </div>
 
         {/* Score */}
         <div className="c-stat">
@@ -64,6 +87,7 @@ export function ReputationView({ data }: Props) {
             ['Syndicate', pilot.syndicate],
             ['Tribe',     pilot.tribe],
             ['Standing',  pilot.standing],
+            ['Source',    pilot.sourceId ?? 'design fixture'],
             ['Wallet',    `${iskM}M ISK`],
           ] as [string, string][]).map(([k, v]) => (
             <div key={k} className="c-kv">
@@ -93,6 +117,34 @@ export function ReputationView({ data }: Props) {
 
       {/* ── Right col ─────────────────────────────── */}
       <div>
+        <div className="c-view__title" style={{ marginBottom: 20 }}>Attestation Proofs</div>
+
+        <table className="c-table" style={{ marginBottom: 36 }}>
+          <thead>
+            <tr>
+              <th>Schema</th>
+              <th>Value</th>
+              <th>Issuer</th>
+              <th style={{ textAlign: 'right' }}>Tx</th>
+            </tr>
+          </thead>
+          <tbody>
+            {proofs.map(proof => (
+              <tr key={`${proof.id}-${proof.tx}`}>
+                <td>
+                  <div style={{ fontSize: 12 }}>{proof.schema}</div>
+                  <div className="c-sub">{proof.revoked ? 'REVOKED' : 'ACTIVE'} / {proof.id}</div>
+                </td>
+                <td style={{ color: proof.revoked ? 'var(--c-crimson)' : 'var(--c-amber)' }}>
+                  {proof.value}
+                </td>
+                <td style={{ color: 'var(--c-mid)' }}>{proof.issuer}</td>
+                <td style={{ textAlign: 'right' }}>{proof.tx}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
         <div className="c-view__title" style={{ marginBottom: 32 }}>Score Breakdown</div>
 
         {COMPONENTS.map((c, i) => {
@@ -129,7 +181,7 @@ export function ReputationView({ data }: Props) {
           background: 'rgba(245,158,11,0.03)',
         }}>
           <div className="c-stat__label" style={{ marginBottom: 16 }}>Account Summary</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 24 }}>
             {[
               { k: 'Active Vouches',   v: '14', sub: 'of 22 max' },
               { k: 'Pirate Index',     v: '12',  sub: 'of 100 cap', warn: false },

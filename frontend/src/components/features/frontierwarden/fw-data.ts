@@ -5,6 +5,8 @@ export interface FwPilot {
   name: string; handle: string; syndicate: string; syndicateTag: string;
   tribe: string; sec: number; standing: string;
   score: number; scoreDelta: number; walletIsk: number; timestamp: string; sessionLat: number;
+  sourceId?: string;
+  checkpoint?: number | null;
 }
 
 export interface FwSystem {
@@ -20,15 +22,26 @@ export interface FwGate {
   checkpoint?: number | null;
 }
 
+export interface FwPolicy {
+  gateId: string;
+  allyThreshold: number;
+  baseTollMist: number;
+  txDigest: string;
+  checkpoint: number;
+  indexedAt: string;
+}
+
 export interface FwKill {
   id: string; t: string; victim: string; ship: string;
   system: string; isk: number; attackers: number;
   hash: string; verified: boolean; friendly?: boolean;
+  issuer?: string;
 }
 
 export interface FwContract {
   id: string; kind: string; target: string; bounty: string;
   age: string; priority: 'CRIT' | 'HIGH' | 'MED' | 'LOW'; state: string;
+  issuer?: string; tx?: string;
 }
 
 export interface FwMatrixRow {
@@ -40,14 +53,19 @@ export interface FwVouch {
   from: string; weight: number; by: string; ts: string;
 }
 
+export interface FwProof {
+  id: string; schema: string; issuer: string; value: number; tx: string; revoked: boolean;
+}
+
 export interface FwAlert {
   lvl: 'CRIT' | 'WARN' | 'INFO'; t: string; msg: string;
 }
 
 export interface FwData {
   pilot: FwPilot; systems: FwSystem[]; gates: FwGate[];
+  policy?: FwPolicy;
   kills: FwKill[]; contracts: FwContract[]; matrix: FwMatrixRow[];
-  vouches: FwVouch[]; alerts: FwAlert[];
+  vouches: FwVouch[]; proofs: FwProof[]; alerts: FwAlert[];
 }
 
 export const FW_DATA: FwData = {
@@ -96,6 +114,11 @@ export const FW_DATA: FwData = {
     { from: 'Pact Sentinels',         weight: 0.28, by: 'PILOT#0202 · J. Vorn',  ts: '2026-04-25T22:04:33Z' },
     { from: 'Free Vrennir',           weight: 0.18, by: 'PILOT#0091 · L. Soren', ts: '2026-04-24T11:48:09Z' },
     { from: 'Obsidian Veil (self)',   weight: 0.12, by: 'PILOT#0041 · self',      ts: '2026-04-22T05:00:00Z' },
+  ],
+  proofs: [
+    { id: 'ATT#88412', schema: 'SHIP_KILL', issuer: '0x9af2...44e8', value: 1, tx: '0x9af2c1...44e8', revoked: false },
+    { id: 'ATT#0202', schema: 'TRIBE_STANDING', issuer: 'PILOT#0202', value: 847, tx: '0x71b801...0a22', revoked: false },
+    { id: 'ATT#0014', schema: 'CREDIT', issuer: 'PILOT#0014', value: 842, tx: '0x4e90a2...b7f1', revoked: false },
   ],
   alerts: [
     { lvl: 'CRIT', t: '07:31:48Z', msg: 'Friendly capsule lost — Mire Anomaly · ENT#0231' },

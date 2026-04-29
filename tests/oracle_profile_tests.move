@@ -6,6 +6,7 @@ module reputation::oracle_profile_tests {
     use sui::balance;
     use sui::sui::SUI;
     use sui::transfer;
+    use sui::object::ID;
     use sui::coin::{Self, Coin};
     use reputation::oracle_registry::{Self, OracleRegistry};
     use reputation::profile::{Self, ReputationProfile, OracleCapability};
@@ -23,6 +24,14 @@ module reputation::oracle_profile_tests {
 
     fun one_sui(): balance::Balance<SUI> {
         balance::create_for_testing<SUI>(1_000_000_000)
+    }
+
+    fun point_one_sui(): balance::Balance<SUI> {
+        balance::create_for_testing<SUI>(100_000_000)
+    }
+
+    fun newest_profile_id(): ID {
+        option::destroy_some(test_scenario::most_recent_id_shared<ReputationProfile>())
     }
 
     // --- Oracle registration issues OracleCapability ---
@@ -56,6 +65,35 @@ module reputation::oracle_profile_tests {
             let cap = test_scenario::take_from_sender<OracleCapability>(scenario);
             assert!(profile::get_oracle_address(&cap) == ORACLE, 0);
             test_scenario::return_to_sender(scenario, cap);
+        };
+
+        test_scenario::end(scenario_val);
+    }
+
+    // --- System oracle registration is admin-only ---
+    #[test]
+    #[expected_failure(abort_code = oracle_registry::ENotAuthorized)]
+    fun test_register_system_oracle_requires_admin() {
+        let mut scenario_val = test_scenario::begin(ADMIN);
+        let scenario = &mut scenario_val;
+
+        test_scenario::next_tx(scenario, ADMIN);
+        { oracle_registry::init_for_testing(test_scenario::ctx(scenario)); };
+
+        test_scenario::next_tx(scenario, ORACLE);
+        {
+            let mut registry = test_scenario::take_shared<OracleRegistry>(scenario);
+            oracle_registry::register_oracle(
+                &mut registry,
+                b"Fake System Oracle",
+                vector[b"CREDIT"],
+                point_one_sui(),
+                false,
+                b"",
+                true,
+                test_scenario::ctx(scenario)
+            );
+            test_scenario::return_shared(registry);
         };
 
         test_scenario::end(scenario_val);
@@ -137,23 +175,25 @@ module reputation::oracle_profile_tests {
 
         // Player creates profile
         test_scenario::next_tx(scenario, PLAYER);
-        { profile::create_profile(test_scenario::ctx(scenario)); };
-
+        {
+            profile::create_profile(test_scenario::ctx(scenario));
+        };
         // Oracle writes score using test helper (bypasses registration for unit test isolation)
         test_scenario::next_tx(scenario, ORACLE);
+        let player_profile_id = newest_profile_id();
         {
             let cap = profile::create_oracle_capability_for_testing(
                 ORACLE,
                 vector[b"PIRATE_INDEX_V1"],
                 test_scenario::ctx(scenario)
             );
-            let mut player_profile = test_scenario::take_from_address<ReputationProfile>(scenario, PLAYER);
+            let mut player_profile = test_scenario::take_shared_by_id<ReputationProfile>(scenario, player_profile_id);
 
             profile::update_score(&cap, &mut player_profile, b"PIRATE_INDEX_V1", 75, 1, test_scenario::ctx(scenario));
 
             assert!(profile::get_score(&player_profile, b"PIRATE_INDEX_V1") == 75, 0);
 
-            test_scenario::return_to_address(PLAYER, player_profile);
+            test_scenario::return_shared(player_profile);
             profile::destroy_oracle_capability(cap);
         };
 
@@ -170,12 +210,14 @@ module reputation::oracle_profile_tests {
         { oracle_registry::init_for_testing(test_scenario::ctx(scenario)); };
 
         test_scenario::next_tx(scenario, PLAYER);
-        { profile::create_profile(test_scenario::ctx(scenario)); };
-
+        {
+            profile::create_profile(test_scenario::ctx(scenario));
+        };
         test_scenario::next_tx(scenario, ORACLE);
+        let player_profile_id = newest_profile_id();
         {
             let cap = profile::create_oracle_capability_for_testing(ORACLE, vector[b"CREDIT"], test_scenario::ctx(scenario));
-            let mut p = test_scenario::take_from_address<ReputationProfile>(scenario, PLAYER);
+            let mut p = test_scenario::take_shared_by_id<ReputationProfile>(scenario, player_profile_id);
 
             // Set score to 1000
             profile::update_score(&cap, &mut p, b"CREDIT", 1000, 1, test_scenario::ctx(scenario));
@@ -185,7 +227,7 @@ module reputation::oracle_profile_tests {
             profile::apply_decay(&cap, &mut p, b"CREDIT", 10, test_scenario::ctx(scenario));
             assert!(profile::get_score(&p, b"CREDIT") == 900, 1);
 
-            test_scenario::return_to_address(PLAYER, p);
+            test_scenario::return_shared(p);
             profile::destroy_oracle_capability(cap);
         };
 
@@ -200,17 +242,19 @@ module reputation::oracle_profile_tests {
         let scenario = &mut scenario_val;
 
         test_scenario::next_tx(scenario, PLAYER);
-        { profile::create_profile(test_scenario::ctx(scenario)); };
-
+        {
+            profile::create_profile(test_scenario::ctx(scenario));
+        };
         test_scenario::next_tx(scenario, ORACLE);
+        let player_profile_id = newest_profile_id();
         {
             // Cap only authorizes CREDIT, not PIRATE_INDEX_V1
             let cap = profile::create_oracle_capability_for_testing(ORACLE, vector[b"CREDIT"], test_scenario::ctx(scenario));
-            let mut p = test_scenario::take_from_address<ReputationProfile>(scenario, PLAYER);
+            let mut p = test_scenario::take_shared_by_id<ReputationProfile>(scenario, player_profile_id);
 
             profile::update_score(&cap, &mut p, b"PIRATE_INDEX_V1", 50, 1, test_scenario::ctx(scenario));
 
-            test_scenario::return_to_address(PLAYER, p);
+            test_scenario::return_shared(p);
             profile::destroy_oracle_capability(cap);
         };
 
@@ -229,29 +273,31 @@ module reputation::oracle_profile_tests {
         { lending::init_for_testing(test_scenario::ctx(scenario)); };
 
         test_scenario::next_tx(scenario, VOUCHER);
-        { profile::create_profile(test_scenario::ctx(scenario)); };
-
+        {
+            profile::create_profile(test_scenario::ctx(scenario));
+        };
         test_scenario::next_tx(scenario, ORACLE);
+        let voucher_profile_id = newest_profile_id();
         {
             let cap = profile::create_oracle_capability_for_testing(
                 ORACLE, vector[b"CREDIT"], test_scenario::ctx(scenario)
             );
-            let mut vp = test_scenario::take_from_address<ReputationProfile>(scenario, VOUCHER);
+            let mut vp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, voucher_profile_id);
             profile::update_score(&cap, &mut vp, b"CREDIT", CREDIT_SCORE, 1, test_scenario::ctx(scenario));
-            test_scenario::return_to_address(VOUCHER, vp);
+            test_scenario::return_shared(vp);
             profile::destroy_oracle_capability(cap);
         };
 
         // VOUCHER creates vouch
         test_scenario::next_tx(scenario, VOUCHER);
         {
-            let vp = test_scenario::take_from_sender<ReputationProfile>(scenario);
+            let vp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, voucher_profile_id);
             vouch::create_vouch(
                 &vp, BORROWER,
                 balance::create_for_testing<SUI>(VOUCH_STAKE),
                 test_scenario::ctx(scenario)
             );
-            test_scenario::return_to_sender(scenario, vp);
+            test_scenario::return_shared(vp);
         };
 
         // Trigger slash — ADMIN calls, but slashed balance must go to VOUCHER

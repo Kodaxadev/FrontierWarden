@@ -4,6 +4,7 @@
 
 import type {
   HealthResponse,
+  AttestationFeedRow,
   ScoreRow,
   AttestationRow,
   LeaderboardEntry,
@@ -12,6 +13,10 @@ import type {
   GatePolicyRow,
   GatePassageRow,
   FraudChallengeRow,
+  VouchRow,
+  SchemaRow,
+  OracleRow,
+  ProfileRow,
 } from '../types/api.types';
 
 const BASE     = import.meta.env.VITE_API_BASE         ?? '/api';
@@ -41,12 +46,29 @@ export const fetchScore = (
 ): Promise<ScoreRow | null> =>
   get(`/scores/${encodeURIComponent(profileId)}/${encodeURIComponent(schemaId)}`);
 
+export const fetchVouches = (
+  voucheeAddress: string,
+  limit = 50,
+): Promise<VouchRow[]> =>
+  get(`/profiles/${encodeURIComponent(voucheeAddress)}/vouches?limit=${limit}`);
+
 // ── Attestations ──────────────────────────────────────────────────────────────
 
 export interface AttestationFilter {
   schema_id?: string;
   limit?:     number;
   revoked?:   boolean;
+}
+
+export function fetchAttestationFeed(
+  filter: AttestationFilter = {},
+): Promise<AttestationFeedRow[]> {
+  const params = new URLSearchParams();
+  if (filter.schema_id) params.set('schema_id', filter.schema_id);
+  if (filter.limit     != null) params.set('limit',     String(filter.limit));
+  if (filter.revoked   != null) params.set('revoked',   String(filter.revoked));
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return get(`/attestations${qs}`);
 }
 
 export function fetchAttestations(
@@ -75,7 +97,7 @@ export const fetchIntel = (systemId: string): Promise<SystemIntelResponse> =>
   get(`/intel/${encodeURIComponent(systemId)}`);
 
 // ── Gas station ───────────────────────────────────────────────────────────────
-// POST /gas/sponsor-attestation (proxied to localhost:3001 in dev)
+// POST /gas/sponsor-transaction (proxied to localhost:3001 in dev)
 
 export const fetchGates = (): Promise<GateSummaryRow[]> =>
   get('/gates');
@@ -104,6 +126,25 @@ export const fetchOracleChallenges = (
 ): Promise<FraudChallengeRow[]> =>
   get(`/oracles/${encodeURIComponent(oracle)}/challenges?limit=${limit}`);
 
+// ── Registry listings ─────────────────────────────────────────────────────────
+
+export const fetchSchemas = (limit = 100): Promise<SchemaRow[]> =>
+  get(`/schemas?limit=${limit}`);
+
+export const fetchOracles = (limit = 100): Promise<OracleRow[]> =>
+  get(`/oracles?limit=${limit}`);
+
+// Profile lookup by wallet address — poll after create_profile to get profile_id.
+export const fetchProfileByOwner = (address: string): Promise<ProfileRow | null> =>
+  get(`/profiles/by-owner/${encodeURIComponent(address)}`);
+
+// Vouches issued by an address (voucher side).
+export const fetchGivenVouches = (
+  address: string,
+  limit = 50,
+): Promise<VouchRow[]> =>
+  get(`/profiles/${encodeURIComponent(address)}/given-vouches?limit=${limit}`);
+
 export interface SponsorRequest {
   /** Base64-encoded tx kind bytes (Transaction.build({ onlyTransactionKind: true })). */
   txKindBytes: string;
@@ -120,8 +161,39 @@ export interface SponsorResponse {
   sponsorSignature: string;
 }
 
-export async function sponsorAttestation(req: SponsorRequest): Promise<SponsorResponse> {
-  const res = await fetch(`${GAS_BASE}/sponsor-attestation`, {
+// ── Oracle ────────────────────────────────────────────────────────────────────
+// POST /gas/oracle/issue-attestation (proxied to gas station)
+// The gas station holds the oracle key and signs directly — no user wallet needed.
+
+export interface IssueAttestationRequest {
+  schema_id:          string;
+  subject:            string;
+  value:              number;
+  expiration_epochs?: number;
+}
+
+export interface IssueAttestationResponse {
+  digest:         string;
+  attestationId:  string | null;
+}
+
+export async function issueAttestation(
+  req: IssueAttestationRequest,
+): Promise<IssueAttestationResponse> {
+  const res = await fetch(`${GAS_BASE}/oracle/issue-attestation`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`Oracle ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<IssueAttestationResponse>;
+}
+
+export async function sponsorTransaction(req: SponsorRequest): Promise<SponsorResponse> {
+  const res = await fetch(`${GAS_BASE}/sponsor-transaction`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(req),
@@ -132,3 +204,5 @@ export async function sponsorAttestation(req: SponsorRequest): Promise<SponsorRe
   }
   return res.json() as Promise<SponsorResponse>;
 }
+
+export const sponsorAttestation = sponsorTransaction;

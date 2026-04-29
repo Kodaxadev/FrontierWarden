@@ -1,9 +1,11 @@
 #[test_only]
 module reputation::lending_tests {
+    use std::option;
     use sui::test_scenario;
     use sui::balance;
     use sui::sui::SUI;
     use sui::transfer;
+    use sui::object::ID;
     use sui::coin::{Self, Coin};
     use reputation::oracle_registry;
     use reputation::profile::{Self, ReputationProfile};
@@ -21,6 +23,10 @@ module reputation::lending_tests {
     const COLLATERAL: u64 = 50_000_000;     // 0.05 SUI
     const CREDIT_SCORE: u64 = 500;
 
+    fun newest_profile_id(): ID {
+        option::destroy_some(test_scenario::most_recent_id_shared<ReputationProfile>())
+    }
+
     // Full setup: registries, profiles, credit scores, vouch, and a shared Loan.
     // Used by tests 6-10 (repay and default lifecycle).
     fun setup_all(scenario: &mut test_scenario::Scenario) {
@@ -34,36 +40,38 @@ module reputation::lending_tests {
         { profile::create_profile(test_scenario::ctx(scenario)); };
 
         test_scenario::next_tx(scenario, BORROWER);
+        let voucher_profile_id = newest_profile_id();
         { profile::create_profile(test_scenario::ctx(scenario)); };
 
         test_scenario::next_tx(scenario, ORACLE);
+        let borrower_profile_id = newest_profile_id();
         {
             let cap = profile::create_oracle_capability_for_testing(
                 ORACLE, vector[b"CREDIT"], test_scenario::ctx(scenario)
             );
-            let mut vp = test_scenario::take_from_address<ReputationProfile>(scenario, VOUCHER);
-            let mut bp = test_scenario::take_from_address<ReputationProfile>(scenario, BORROWER);
+            let mut vp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, voucher_profile_id);
+            let mut bp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, borrower_profile_id);
             profile::update_score(&cap, &mut vp, b"CREDIT", CREDIT_SCORE, 1, test_scenario::ctx(scenario));
             profile::update_score(&cap, &mut bp, b"CREDIT", CREDIT_SCORE, 1, test_scenario::ctx(scenario));
-            test_scenario::return_to_address(VOUCHER, vp);
-            test_scenario::return_to_address(BORROWER, bp);
+            test_scenario::return_shared(vp);
+            test_scenario::return_shared(bp);
             profile::destroy_oracle_capability(cap);
         };
 
         test_scenario::next_tx(scenario, VOUCHER);
         {
-            let vp = test_scenario::take_from_sender<ReputationProfile>(scenario);
+            let vp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, voucher_profile_id);
             vouch::create_vouch(
                 &vp, BORROWER,
                 balance::create_for_testing<SUI>(VOUCH_STAKE),
                 test_scenario::ctx(scenario)
             );
-            test_scenario::return_to_sender(scenario, vp);
+            test_scenario::return_shared(vp);
         };
 
         test_scenario::next_tx(scenario, LENDER);
         {
-            let bp = test_scenario::take_from_address<ReputationProfile>(scenario, BORROWER);
+            let bp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, borrower_profile_id);
             let v = test_scenario::take_from_address<Vouch>(scenario, BORROWER);
             let loan = lending::issue_loan(
                 &bp, &v, LOAN_AMOUNT,
@@ -71,7 +79,7 @@ module reputation::lending_tests {
                 test_scenario::ctx(scenario)
             );
             transfer::public_share_object(loan);
-            test_scenario::return_to_address(BORROWER, bp);
+            test_scenario::return_shared(bp);
             test_scenario::return_to_address(BORROWER, v);
         };
     }
@@ -92,33 +100,35 @@ module reputation::lending_tests {
         test_scenario::next_tx(scenario, VOUCHER);
         { profile::create_profile(test_scenario::ctx(scenario)); };
         test_scenario::next_tx(scenario, BORROWER);
+        let voucher_profile_id = newest_profile_id();
         { profile::create_profile(test_scenario::ctx(scenario)); };
 
         test_scenario::next_tx(scenario, ORACLE);
+        let borrower_profile_id = newest_profile_id();
         {
             let cap = profile::create_oracle_capability_for_testing(
                 ORACLE, vector[b"CREDIT"], test_scenario::ctx(scenario)
             );
-            let mut vp = test_scenario::take_from_address<ReputationProfile>(scenario, VOUCHER);
-            let mut bp = test_scenario::take_from_address<ReputationProfile>(scenario, BORROWER);
+            let mut vp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, voucher_profile_id);
+            let mut bp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, borrower_profile_id);
             profile::update_score(&cap, &mut vp, b"CREDIT", CREDIT_SCORE, 1, test_scenario::ctx(scenario));
             profile::update_score(&cap, &mut bp, b"CREDIT", CREDIT_SCORE, 1, test_scenario::ctx(scenario));
-            test_scenario::return_to_address(VOUCHER, vp);
-            test_scenario::return_to_address(BORROWER, bp);
+            test_scenario::return_shared(vp);
+            test_scenario::return_shared(bp);
             profile::destroy_oracle_capability(cap);
         };
 
         test_scenario::next_tx(scenario, VOUCHER);
         {
-            let vp = test_scenario::take_from_sender<ReputationProfile>(scenario);
+            let vp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, voucher_profile_id);
             vouch::create_vouch(&vp, BORROWER, balance::create_for_testing<SUI>(VOUCH_STAKE), test_scenario::ctx(scenario));
-            test_scenario::return_to_sender(scenario, vp);
+            test_scenario::return_shared(vp);
         };
 
         // BORROWER acts as lender — sender == borrower → ESelfLoan
         test_scenario::next_tx(scenario, BORROWER);
         {
-            let bp = test_scenario::take_from_sender<ReputationProfile>(scenario);
+            let bp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, borrower_profile_id);
             let v = test_scenario::take_from_sender<Vouch>(scenario);
             let loan = lending::issue_loan(
                 &bp, &v, LOAN_AMOUNT,
@@ -126,7 +136,7 @@ module reputation::lending_tests {
                 test_scenario::ctx(scenario)
             );
             transfer::public_share_object(loan);
-            test_scenario::return_to_sender(scenario, bp);
+            test_scenario::return_shared(bp);
             test_scenario::return_to_sender(scenario, v);
         };
 
@@ -149,31 +159,33 @@ module reputation::lending_tests {
         test_scenario::next_tx(scenario, VOUCHER);
         { profile::create_profile(test_scenario::ctx(scenario)); };
         test_scenario::next_tx(scenario, BORROWER);
+        let voucher_profile_id = newest_profile_id();
         { profile::create_profile(test_scenario::ctx(scenario)); };
 
         // Only VOUCHER gets a score — BORROWER stays at 0
         test_scenario::next_tx(scenario, ORACLE);
+        let borrower_profile_id = newest_profile_id();
         {
             let cap = profile::create_oracle_capability_for_testing(
                 ORACLE, vector[b"CREDIT"], test_scenario::ctx(scenario)
             );
-            let mut vp = test_scenario::take_from_address<ReputationProfile>(scenario, VOUCHER);
+            let mut vp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, voucher_profile_id);
             profile::update_score(&cap, &mut vp, b"CREDIT", 600, 1, test_scenario::ctx(scenario));
-            test_scenario::return_to_address(VOUCHER, vp);
+            test_scenario::return_shared(vp);
             profile::destroy_oracle_capability(cap);
         };
 
         test_scenario::next_tx(scenario, VOUCHER);
         {
-            let vp = test_scenario::take_from_sender<ReputationProfile>(scenario);
+            let vp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, voucher_profile_id);
             vouch::create_vouch(&vp, BORROWER, balance::create_for_testing<SUI>(VOUCH_STAKE), test_scenario::ctx(scenario));
-            test_scenario::return_to_sender(scenario, vp);
+            test_scenario::return_shared(vp);
         };
 
         // BORROWER score = 0 < 300 → EInsufficientCredit
         test_scenario::next_tx(scenario, LENDER);
         {
-            let bp = test_scenario::take_from_address<ReputationProfile>(scenario, BORROWER);
+            let bp = test_scenario::take_shared_by_id<ReputationProfile>(scenario, borrower_profile_id);
             let v = test_scenario::take_from_address<Vouch>(scenario, BORROWER);
             let loan = lending::issue_loan(
                 &bp, &v, LOAN_AMOUNT,
@@ -181,7 +193,7 @@ module reputation::lending_tests {
                 test_scenario::ctx(scenario)
             );
             transfer::public_share_object(loan);
-            test_scenario::return_to_address(BORROWER, bp);
+            test_scenario::return_shared(bp);
             test_scenario::return_to_address(BORROWER, v);
         };
 

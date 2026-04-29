@@ -1,6 +1,7 @@
 // KillboardView — kill feed with attestation hashes
 
 import { useState } from 'react';
+import { LiveStatus } from '../LiveStatus';
 import type { FwData } from '../fw-data';
 
 type KillFilter = 'ALL' | 'HOSTILE' | 'FRIENDLY';
@@ -11,9 +12,14 @@ function iskLabel(isk: number) {
   return `${(isk / 1e6).toFixed(1)}M`;
 }
 
-interface Props { data: FwData; }
+interface Props {
+  data: FwData;
+  live?: boolean;
+  loading?: boolean;
+  error?: string | null;
+}
 
-export function KillboardView({ data }: Props) {
+export function KillboardView({ data, live = false, loading = false, error = null }: Props) {
   const [filter, setFilter] = useState<KillFilter>('ALL');
 
   const kills = data.kills.filter(k => {
@@ -30,9 +36,17 @@ export function KillboardView({ data }: Props) {
     <>
       <div className="c-view__title">Killboard · Attestation Intercepts</div>
 
+      <LiveStatus
+        loading={loading}
+        live={live}
+        error={error}
+        liveText="Live ship kills"
+        emptyText="Design fallback"
+      />
+
       {/* Summary bar */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
         gap: 1, marginBottom: 32,
         border: '1px solid var(--c-border)',
         background: 'var(--c-border)',
@@ -75,6 +89,7 @@ export function KillboardView({ data }: Props) {
             <th>Victim</th>
             <th>System</th>
             <th>ISK Lost</th>
+            <th>Issuer</th>
             <th>Attestation</th>
             <th>Status</th>
           </tr>
@@ -107,6 +122,11 @@ export function KillboardView({ data }: Props) {
                     style={{ color: highIsk ? 'var(--c-amber)' : 'var(--c-hi)', fontSize: highIsk ? 18 : 13 }}>
                     {iskLabel(k.isk)}
                   </div>
+                </td>
+                <td>
+                  <span style={{ fontSize: 10, color: 'var(--c-mid)', fontFamily: 'var(--c-mono)' }}>
+                    {k.issuer ?? 'design'}
+                  </span>
                 </td>
                 <td>
                   <span style={{ fontSize: 9, color: 'var(--c-mid)', letterSpacing: '0.04em', fontFamily: 'var(--c-mono)' }}>

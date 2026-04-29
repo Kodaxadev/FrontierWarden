@@ -8,6 +8,9 @@ const TABS: { id: FwTab; label: string }[] = [
   { id: 'reputation', label: 'REPUTATION'  },
   { id: 'contracts',  label: 'CONTRACTS'   },
   { id: 'policy',     label: 'POLICY'      },
+  { id: 'oracle',     label: 'ORACLE'      },
+  { id: 'social',     label: 'SOCIAL'      },
+  { id: 'disputes',   label: 'DISPUTES'    },
 ];
 
 interface FwNavProps {

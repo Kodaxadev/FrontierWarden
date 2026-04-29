@@ -118,7 +118,7 @@ module reputation::profile {
         };
 
         let profile_address = object::id_address(&profile);
-        transfer::transfer(profile, tx_context::sender(ctx));
+        transfer::share_object(profile);
 
         event::emit(ProfileCreated {
             profile_id: profile_address,

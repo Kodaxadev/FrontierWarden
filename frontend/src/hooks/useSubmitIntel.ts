@@ -4,20 +4,13 @@
 //   1. build   -- construct PTB kind bytes via tx-intel.ts
 //   2. sponsor -- gas station wraps into full tx + returns sponsor sig
 //   3. sign    -- CurrentAccountSigner (dapp-kit-core) signs the tx bytes
-//   4. execute -- submit with [sponsorSig, userSig] to Sui devnet
+//   4. execute -- submit with [sponsorSig, userSig] to the configured Sui network
 //
 // Single responsibility: flow orchestration + status tracking.
 
-import { useState, useCallback }       from 'react';
-import { fromBase64 }                  from '@mysten/bcs';
-import { CurrentAccountSigner }        from '@mysten/dapp-kit-core';
-import {
-  useDAppKit,
-  useCurrentAccount,
-  useCurrentClient,
-}                                      from '@mysten/dapp-kit-react';
+import { useCallback, useState }        from 'react';
 import { buildAttestTxKind }           from '../lib/tx-intel';
-import { sponsorAttestation }          from '../lib/api';
+import { useSponsoredTransaction }      from './useSponsoredTransaction';
 import type { AttestSchema }           from '../lib/tx-intel';
 
 // ---------------------------------------------------------------------------
@@ -79,61 +72,39 @@ function humaniseError(err: unknown): string {
 const IDLE: SubmitState = { step: 'idle', digest: null, error: null };
 
 export function useSubmitIntel(): UseSubmitIntelReturn {
-  const dAppKit = useDAppKit();
-  const account = useCurrentAccount();
-  const client  = useCurrentClient();
-  const [state, setState] = useState<SubmitState>(IDLE);
+  const { account, execute, reset: resetSponsored, state } = useSponsoredTransaction();
+  const [oracleError, setOracleError] = useState<string | null>(null);
 
-  const reset = useCallback(() => setState(IDLE), []);
+  const reset = useCallback(() => {
+    setOracleError(null);
+    resetSponsored();
+  }, [resetSponsored]);
 
   const submit = useCallback(async (args: SubmitIntelArgs) => {
+    setOracleError(null);
+
     if (!account) {
-      setState({ step: 'error', digest: null, error: 'Wallet not connected.' });
+      await execute({ build: async () => '' });
       return;
     }
 
-    try {
-      // -- Step 1: build -------------------------------------------------------
-      setState({ step: 'building', digest: null, error: null });
-      const txKindBytes = await buildAttestTxKind({
+    const result = await execute({
+      build: () => buildAttestTxKind({
         sender:  account.address,
         schema:  args.schema,
         subject: args.subject,
         value:   args.value,
-      });
+      }),
+    });
 
-      // -- Step 2: sponsor -----------------------------------------------------
-      setState({ step: 'sponsoring', digest: null, error: null });
-      const { txBytes, sponsorSignature } = await sponsorAttestation({
-        txKindBytes,
-        sender: account.address,
-      });
-
-      // -- Step 3: sign --------------------------------------------------------
-      // CurrentAccountSigner wraps the active wallet and provides
-      // signTransaction(bytes: Uint8Array): Promise<SignedTransaction>
-      setState({ step: 'signing', digest: null, error: null });
-      const signer   = new CurrentAccountSigner(dAppKit);
-      const rawBytes = fromBase64(txBytes);
-      const signed   = await signer.signTransaction(rawBytes);
-
-      // -- Step 4: execute -----------------------------------------------------
-      setState({ step: 'executing', digest: null, error: null });
-      const result = await client.core.executeTransaction({
-        transaction: fromBase64(txBytes),
-        signatures:  [sponsorSignature, signed.signature],
-      });
-
-      if (result.$kind === 'FailedTransaction') {
-        throw new Error(`Transaction failed: ${result.FailedTransaction.digest}`);
-      }
-
-      setState({ step: 'done', digest: result.Transaction.digest, error: null });
-
-    } catch (err) {
-      setState({ step: 'error', digest: null, error: humaniseError(err) });
+    if (result.step === 'error' && isOracleError(result.error)) {
+      setOracleError(humaniseError(result.error));
     }
-  }, [dAppKit, account, client]);
+  }, [account, execute]);
 
-  return { state, submit, reset };
+  return {
+    state: oracleError ? { ...state, error: oracleError } : state,
+    submit,
+    reset,
+  };
 }

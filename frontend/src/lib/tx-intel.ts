@@ -2,7 +2,7 @@
 //
 // Produces a base64-encoded TransactionKind that can be passed to the gas
 // station for sponsorship. All shared objects are referenced by their stable
-// devnet IDs; the full tx envelope (gas coin, sponsor sig) is added by the
+// configured network IDs; the full tx envelope (gas coin, sponsor sig) is added by the
 // gas station before the user signs.
 //
 // Single responsibility: PTB construction only. No network calls, no hooks.
@@ -34,7 +34,7 @@ export interface BuildAttestArgs {
   subject: string;
   /** Numeric value for the attestation (u64) */
   value:   bigint;
-  /** Epochs until expiration -- defaults to 7 (approx 1 week on devnet) */
+  /** Epochs until expiration -- defaults to 7 */
   expirationEpochs?: bigint;
 }
 

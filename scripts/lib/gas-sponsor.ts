@@ -2,7 +2,7 @@
  * gas-sponsor.ts — Sui sponsored transaction builder.
  *
  * Responsibilities:
- *   - Load sponsor keypair from SPONSOR_PRIVATE_KEY env
+ *   - Load sponsor keypair from SPONSOR_PRIVATE_KEY env or active Sui CLI key
  *   - Accept tx kind bytes (base64) + sender + optional gas budget
  *   - Attach gas payment from sponsor's coin objects
  *   - Build and sign the transaction as sponsor
@@ -19,12 +19,13 @@ import { Ed25519Keypair }        from '@mysten/sui/keypairs/ed25519';
 import { Transaction }           from '@mysten/sui/transactions';
 import { decodeSuiPrivateKey }   from '@mysten/sui/cryptography';
 import { fromBase64, toBase64 }  from '@mysten/sui/utils';
+import { loadKeypair }           from './seed-wallet.js';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const RPC_URL  = process.env.SUI_RPC_URL ?? 'https://fullnode.devnet.sui.io:443';
+export const RPC_URL = process.env.SUI_RPC_URL ?? 'https://fullnode.testnet.sui.io:443';
 const SUI_COIN = '0x2::sui::SUI';
 
 /** Default gas budget (MIST). Callers may override per-request. */
@@ -42,16 +43,12 @@ const MAX_GAS_BUDGET = BigInt(
 // ---------------------------------------------------------------------------
 
 export function loadSponsorKeypair(): Ed25519Keypair {
-  const raw = process.env.SPONSOR_PRIVATE_KEY;
-  if (!raw) {
-    throw new Error(
-      'SPONSOR_PRIVATE_KEY is not set. ' +
-      'Provide a bech32 suiprivkey1... Ed25519 key in .env or environment.',
-    );
-  }
+  const raw = process.env.SPONSOR_PRIVATE_KEY ?? process.env.SPONSOR_KEYPAIR;
+  if (!raw) return loadKeypair();
+
   const { schema, secretKey } = decodeSuiPrivateKey(raw);
   if (schema !== 'ED25519') {
-    throw new Error(`SPONSOR_PRIVATE_KEY must be an Ed25519 key, got: ${schema}`);
+    throw new Error(`Sponsor key must be an Ed25519 key, got: ${schema}`);
   }
   return Ed25519Keypair.fromSecretKey(secretKey);
 }
@@ -100,8 +97,8 @@ export async function sponsorTransaction(
 
   if (coins.length === 0) {
     throw new Error(
-      `Sponsor wallet ${sponsor} has no SUI coins on devnet. ` +
-      'Fund via https://faucet.devnet.sui.io or `sui client faucet`.',
+      `Sponsor wallet ${sponsor} has no SUI coins for ${RPC_URL}. ` +
+      'Fund it from the matching Sui faucet.',
     );
   }
 

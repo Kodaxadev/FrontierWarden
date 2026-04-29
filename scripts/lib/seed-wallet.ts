@@ -48,31 +48,57 @@ export function loadKeypair(): Ed25519Keypair {
     return Ed25519Keypair.fromSecretKey(secretKey);
   }
 
-  // Fall back to local Sui keystore (first entry).
+  // Fall back to local Sui keystore, preferring the active_address in client.yaml.
   // Keystore format: base64(flag_byte || secret_key_32_bytes).
   // flag 0 = ED25519, 1 = Secp256k1, 2 = Secp256r1.
   // This is different from the bech32 suiprivkey1... format — do NOT use
   // decodeSuiPrivateKey here; it only handles bech32 input.
-  const keystorePath = resolve(homedir(), '.sui', 'sui_config', 'sui.keystore');
+  const suiConfigDir = resolve(homedir(), '.sui', 'sui_config');
+  const keystorePath = resolve(suiConfigDir, 'sui.keystore');
+  const clientConfigPath = resolve(suiConfigDir, 'client.yaml');
   try {
     const entries = JSON.parse(readFileSync(keystorePath, 'utf8')) as string[];
     if (entries.length === 0) throw new Error('Keystore is empty');
-    const raw = Buffer.from(entries[0], 'base64');
-    const flag = raw[0];
-    if (flag !== 0) {
-      throw new Error(
-        `Keystore first entry has key scheme flag ${flag} (expected 0 for ED25519). ` +
-        'Set DEPLOYER_KEY=suiprivkey1... with an Ed25519 key instead.',
-      );
+
+    const activeAddress = readActiveAddress(clientConfigPath);
+    let firstEd25519: Ed25519Keypair | null = null;
+
+    for (const entry of entries) {
+      const raw = Buffer.from(entry, 'base64');
+      const flag = raw[0];
+      if (flag !== 0) continue;
+
+      const keypair = Ed25519Keypair.fromSecretKey(raw.subarray(1));
+      firstEd25519 ??= keypair;
+
+      if (activeAddress && keypair.getPublicKey().toSuiAddress() === activeAddress) {
+        return keypair;
+      }
     }
-    const secretKey = raw.subarray(1); // bytes 1-32 = 32-byte Ed25519 secret
-    return Ed25519Keypair.fromSecretKey(secretKey);
+
+    if (activeAddress) {
+      throw new Error(`Active address ${activeAddress} was not found as an Ed25519 key in sui.keystore`);
+    }
+    if (!firstEd25519) {
+      throw new Error('No Ed25519 entries found in sui.keystore');
+    }
+    return firstEd25519;
   } catch (err) {
     throw new Error(
       'No DEPLOYER_KEY env var set and keystore load failed: ' +
       `${(err as Error).message}. ` +
       'Set DEPLOYER_KEY=suiprivkey1... or ensure ~/.sui/sui_config/sui.keystore exists.',
     );
+  }
+}
+
+function readActiveAddress(clientConfigPath: string): string | null {
+  try {
+    const yaml = readFileSync(clientConfigPath, 'utf8');
+    const match = yaml.match(/active_address:\s*"?([^"\r\n]+)"?/);
+    return match?.[1]?.trim() ?? null;
+  } catch {
+    return null;
   }
 }
 

@@ -650,7 +650,7 @@
 
 /* ── View area ──────────────────────────────────────── */
 .c-view {
-  flex: 1; min-height: 0; overflow-y: auto;
+  flex: 1; min-height: 0; overflow: auto;
   padding: 32px 40px;
   scrollbar-width: thin;
   scrollbar-color: var(--c-lo) transparent;
@@ -697,8 +697,61 @@
   box-shadow: 0 0 12px rgba(245,158,11,0.3);
 }
 
+.c-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--c-bg);
+  border: 1px solid var(--c-lo);
+  color: var(--c-hi);
+  font-family: var(--c-mono);
+  font-size: 13px;
+  outline: none;
+}
+.c-input:focus {
+  border-color: var(--c-amber);
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.18), 0 0 18px rgba(245,158,11,0.12);
+}
+
+.c-wallet-connect {
+  --background: #020b12;
+  --foreground: var(--c-hi);
+  --primary: var(--c-amber);
+  --primary-foreground: #050a0f;
+  --secondary: var(--c-surface);
+  --secondary-foreground: var(--c-hi);
+  --border: var(--c-lo);
+  --accent: var(--c-amber);
+  --accent-foreground: #050a0f;
+  --popover: #051525;
+  --popover-foreground: var(--c-hi);
+  --muted: var(--c-bg);
+  --muted-foreground: var(--c-mid);
+  --ring: var(--c-amber);
+  --radius: 2px;
+  --font-sans: var(--c-mono);
+  --cursor-button: pointer;
+  --cursor-menu-item: pointer;
+}
+.c-wallet-connect mysten-dapp-kit-connect-button::part(trigger) {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 2px;
+  border: 1px solid var(--c-amber);
+  background: rgba(245,158,11,0.12);
+  color: var(--c-amber);
+  font-family: var(--c-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 /* ── Table ──────────────────────────────────────────── */
-.c-table { width: 100%; border-collapse: collapse; }
+.c-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
 .c-table th {
   font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--c-mid);
@@ -749,6 +802,49 @@
 
 /* Sub text */
 .c-sub { font-size: 9px; color: var(--c-mid); margin-top: 3px; letter-spacing: 0.04em; }
+
+.c-live-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.018);
+  font-family: var(--c-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-mid);
+}
+.c-live-note::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--c-mid);
+}
+.c-live-note--live {
+  color: var(--c-green);
+  border-color: rgba(16,185,129,0.18);
+  background: rgba(16,185,129,0.045);
+}
+.c-live-note--live::before {
+  background: var(--c-green);
+  box-shadow: 0 0 8px rgba(16,185,129,0.6);
+}
+.c-live-note--sync {
+  color: var(--c-amber);
+  border-color: rgba(245,158,11,0.18);
+  background: rgba(245,158,11,0.045);
+}
+.c-live-note--sync::before {
+  background: var(--c-amber);
+  box-shadow: 0 0 8px rgba(245,158,11,0.5);
+}
+.c-live-note--fallback {
+  color: var(--c-mid);
+}
 
 /* ── Stat block (reputation) ────────────────────────── */
 .c-stat { margin-bottom: 32px; }
@@ -839,6 +935,17 @@
   box-shadow: 0 0 24px rgba(245,158,11,0.3);
 }
 .c-commit:hover { box-shadow: 0 0 36px rgba(245,158,11,0.5); opacity: 0.92; }
+.c-commit:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  background: var(--c-lo);
+  color: var(--c-mid);
+  box-shadow: none;
+}
+.c-commit:disabled:hover {
+  opacity: 0.45;
+  box-shadow: none;
+}
 
 /* ── Reputation two-col ─────────────────────────────── */
 .c-rep-grid {
@@ -893,4 +1000,49 @@
 /* ── Identity key-value ──────────────────────────────── */
 .c-kv { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.025); }
 .c-kv__k { font-size: 9px; color: var(--c-mid); letter-spacing: 0.1em; text-transform: uppercase; }
-.c-kv__v { font-size: 11px; color: var(--c-hi); }
+.c-kv__v {
+  max-width: 62%;
+  overflow-wrap: anywhere;
+  text-align: right;
+  font-size: 11px;
+  color: var(--c-hi);
+}
+
+@media (max-width: 980px) {
+  .c-header {
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    padding: 10px 16px;
+  }
+  .c-header__chain {
+    order: 3;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .c-header__spacer { display: none; }
+  .c-nav {
+    overflow-x: auto;
+    padding: 0 12px;
+  }
+  .c-tab { padding: 0 16px; }
+  .c-view { padding: 24px 18px; }
+}
+
+@media (max-width: 720px) {
+  .c-view__title {
+    gap: 10px;
+    letter-spacing: 0.16em;
+  }
+  .c-filters {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .c-policy__value {
+    font-size: 28px;
+  }
+  .c-stat__value {
+    font-size: 48px;
+  }
+}

@@ -19,6 +19,8 @@ pub fn router(pool: PgPool) -> Router {
         .route("/health",                            get(health))
         .route("/scores/{profile_id}",                get(scores_for_profile))
         .route("/scores/{profile_id}/{schema_id}",   get(score_single))
+        .route("/profiles/{profile_id}/vouches",      get(vouches_for_profile))
+        .route("/attestations",                       get(attestations_feed))
         .route("/attestations/{subject}",            get(attestations_for_subject))
         .route("/attestations/singleton/{item_id}",  get(singleton_attestations))
         .route("/leaderboard/{schema_id}",           get(leaderboard))
@@ -30,6 +32,13 @@ pub fn router(pool: PgPool) -> Router {
         .route("/challenges",                        get(challenges))
         .route("/challenges/{challenge_id}",          get(challenge_single))
         .route("/oracles/{oracle}/challenges",       get(challenges_for_oracle))
+        // Registry listings (added for Phase 4 live verification)
+        .route("/schemas",                           get(schemas_list))
+        .route("/oracles",                           get(oracles_list))
+        // Profile lookup by owner wallet address
+        .route("/profiles/by-owner/{address}",       get(profile_by_owner))
+        // Vouches issued by an address (complement to /profiles/:id/vouches which filters by vouchee)
+        .route("/profiles/{address}/given-vouches",  get(given_vouches))
         .with_state(pool)
 }
 
@@ -59,6 +68,18 @@ struct AttestationRow {
     subject:        String,
     value:          i64,
     issued_tx:      String,
+    revoked:        bool,
+}
+
+#[derive(Serialize, sqlx::FromRow)]
+struct AttestationFeedRow {
+    attestation_id: String,
+    schema_id:      String,
+    issuer:         String,
+    subject:        String,
+    value:          i64,
+    issued_tx:      String,
+    issued_at:      String,
     revoked:        bool,
 }
 
@@ -158,10 +179,31 @@ struct FraudChallengeRow {
     resolved_at:    Option<String>,
 }
 
+#[derive(Serialize, sqlx::FromRow)]
+struct VouchRow {
+    vouch_id:        String,
+    voucher:         String,
+    vouchee:         String,
+    stake_amount:    i64,
+    created_tx:      String,
+    created_at:      String,
+    redeemed:        bool,
+    amount_returned: Option<i64>,
+    redeemed_tx:     Option<String>,
+    redeemed_at:     Option<String>,
+}
+
 // ── Query params ──────────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
 struct AttestationFilter {
+    schema_id: Option<String>,
+    limit:     Option<i64>,
+    revoked:   Option<bool>,
+}
+
+#[derive(Deserialize)]
+struct AttestationFeedFilter {
     schema_id: Option<String>,
     limit:     Option<i64>,
     revoked:   Option<bool>,
@@ -218,6 +260,86 @@ async fn score_single(
     .await?;
 
     Ok(Json(row))
+}
+
+async fn vouches_for_profile(
+    State(pool): State<PgPool>,
+    Path(profile_id): Path<String>,
+    Query(params): Query<LimitParams>,
+) -> Result<Json<Vec<VouchRow>>, ApiError> {
+    let limit = params.limit.unwrap_or(50).min(200);
+    let rows = sqlx::query_as::<_, VouchRow>(
+        "SELECT vouch_id, voucher, vouchee, stake_amount, created_tx,
+                created_at::TEXT AS created_at, redeemed, amount_returned,
+                redeemed_tx, redeemed_at::TEXT AS redeemed_at
+         FROM vouches
+         WHERE vouchee = $1
+         ORDER BY created_at DESC
+         LIMIT $2",
+    )
+    .bind(&profile_id)
+    .bind(limit)
+    .fetch_all(&pool)
+    .await?;
+
+    Ok(Json(rows))
+}
+
+// Global attestation feed, used by killboard/intel views.
+// ?schema_id=SHIP_KILL&limit=50&revoked=false
+async fn attestations_feed(
+    State(pool): State<PgPool>,
+    Query(filter): Query<AttestationFeedFilter>,
+) -> Result<Json<Vec<AttestationFeedRow>>, ApiError> {
+    let limit = filter.limit.unwrap_or(50).min(200);
+    let revoked = filter.revoked.unwrap_or(false);
+
+    let rows = if let Some(sid) = &filter.schema_id {
+        sqlx::query_as::<_, AttestationFeedRow>(
+            "SELECT attestation_id, schema_id, issuer, subject, value, issued_tx,
+                    issued_at::TEXT AS issued_at, revoked
+             FROM (
+                 SELECT attestation_id, schema_id, issuer, subject, value, issued_tx,
+                        issued_at, revoked
+                 FROM attestations
+                 UNION ALL
+                 SELECT attestation_id, schema_id, issuer, item_id AS subject,
+                        value, issued_tx, issued_at, revoked
+                 FROM singleton_attestations
+             ) feed
+             WHERE schema_id = $1 AND revoked = $2
+             ORDER BY issued_at DESC
+             LIMIT $3",
+        )
+        .bind(sid)
+        .bind(revoked)
+        .bind(limit)
+        .fetch_all(&pool)
+        .await?
+    } else {
+        sqlx::query_as::<_, AttestationFeedRow>(
+            "SELECT attestation_id, schema_id, issuer, subject, value, issued_tx,
+                    issued_at::TEXT AS issued_at, revoked
+             FROM (
+                 SELECT attestation_id, schema_id, issuer, subject, value, issued_tx,
+                        issued_at, revoked
+                 FROM attestations
+                 UNION ALL
+                 SELECT attestation_id, schema_id, issuer, item_id AS subject,
+                        value, issued_tx, issued_at, revoked
+                 FROM singleton_attestations
+             ) feed
+             WHERE revoked = $1
+             ORDER BY issued_at DESC
+             LIMIT $2",
+        )
+        .bind(revoked)
+        .bind(limit)
+        .fetch_all(&pool)
+        .await?
+    };
+
+    Ok(Json(rows))
 }
 
 // Attestations issued to a subject address.
@@ -509,6 +631,123 @@ async fn challenges_for_oracle(
     .fetch_all(&pool)
     .await?;
 
+    Ok(Json(rows))
+}
+
+// ── Schema registry listing ───────────────────────────────────────────────────
+
+#[derive(Serialize, sqlx::FromRow)]
+struct SchemaRow {
+    schema_id:     String,
+    version:       i64,
+    resolver:      Option<String>,
+    deprecated_by: Option<String>,
+    registered_tx: String,
+    registered_at: String,
+    deprecated_tx: Option<String>,
+    deprecated_at: Option<String>,
+}
+
+async fn schemas_list(
+    State(pool): State<PgPool>,
+    Query(params): Query<LimitParams>,
+) -> Result<Json<Vec<SchemaRow>>, ApiError> {
+    let limit = params.limit.unwrap_or(100).min(500);
+    let rows = sqlx::query_as::<_, SchemaRow>(
+        "SELECT schema_id, version, resolver, deprecated_by, registered_tx,
+                registered_at::TEXT AS registered_at,
+                deprecated_tx, deprecated_at::TEXT AS deprecated_at
+         FROM schemas
+         ORDER BY registered_at DESC
+         LIMIT $1",
+    )
+    .bind(limit)
+    .fetch_all(&pool)
+    .await?;
+    Ok(Json(rows))
+}
+
+// ── Oracle registry listing ───────────────────────────────────────────────────
+
+#[derive(Serialize, sqlx::FromRow)]
+struct OracleRow {
+    oracle_address:   String,
+    name:             String,
+    tee_verified:     bool,
+    is_system_oracle: bool,
+    registered_tx:    String,
+    registered_at:    String,
+}
+
+async fn oracles_list(
+    State(pool): State<PgPool>,
+    Query(params): Query<LimitParams>,
+) -> Result<Json<Vec<OracleRow>>, ApiError> {
+    let limit = params.limit.unwrap_or(100).min(500);
+    let rows = sqlx::query_as::<_, OracleRow>(
+        "SELECT oracle_address, name, tee_verified, is_system_oracle, registered_tx,
+                registered_at::TEXT AS registered_at
+         FROM oracles
+         ORDER BY registered_at DESC
+         LIMIT $1",
+    )
+    .bind(limit)
+    .fetch_all(&pool)
+    .await?;
+    Ok(Json(rows))
+}
+
+// ── Profile lookup by owner address ──────────────────────────────────────────
+// Returns the most-recently created profile owned by the given wallet address.
+// After create_profile succeeds, poll this endpoint to discover the profile_id.
+
+#[derive(Serialize, sqlx::FromRow)]
+struct ProfileRow {
+    profile_id: String,
+    owner:      String,
+    created_tx: String,
+    created_at: String,
+}
+
+async fn profile_by_owner(
+    State(pool): State<PgPool>,
+    Path(address): Path<String>,
+) -> Result<Json<Option<ProfileRow>>, ApiError> {
+    let row = sqlx::query_as::<_, ProfileRow>(
+        "SELECT profile_id, owner, created_tx, created_at::TEXT AS created_at
+         FROM profiles
+         WHERE owner = $1
+         ORDER BY created_at DESC
+         LIMIT 1",
+    )
+    .bind(&address)
+    .fetch_optional(&pool)
+    .await?;
+    Ok(Json(row))
+}
+
+// ── Vouches given by an address (voucher side) ────────────────────────────────
+// Complements /profiles/:id/vouches which returns vouches received (vouchee side).
+
+async fn given_vouches(
+    State(pool): State<PgPool>,
+    Path(address): Path<String>,
+    Query(params): Query<LimitParams>,
+) -> Result<Json<Vec<VouchRow>>, ApiError> {
+    let limit = params.limit.unwrap_or(50).min(200);
+    let rows = sqlx::query_as::<_, VouchRow>(
+        "SELECT vouch_id, voucher, vouchee, stake_amount, created_tx,
+                created_at::TEXT AS created_at, redeemed, amount_returned,
+                redeemed_tx, redeemed_at::TEXT AS redeemed_at
+         FROM vouches
+         WHERE voucher = $1
+         ORDER BY created_at DESC
+         LIMIT $2",
+    )
+    .bind(&address)
+    .bind(limit)
+    .fetch_all(&pool)
+    .await?;
     Ok(Json(rows))
 }
 
