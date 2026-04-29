@@ -39,7 +39,7 @@
  *      it immutably for creditworthiness checks. Trade-off: profile is no
  *      longer soul-bound (review before merging).
  *
- *   B. Two-wallet seed: run a second `tsx scripts/seed-devnet-borrower.ts`
+ *   B. Two-wallet seed: run a second borrower seed script
  *      signed by a different wallet that holds PLAYER_A's profile.
  *
  * Current status: loans table is intentionally empty post-seed. The indexer

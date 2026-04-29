@@ -30,6 +30,7 @@ Key docs:
 
 - [Trust API](./Documents/TRUST_API.md)
 - [Updated Roadmap](./Documents/updated_roadmap.md)
+- [Testnet Notes](./Documents/TESTNET_NOTES.md)
 - [Security Model](./SECURITY.md)
 
 ## Trust Decision API
@@ -134,6 +135,7 @@ npm install
 Run Move tests:
 
 ```bash
+sui client switch --env testnet
 sui move test --build-env testnet
 ```
 

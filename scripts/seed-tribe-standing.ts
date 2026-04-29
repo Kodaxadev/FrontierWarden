@@ -15,7 +15,7 @@
  *   - Slush wallet owns a TRIBE_STANDING Attestation (value 750, subject = self)
  *   - Indexer will pick up the AttestationIssued event and populate attestations table
  *
- * The new OracleCapability ID is printed. Update devnet-addresses.json manually
+ * The new OracleCapability ID is printed. Update testnet-addresses.json manually
  * with the new oracle_cap.id (the old one is consumed by add_schema_to_oracle).
  *
  * Usage:
@@ -34,10 +34,10 @@ import {
 import { loadKeypair, makeClient, execute, findCreatedObject } from './lib/seed-wallet.js';
 
 // ---------------------------------------------------------------------------
-// Load addresses from devnet-addresses.json
+// Load addresses from testnet-addresses.json
 // ---------------------------------------------------------------------------
 
-interface DevnetAddresses {
+interface TestnetAddresses {
   deployer_objects: {
     oracle_cap: { id: string; authorized_schemas?: string[] };
     tribe_standing_attestation_slush?: Record<string, unknown>;
@@ -47,15 +47,15 @@ interface DevnetAddresses {
   };
 }
 
-function loadAddresses(): DevnetAddresses {
+function loadAddresses(): TestnetAddresses {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = resolve(here, 'devnet-addresses.json');
-  return JSON.parse(readFileSync(path, 'utf8')) as DevnetAddresses;
+  const path = resolve(here, 'testnet-addresses.json');
+  return JSON.parse(readFileSync(path, 'utf8')) as TestnetAddresses;
 }
 
 function updateAddresses(patch: (raw: Record<string, unknown>) => void): void {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = resolve(here, 'devnet-addresses.json');
+  const path = resolve(here, 'testnet-addresses.json');
   const raw = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
   patch(raw);
   writeFileSync(path, JSON.stringify(raw, null, 2) + '\n', 'utf8');
@@ -181,7 +181,7 @@ async function main(): Promise<void> {
   console.log(`attestation_id  : ${attestationId}  (owned by ${slushAddress})`);
   console.log('');
 
-  // Update devnet-addresses.json
+  // Update testnet-addresses.json
   updateAddresses(raw => {
     const deployer = raw.deployer_objects as Record<string, unknown>;
     (deployer.oracle_cap as Record<string, unknown>).id = newOracleCapId;
@@ -200,7 +200,7 @@ async function main(): Promise<void> {
     };
   });
 
-  console.log('devnet-addresses.json updated (oracle_cap.id + tribe_standing_attestation_slush)');
+  console.log('testnet-addresses.json updated (oracle_cap.id + tribe_standing_attestation_slush)');
   console.log('');
   console.log('Next steps:');
   console.log('  1. Wait ~5s for indexer to ingest AttestationIssued event');

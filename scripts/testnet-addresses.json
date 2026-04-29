@@ -62,7 +62,7 @@
     "reputation_profile": {
       "id": "0xc3ffccede53e1ee7fb8388362a841b0cfa0ee621f13f8f89e4bf551267515bbf",
       "type": "...::profile::ReputationProfile",
-      "note": "Shared profile for deployer 0xcfcf...db8f; seeded via TX-1 seed-devnet.ts"
+      "note": "Shared profile for deployer 0xcfcf...db8f; seeded via TX-1 seed-testnet.ts"
     },
     "oracle_cap": {
       "id": "0xdd27c7ab2d385a597d60cbda3b2c541009b54fc76dbe91dc50c670be21c00ff9",
@@ -81,7 +81,7 @@
         "PLAYER_BOUNTY",
         "TRIBE_STANDING"
       ],
-      "note": "Seeded via TX-1 seed-devnet.ts (1.0 SUI stake)"
+      "note": "Seeded via TX-1 seed-testnet.ts (1.0 SUI stake)"
     },
     "tribe_standing_attestation_slush": {
       "id": "0x308d20a6dd7e98f9d212d2a9b3066fd5a0208f7f5c66231c2a9ab802a258be49",

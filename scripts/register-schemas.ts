@@ -8,7 +8,7 @@
  * Optional:
  *   DEPLOYER_KEY=suiprivkey1...      override local Sui keystore
  *   SUI_PRIVATE_KEY=suiprivkey1...   legacy key override
- *   SUI_RPC_URL=...                  override default fullnode from devnet-addresses.json
+ *   SUI_RPC_URL=...                  override default fullnode from testnet-addresses.json
  *   GAS_BUDGET=100000000             override gas budget (MIST)
  *   DRY_RUN=1                        build + simulate without submitting
  *
@@ -51,10 +51,10 @@ const SCHEMAS: SchemaSpec[] = [
 
 function loadAddresses() {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = resolve(here, 'devnet-addresses.json');
+  const path = resolve(here, 'testnet-addresses.json');
   const raw = JSON.parse(readFileSync(path, 'utf8'));
   return {
-    network: raw.network as 'devnet' | 'testnet' | 'mainnet' | 'localnet',
+    network: raw.network as 'testnet' | 'mainnet' | 'localnet',
     package: raw.package.id as string,
     schemaRegistry: raw.shared_objects.schema_registry.id as string,
     schemaRegistryInitialVersion: raw.shared_objects.schema_registry.initial_version as number,

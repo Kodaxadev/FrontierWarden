@@ -1,6 +1,6 @@
 /**
- * seed-config.ts — Shared constants, devnet addresses, and synthetic world
- * fixtures for the seed-devnet script.
+ * seed-config.ts — Shared constants, testnet addresses, and synthetic world
+ * fixtures for the seed-testnet script.
  *
  * Single responsibility: load config. No side effects, no network calls.
  */
@@ -16,9 +16,9 @@ export const RPC_URL =
 export const GAS_BUDGET = BigInt(process.env.GAS_BUDGET ?? '200000000');
 
 // ---------------------------------------------------------------------------
-// Devnet addresses (loaded from scripts/devnet-addresses.json)
+// Network addresses (loaded from scripts/testnet-addresses.json)
 // ---------------------------------------------------------------------------
-interface DevnetAddresses {
+interface NetworkAddresses {
   network?: string;
   package: { id: string };
   shared_objects: {
@@ -27,16 +27,15 @@ interface DevnetAddresses {
   };
 }
 
-function loadAddresses(): DevnetAddresses {
+function loadAddresses(): NetworkAddresses {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = resolve(here, '..', 'devnet-addresses.json');
-  return JSON.parse(readFileSync(path, 'utf8')) as DevnetAddresses;
+  const path = resolve(here, '..', 'testnet-addresses.json');
+  return JSON.parse(readFileSync(path, 'utf8')) as NetworkAddresses;
 }
 
 function defaultRpcUrl(): string {
   const network = loadAddresses().network ?? 'testnet';
   if (network === 'mainnet') return 'https://fullnode.mainnet.sui.io:443';
-  if (network === 'devnet') return 'https://fullnode.devnet.sui.io:443';
   if (network === 'localnet') return 'http://127.0.0.1:9000';
   return 'https://fullnode.testnet.sui.io:443';
 }
@@ -75,7 +74,7 @@ export const VOUCH_STAKE_MIST  =   200_000_000n;
 // Synthetic world fixtures (deterministic, 32-byte Sui addresses)
 // ---------------------------------------------------------------------------
 // These represent fake on-chain objects (gates, ships, players) so the
-// seed is reproducible across devnet resets without real game objects.
+// seed is reproducible on testnet without real game objects.
 export const SYNTHETIC = {
   // A second player address (receives vouch from deployer)
   PLAYER_A:  '0x000000000000000000000000000000000000000000000000000000000000aaa1',

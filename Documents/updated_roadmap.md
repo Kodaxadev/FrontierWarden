@@ -10,6 +10,8 @@ The strongest surface is the protocol plus indexer/API spine:
 - Move test suite passes `38/38` with `sui move test --build-env testnet`.
 - Current upgraded package: `0xe41ddd1a2126af8b4bae52ea0526959f76b4e4f445c1054a53cbecfb15ac0ea2`.
 - Original package/type origin: `0xfd1b1315f9002b65ac2a214d2b7d312db75836c8e67f8f00a747206b5a61876c`.
+- Active address manifest: `scripts/testnet-addresses.json`.
+- Active operations note: `Documents/TESTNET_NOTES.md`.
 - Upgrade proof tx: `5818FL8UHSiUvMYsWycLFDEudRtEAQNpm4eQuKoGGpaa`.
 - The frontend build passes and all current operator tabs compile.
 - The release indexer is running against Supabase through `EFREP_DATABASE_URL`.
@@ -313,16 +315,27 @@ Done:
 - `Documents/TRUST_API.md`.
 - `sdk/trustkit` TypeScript client.
 - Frontend `TRUST` demo tab.
+- Seeded HTTP route tests for:
+  - `ALLOW_FREE`
+  - `ALLOW_TAXED`
+  - `DENY_NO_STANDING_ATTESTATION`
+  - `DENY_SCORE_BELOW_THRESHOLD`
+  - `ERROR_GATE_NOT_FOUND`
+  - `ERROR_UNSUPPORTED_ACTION`
+- Proof freshness warnings:
+  - `PROOF_CHECKPOINT_BEHIND_LATEST_INDEX:<delta>`
+  - `INDEXER_LAST_EVENT_STALE_SECONDS:<seconds>`
+  - `PROOF_CHECKPOINT_UNKNOWN`
+  - `INDEXER_CHECKPOINT_UNKNOWN`
 - Smoke tested against live Supabase/indexer data:
   - Slush `0x9cc0...20e1` against gate `0xb63c...3e36` returns `ALLOW_FREE`, score `750`, threshold `500`.
   - EVE wallet `0xabff...430f` currently returns `DENY`, reason `NO_STANDING_ATTESTATION`.
-- Rust tests cover reason classification, proof checkpoint selection, and tx digest dedupe.
+- Rust tests cover reason classification, proof checkpoint selection, tx digest dedupe, and the real Axum HTTP route surface.
 
 Still build:
 
-- API tests with seeded DB rows or a lightweight SQL fixture harness.
 - Counterparty/bounty evaluation using `score_cache`.
-- Stale-data warnings based on indexer freshness and checkpoint age.
+- Route-level docs/examples for warning interpretation in partner tools.
 
 Completion bar:
 
@@ -422,12 +435,10 @@ Those are breadth plays. They favor teams already building operating consoles.
 
 ## Recommended Build Order
 
-1. Add seeded DB/API tests that exercise the HTTP routes, not only evaluator helpers.
-2. Add stale-data warnings using indexer health/checkpoint freshness.
-3. Add wallet-authenticated API/frontend access.
-4. Add EVT/payment-coin abstraction.
-5. Expand evaluation beyond gates into bounty/counterparty/scout-report decisions.
-6. Publish integration examples for CradleOS/CivilizationControl maintainers.
+1. Add wallet-authenticated API/frontend access.
+2. Add EVT/payment-coin abstraction.
+3. Expand evaluation beyond gates into bounty/counterparty/scout-report decisions.
+4. Publish integration examples for CradleOS/CivilizationControl maintainers.
 
 North star:
 

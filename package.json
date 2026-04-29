@@ -1,6 +1,6 @@
 {
   "name": "efrep",
-  "version": "0.1.0-devnet",
+  "version": "0.1.0-testnet",
   "description": "EVE Frontier Reputation Protocol - Sui Move smart contracts",
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "build": "sui move build --build-env testnet",
     "register:schemas": "tsx scripts/register-schemas.ts",
     "register:schemas:dry": "cross-env DRY_RUN=1 tsx scripts/register-schemas.ts",
-    "seed:devnet":  "tsx scripts/seed-devnet.ts",
+    "seed:testnet": "tsx scripts/seed-testnet.ts",
     "gas-station":  "tsx scripts/gas-station.ts"
   },
   "keywords": [

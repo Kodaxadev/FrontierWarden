@@ -1,5 +1,5 @@
 /**
- * seed-devnet.ts — Deterministic devnet seeding script.
+ * seed-testnet.ts — Deterministic testnet seeding script.
  *
  * WHAT THIS SCRIPT SEEDS & WHY
  * =============================
@@ -73,7 +73,7 @@
  *
  * POPULATION SUMMARY
  * ===================
- * After running seed-devnet, the following tables are populated:
+ * After running seed-testnet, the following tables are populated:
  *   ✓ profiles (1 row: deployer)
  *   ✓ oracles (1 row: deployer as oracle)
  *   ✓ score_cache (1 row: deployer CREDIT=700)
@@ -99,11 +99,11 @@
  * ENVIRONMENT & USAGE
  * ====================
  * Usage:
- *   DEPLOYER_KEY=suiprivkey1... npx tsx scripts/seed-devnet.ts
+ *   DEPLOYER_KEY=suiprivkey1... npx tsx scripts/seed-testnet.ts
  *   # or rely on ~/.sui/sui_config/sui.keystore (first entry)
  *
  * Optional env vars:
- *   SUI_RPC_URL=...    override RPC endpoint (default: https://fullnode.devnet.sui.io:443)
+ *   SUI_RPC_URL=...    override RPC endpoint from scripts/testnet-addresses.json
  *   GAS_BUDGET=...     override gas budget in MIST (default: 200000000)
  *   INDEXER_URL=...    override indexer base URL for smoke check output (default: http://localhost:3001)
  */
@@ -121,7 +121,7 @@ async function main(): Promise<void> {
   const client  = makeClient();
   const sender  = keypair.getPublicKey().toSuiAddress();
 
-  console.log('=== EFRep Devnet Seed ===');
+  console.log('=== EFRep Testnet Seed ===');
   console.log(`sender          : ${sender}`);
   console.log(`package         : ${PKG}`);
   console.log(`oracle registry : ${ORACLE_REGISTRY_ID}`);
@@ -179,6 +179,6 @@ async function main(): Promise<void> {
 }
 
 main().catch(err => {
-  console.error('[seed-devnet] fatal:', err);
+  console.error('[seed-testnet] fatal:', err);
   process.exit(1);
 });

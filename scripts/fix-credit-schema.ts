@@ -60,7 +60,7 @@ async function main(): Promise<void> {
   await new Promise(r => setTimeout(r, 6000));
 
   // --- TX-B: re-emit update_score(CREDIT=700) ---
-  // The profile and cap IDs are taken from env vars set by seed-devnet.ts
+  // The profile and cap IDs are taken from env vars set by seed-testnet.ts
   // output, or passed as CLI args.
   const profileId = process.argv[2];
   const capId     = process.argv[3];
@@ -68,7 +68,7 @@ async function main(): Promise<void> {
   if (!profileId || !capId) {
     console.error(
       '\nUsage: npx tsx scripts/fix-credit-schema.ts <profileId> <capId>\n' +
-      'Both IDs are printed by seed-devnet.ts on first run.',
+      'Both IDs are printed by seed-testnet.ts on first run.',
     );
     process.exit(1);
   }

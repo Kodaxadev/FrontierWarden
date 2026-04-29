@@ -302,6 +302,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "toml",
+ "tower",
  "tracing",
  "tracing-subscriber",
 ]

@@ -30,3 +30,6 @@ axum = "0.8"
 
 # Ergonomic error handling
 anyhow = "1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

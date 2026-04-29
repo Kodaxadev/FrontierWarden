@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use sqlx::PgPool;
 
+use crate::trust_freshness;
 use crate::trust_types::{
     TrustEvaluationRequest, TrustEvaluationResponse, TrustObserved, TrustProof, TrustRequirements,
     REASON_ALLOW_FREE, REASON_ALLOW_TAXED, REASON_DENY_NO_STANDING_ATTESTATION,
@@ -69,7 +70,8 @@ pub async fn evaluate_gate_access(
 
     let attestation = latest_standing_attestation(pool, &subject, &schema).await?;
     let Some(attestation) = attestation else {
-        let proof_bundle = proof(&schema, &subject, &gate_id, Some(&policy), None);
+        let mut proof_bundle = proof(&schema, &subject, &gate_id, Some(&policy), None);
+        add_freshness_warnings(pool, &mut proof_bundle).await?;
         return Ok(response(
             "DENY",
             false,
@@ -97,13 +99,14 @@ pub async fn evaluate_gate_access(
         }
         _ => "Score is non-positive, matching the gate contract's blocked tier.".to_owned(),
     };
-    let proof_bundle = proof(
+    let mut proof_bundle = proof(
         &schema,
         &subject,
         &gate_id,
         Some(&policy),
         Some(&attestation),
     );
+    add_freshness_warnings(pool, &mut proof_bundle).await?;
     Ok(response(
         decision,
         allow,
@@ -251,6 +254,14 @@ pub(crate) fn classify_score(
         Some(base_toll_mist),
         REASON_ALLOW_TAXED,
     )
+}
+
+async fn add_freshness_warnings(pool: &PgPool, proof: &mut TrustProof) -> Result<()> {
+    let freshness = trust_freshness::latest(pool).await?;
+    proof
+        .warnings
+        .extend(trust_freshness::warnings(proof.checkpoint, &freshness));
+    Ok(())
 }
 
 pub(crate) fn proof(

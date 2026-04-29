@@ -12,9 +12,12 @@ mod db;
 mod ingester;
 mod processor;
 mod rpc;
+#[cfg(test)]
+mod trust_api_http_tests;
 mod trust_evaluator;
 #[cfg(test)]
 mod trust_evaluator_tests;
+mod trust_freshness;
 mod trust_types;
 
 use anyhow::Result;

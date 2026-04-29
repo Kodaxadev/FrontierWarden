@@ -5,7 +5,7 @@
  *   npx tsx scripts/update-profile-credit.ts <profile_id> [score]
  *
  * The active CLI/deployer key must own the OracleCapability in
- * scripts/devnet-addresses.json.
+ * scripts/testnet-addresses.json.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -14,7 +14,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { PKG } from './lib/seed-config.js';
 import { execute, loadKeypair, makeClient } from './lib/seed-wallet.js';
 
-interface DevnetAddresses {
+interface TestnetAddresses {
   deployer_objects: {
     oracle_cap: { id: string };
   };
@@ -22,8 +22,8 @@ interface DevnetAddresses {
 
 function loadOracleCapId(): string {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = resolve(here, 'devnet-addresses.json');
-  const addrs = JSON.parse(readFileSync(path, 'utf8')) as DevnetAddresses;
+  const path = resolve(here, 'testnet-addresses.json');
+  const addrs = JSON.parse(readFileSync(path, 'utf8')) as TestnetAddresses;
   return addrs.deployer_objects.oracle_cap.id;
 }
 

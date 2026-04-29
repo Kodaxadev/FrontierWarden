@@ -23,7 +23,7 @@ function encodeStr(s: string): number[] {
 
 function addressesPath(): string {
   const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, 'devnet-addresses.json');
+  return resolve(here, 'testnet-addresses.json');
 }
 
 function updateAddresses(
@@ -145,7 +145,7 @@ async function main(): Promise<void> {
   console.log(`gate_policy    : ${gatePolicy.objectId}`);
   console.log(`initial_version: ${gatePolicy.owner?.Shared?.initial_shared_version ?? '(unknown)'}`);
   console.log(`gate_admin_cap : ${adminCap}`);
-  console.log('devnet-addresses.json updated.');
+  console.log('testnet-addresses.json updated.');
 }
 
 main().catch(err => {

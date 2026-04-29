@@ -81,6 +81,23 @@ Fields:
 }
 ```
 
+## Freshness Warnings
+
+`proof.warnings` is intentionally an array of strings so integrations can show
+operator-facing caution without changing the allow/deny contract.
+
+Current warning codes:
+
+| Warning | Meaning |
+|---|---|
+| `PROOF_CHECKPOINT_BEHIND_LATEST_INDEX:<delta>` | The proof bundle is based on a checkpoint older than the latest event currently indexed. |
+| `INDEXER_LAST_EVENT_STALE_SECONDS:<seconds>` | No raw event has been indexed for more than five minutes. |
+| `PROOF_CHECKPOINT_UNKNOWN` | The decision was produced without a concrete proof checkpoint. |
+| `INDEXER_CHECKPOINT_UNKNOWN` | The API could not determine the indexer's latest checkpoint. |
+
+Freshness warnings do not currently flip `allow` to `false`. They are defensive
+metadata for operators and external tools.
+
 ## Decisions
 
 | Decision | Meaning |
