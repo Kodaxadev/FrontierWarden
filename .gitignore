@@ -8,6 +8,8 @@ research/
 UI_Mockups/
 
 # Indexer — live credentials, never commit
+
+# Indexer — live credentials, never commit
 indexer/config.toml
 indexer/target/
 SPONSOR_KEYPAIR
@@ -16,3 +18,18 @@ SPONSOR_KEYPAIR
 frontend/node_modules/
 frontend/dist/
 frontend/.env.local
+
+# Private/Strategic docs
+private_docs/
+
+# Secrets and local config
+.env
+.env.*
+*.key
+*.pem
+*.seed
+config.local.toml
+Pub.local.toml
+*.db
+*.sql
+*.dump

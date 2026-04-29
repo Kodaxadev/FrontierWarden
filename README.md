@@ -2,18 +2,13 @@
 
 FrontierWarden is a proof-backed trust decision service for EVE Frontier tools.
 
-It answers one high-consequence question first:
+It answers one high-consequence question:
 
 ```text
 Should this pilot pass this gate, and what proof supports that decision?
 ```
 
-The strategic lane is deliberately narrow. FrontierWarden is not trying to be a
-full tribe operating console. It is the trust backend those consoles can call.
-
-```text
-CradleOS runs the tribe. FrontierWarden tells the tribe who to trust.
-```
+FrontierWarden is designed to be a trust backend that other EVE Frontier tools can call for reputation-backed decisions.
 
 ## Current Status
 
@@ -29,8 +24,6 @@ Status as of 2026-04-29:
 Key docs:
 
 - [Trust API](./Documents/TRUST_API.md)
-- [Updated Roadmap](./Documents/updated_roadmap.md)
-- [Testnet Notes](./Documents/TESTNET_NOTES.md)
 - [Security Model](./SECURITY.md)
 
 ## Trust Decision API
@@ -76,8 +69,8 @@ Example response shape:
 
 Current live smoke proof:
 
-- Slush wallet with `TRIBE_STANDING` score `750` against threshold `500` returns `ALLOW_FREE`.
-- EVE wallet `0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f` currently returns `DENY_NO_STANDING_ATTESTATION` until it receives standing proof.
+- Pilot A with `TRIBE_STANDING` score `750` against threshold `500` returns `ALLOW_FREE`.
+- Pilot B (no standing) returns `DENY_NO_STANDING_ATTESTATION` until it receives standing proof.
 
 Full API contract: [Documents/TRUST_API.md](./Documents/TRUST_API.md).
 
@@ -89,7 +82,7 @@ flowchart LR
   Indexer --> DB["Supabase / Postgres"]
   DB --> API["Rust Trust API"]
   API --> UI["FrontierWarden Console"]
-  API --> Tools["CradleOS / CivilizationControl / Tribe Tools"]
+  API --> Tools["EVE Frontier Tools"]
 ```
 
 Main layers:
@@ -98,7 +91,7 @@ Main layers:
 - `indexer/`: Rust event ingester and Axum REST API.
 - `frontend/`: React/Vite operator console.
 - `sdk/trustkit/`: small TypeScript client for external integrations.
-- `Documents/`: current roadmap, trust API docs, and operational notes.
+- `Documents/`: operational notes and API docs.
 
 ## Protocol Modules
 
@@ -135,69 +128,18 @@ npm install
 Run Move tests:
 
 ```bash
-sui client switch --env testnet
 sui move test --build-env testnet
 ```
 
-Run the frontend:
+## Security
 
-```bash
-cd frontend
-npm run dev
-```
-
-Run the indexer/API:
-
-```bash
-cd indexer
-$env:EFREP_DATABASE_URL = "<postgres-url>"
-cargo run --release
-```
-
-The API listens on `http://localhost:3000`.
-
-## TypeScript Client
-
-A local client lives at:
-
-```text
-sdk/trustkit
-```
-
-Example:
-
-```ts
-import { createTrustkit } from '@frontierwarden/trustkit';
-
-const trust = createTrustkit({ endpoint: 'http://localhost:3000' });
-
-const result = await trust.evaluateCradleGateAccess({
-  player: '0xplayer',
-  gate: '0xgate',
-});
-```
-
-## Competitive Position
-
-CradleOS and CivilizationControl are broad EVE Frontier operating surfaces.
-FrontierWarden should complement them, not copy them.
-
-Sources:
-
-- [CradleOS](https://github.com/r4wf0d0g23/CradleOS)
-- [CivilizationControl](https://github.com/Diabolacal/CivilizationControl)
-- [EVE Frontier roadmap](https://whitepaper.evefrontier.com/development-update-and-roadmap/eve-frontier-roadmap)
-
-## Security Notes
-
-This is pre-mainnet software.
+This is pre-mainnet software. Known pre-mainnet limitations are tracked privately. Do not deploy to mainnet without audit.
 
 Before production:
-
 - Complete a Move security review.
 - Add wallet-authenticated API access.
 - Add rate limits and observability.
 - Verify EVE/EVT payment coin type before replacing SUI test flows.
 - Keep database credentials out of committed config.
 
-See [SECURITY.md](./SECURITY.md).
+See [SECURITY.md](./SECURITY.md) for the security model and disclosure policy.

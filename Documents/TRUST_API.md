@@ -1,15 +1,14 @@
 # FrontierWarden Trust Decision API
+# FrontierWarden Trust Decision API
 
 Last updated: 2026-04-29
 
 FrontierWarden exposes a small REST surface for EVE Frontier tools that need a
 defensible trust decision backed by indexed Sui protocol state.
 
-Positioning:
+## Positioning
 
-```text
-CradleOS runs the tribe. FrontierWarden tells the tribe who to trust.
-```
+FrontierWarden exposes a proof-backed trust decision API for EVE Frontier tools.
 
 ## Endpoints
 
@@ -153,16 +152,16 @@ the observed score is below the minimum pass score, currently `1`.
 Local development assumes Vite proxies `/api` to the Rust API. Direct Rust API
 examples use `http://localhost:3000`.
 
-### Slush Allow-Free Example
+### Example: Allow-Free Decision
 
 ```bash
 curl -s http://localhost:3000/v1/trust/evaluate \
   -H "content-type: application/json" \
   -d '{
-    "entity": "0x9cc038e5f0045dbf75ce191870fd7c483020d12bc23f3ebaef7a6f4f22d820e1",
+    "entity": "0xALLOW_EXAMPLE",
     "action": "gate_access",
     "context": {
-      "gateId": "0xb63c9939e28db885392e68537336f85453392ac07d4590c029d1f65938733e36",
+      "gateId": "0xGATE_EXAMPLE",
       "schemaId": "TRIBE_STANDING"
     }
   }'
@@ -180,16 +179,16 @@ Expected core result:
 }
 ```
 
-### EVE Wallet Denied Example
+### Example: Denied Decision
 
 ```bash
 curl -s http://localhost:3000/v1/cradleos/gate/evaluate \
   -H "content-type: application/json" \
   -d '{
-    "entity": "0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f",
+    "entity": "0xDENY_EXAMPLE",
     "action": "gate_access",
     "context": {
-      "gateId": "0xb63c9939e28db885392e68537336f85453392ac07d4590c029d1f65938733e36"
+      "gateId": "0xGATE_EXAMPLE"
     }
   }'
 ```
@@ -206,21 +205,13 @@ Expected core result until this wallet receives a `TRIBE_STANDING` attestation:
 }
 ```
 
-## Integration Pitch
+## Integration
 
-CradleOS and CivilizationControl can keep their own UI and gate-management
-logic. They only need to call FrontierWarden when a reputation-backed decision
-has consequences.
-
-Suggested language:
+FrontierWarden is designed to complement existing EVE Frontier tools by providing a deterministic, proof-backed decision engine.
 
 ```text
 FrontierWarden exposes POST /v1/cradleos/gate/evaluate, returning
 allow/deny/toll decisions from live indexed reputation state with proof fields.
 ```
 
-Sources:
-
-- [CradleOS](https://github.com/r4wf0d0g23/CradleOS)
-- [CivilizationControl](https://github.com/Diabolacal/CivilizationControl)
-- [EVE Frontier roadmap](https://whitepaper.evefrontier.com/development-update-and-roadmap/eve-frontier-roadmap)
+For more details on specific integrations, please contact the maintainers.
