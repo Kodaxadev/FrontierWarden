@@ -70,7 +70,7 @@ The system has 7 modules across 4 trust zones:
 We welcome reports from security researchers and the community. If you find a potential vulnerability:
 
 1. **Do not disclose publicly** until it is resolved.
-2. **Submit details** to `security@frontierwarden.example` (placeholder).
+2. **Submit details** to `Justin.DavisWE@icloud.com`.
 3. **Include**: A clear description, reproduction steps, and potential impact.
 
 We aim to acknowledge reports within 48 hours and provide regular updates on the resolution.

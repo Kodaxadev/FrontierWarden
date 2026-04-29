@@ -214,4 +214,4 @@ FrontierWarden exposes POST /v1/cradleos/gate/evaluate, returning
 allow/deny/toll decisions from live indexed reputation state with proof fields.
 ```
 
-For more details on specific integrations, please contact the maintainers.
+For more details on specific integrations, please contact the maintainers at Justin.DavisWE@icloud.com.

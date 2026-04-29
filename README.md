@@ -155,3 +155,7 @@ FrontierWarden / Sui TrustKit is licensed under the **Business Source License 1.
 The software will automatically convert to the **Apache License, Version 2.0** on April 29, 2030.
 
 See [LICENSE](./LICENSE) for the full text.
+
+## Contact
+
+For inquiries regarding commercial licensing, security disclosures, or integration support, please contact **Kodaxadev** at **Justin.DavisWE@icloud.com**.
