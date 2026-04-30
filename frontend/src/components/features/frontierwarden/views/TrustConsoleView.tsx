@@ -9,7 +9,7 @@ const DEFAULT_GATE = '0xb63c9939e28db885392e68537336f85453392ac07d4590c029d1f659
 const shortId = (value: string) =>
   value.length <= 18 ? value : `${value.slice(0, 8)}...${value.slice(-6)}`;
 
-const formatMist = (mist: number | null) => {
+const formatMist = (mist: number | null | undefined) => {
   if (mist == null) return '-';
   if (mist === 0) return '0 SUI';
   return `${(mist / 1_000_000_000).toFixed(3)} SUI`;
@@ -17,10 +17,53 @@ const formatMist = (mist: number | null) => {
 
 const badgeClass = (result: TrustEvaluateResponse | null) => {
   if (!result) return 'c-badge--closed';
-  if (result.decision === 'ALLOW_FREE') return 'c-badge--ok';
-  if (result.decision === 'ALLOW_TAXED') return 'c-badge--toll';
-  return 'c-badge--crit';
+  switch (result.decision) {
+    case 'ALLOW_FREE':
+    case 'ALLOW':
+      return 'c-badge--ok';
+    case 'ALLOW_TAXED':
+      return 'c-badge--toll';
+    case 'DENY':
+      return 'c-badge--crit';
+    case 'INSUFFICIENT_DATA':
+      return 'c-badge--closed';
+    default:
+      return 'c-badge--closed';
+  }
 };
+
+interface Preset {
+  label: string;
+  action: TrustAction;
+  subject: string;
+  gateId?: string;
+  schemaId: string;
+  minimumScore?: number;
+}
+
+const PRESETS: Preset[] = [
+  {
+    label: 'Fixture: Gate Ally Pass',
+    action: 'gate_access',
+    subject: DEFAULT_SUBJECT,
+    gateId: DEFAULT_GATE,
+    schemaId: 'TRIBE_STANDING',
+  },
+  {
+    label: 'Fixture: Gate No Standing',
+    action: 'gate_access',
+    subject: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    gateId: DEFAULT_GATE,
+    schemaId: 'TRIBE_STANDING',
+  },
+  {
+    label: 'Fixture: Counterparty Risk',
+    action: 'counterparty_risk',
+    subject: DEFAULT_SUBJECT,
+    schemaId: 'TRIBE_STANDING',
+    minimumScore: 500,
+  },
+];
 
 interface Props {
   data?: FwData;
@@ -36,18 +79,21 @@ export function TrustConsoleView({ data }: Props) {
   const [result, setResult] = useState<TrustEvaluateResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const proofRows = useMemo(() => {
     if (!result) return [];
     return [
-      ['Source', result.proof.source],
-      ['Checkpoint', result.proof.checkpoint?.toString() ?? '-'],
-      ['Schemas', result.proof.schemas.join(', ') || '-'],
-      ['Attestations', result.proof.attestationIds.map(shortId).join(', ') || '-'],
-      ['Tx Digests', result.proof.txDigests.map(shortId).join(', ') || '-'],
-      ['Warnings', result.proof.warnings.join(', ') || 'None'],
+      ['Source', result.proof?.source ?? '-'],
+      ['Checkpoint', result.proof?.checkpoint?.toString() ?? '-'],
+      ['Schemas', result.proof?.schemas?.join(', ') || '-'],
+      ['Attestations', result.proof?.attestationIds?.map(shortId).join(', ') || '-'],
+      ['Tx Digests', result.proof?.txDigests?.map(shortId).join(', ') || '-'],
     ];
   }, [result]);
+
+  const warnings = result?.proof?.warnings ?? [];
+  const hasWarnings = warnings.length > 0;
 
   const runEvaluation = async () => {
     setBusy(true);
@@ -71,9 +117,49 @@ export function TrustConsoleView({ data }: Props) {
     }
   };
 
+  const applyPreset = (preset: Preset) => {
+    setAction(preset.action);
+    setSubject(preset.subject);
+    if (preset.gateId) setGateId(preset.gateId);
+    setSchemaId(preset.schemaId);
+    if (preset.minimumScore != null) setMinimumScore(preset.minimumScore);
+    setResult(null);
+    setError(null);
+  };
+
+  const copyJson = async () => {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(result, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard not available
+    }
+  };
+
   return (
     <>
       <div className="c-view__title">Trust Decision Console</div>
+
+      {/* Presets */}
+      <div style={{ marginBottom: 24 }}>
+        <div className="c-stat__label" style={{ marginBottom: 8 }}>Demo Presets</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {PRESETS.map((p) => (
+            <button
+              key={p.label}
+              className="c-filter"
+              onClick={() => applyPreset(p)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="c-sub" style={{ marginTop: 6 }}>
+          Demo presets use local/testnet fixture addresses.
+        </div>
+      </div>
 
       <div style={{
         display: 'grid',
@@ -81,6 +167,7 @@ export function TrustConsoleView({ data }: Props) {
         gap: 32,
         alignItems: 'start',
       }}>
+        {/* Input Panel */}
         <section style={{
           border: '1px solid var(--c-border)',
           background: 'rgba(8,13,20,0.72)',
@@ -99,7 +186,7 @@ export function TrustConsoleView({ data }: Props) {
             className="c-input"
             value={action}
             onChange={event => setAction(event.target.value as TrustAction)}
-            style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'var(--c-bg-input)', border: '1px solid var(--c-border)', color: 'var(--c-hi)' }}
+            style={{ display: 'block', width: '100%', cursor: 'pointer' }}
           >
             <option value="gate_access">gate_access</option>
             <option value="counterparty_risk">counterparty_risk</option>
@@ -153,32 +240,64 @@ export function TrustConsoleView({ data }: Props) {
           )}
         </section>
 
+        {/* Result Panel */}
         <section style={{
           border: '1px solid var(--c-border)',
           background: 'rgba(8,13,20,0.72)',
           minHeight: 360,
           padding: 26,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <span className={`c-badge ${badgeClass(result)}`}>
-              {result?.decision ?? 'NO DECISION'}
-            </span>
-            {result && (
-              <span className="c-sub">
-                {result.reason} / confidence {result.confidence.toFixed(2)} / API {result.apiVersion}
-              </span>
-            )}
-          </div>
-
           {result ? (
             <>
+              {/* Decision Header */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <span className={`c-badge ${badgeClass(result)}`} style={{ fontSize: 11, padding: '5px 12px' }}>
+                    {result.decision}
+                  </span>
+                  <span className="c-sub">
+                    API {result.apiVersion}
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                  gap: 16,
+                }}>
+                  <div>
+                    <div className="c-stat__label">Allow</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: result.allow ? 'var(--c-green)' : 'var(--c-crimson)' }}>
+                      {result.allow ? 'YES' : 'NO'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="c-stat__label">Confidence</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-amber)' }}>
+                      {result.confidence.toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="c-stat__label">Reason</div>
+                    <div style={{ fontSize: 11, color: 'var(--c-hi)', fontFamily: 'var(--c-mono)', marginTop: 4 }}>
+                      {result.reason}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Explanation */}
+              <div style={{ color: 'var(--c-hi)', fontSize: 12, lineHeight: 1.7, marginBottom: 24, padding: '12px 16px', border: '1px solid var(--c-border)', background: 'rgba(8,13,20,0.5)' }}>
+                {result.explanation}
+              </div>
+
+              {/* Score / Threshold */}
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
                 gap: 16,
                 marginBottom: 24,
               }}>
-                <Metric label="Allow" value={result.allow ? 'YES' : 'NO'} />
                 <Metric label="Score" value={result.score?.toString() ?? '-'} />
                 <Metric label="Threshold" value={result.threshold?.toString() ?? '-'} />
                 {result.action === 'gate_access' && (
@@ -186,20 +305,65 @@ export function TrustConsoleView({ data }: Props) {
                 )}
               </div>
 
-              <div style={{ color: 'var(--c-hi)', fontSize: 12, lineHeight: 1.7, marginBottom: 24 }}>
-                {result.explanation}
-              </div>
+              {/* Warning Banner */}
+              {hasWarnings && (
+                <div style={{
+                  marginBottom: 24,
+                  padding: '12px 16px',
+                  border: '1px solid rgba(245,158,11,0.3)',
+                  background: 'rgba(245,158,11,0.04)',
+                }}>
+                  <div className="c-stat__label" style={{ color: 'var(--c-amber)', marginBottom: 8 }}>
+                    DATA QUALITY WARNINGS
+                  </div>
+                  {warnings.map((w, i) => (
+                    <div key={i} style={{ fontSize: 10, fontFamily: 'var(--c-mono)', color: 'var(--c-amber)', lineHeight: 1.8 }}>
+                      ▸ {w}
+                    </div>
+                  ))}
+                </div>
+              )}
 
-              <div className="c-stat__label">Proof Bundle</div>
+              {/* Proof Bundle */}
+              <div className="c-stat__label" style={{ marginBottom: 12 }}>Proof Bundle</div>
               {proofRows.map(([label, value]) => (
                 <div className="c-kv" key={label}>
                   <div className="c-kv__k">{label}</div>
                   <div className="c-kv__v">{value}</div>
                 </div>
               ))}
+
+              {/* Raw JSON Toggle */}
+              <details style={{ marginTop: 24 }}>
+                <summary className="c-sub" style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Show raw JSON
+                </summary>
+                <div style={{ position: 'relative', marginTop: 8 }}>
+                  <button
+                    className="c-filter"
+                    style={{ position: 'absolute', top: 8, right: 8, fontSize: 8, padding: '3px 8px' }}
+                    onClick={copyJson}
+                  >
+                    {copied ? 'Copied' : 'Copy JSON'}
+                  </button>
+                  <pre style={{
+                    fontSize: 10,
+                    fontFamily: 'var(--c-mono)',
+                    color: 'var(--c-mid)',
+                    overflow: 'auto',
+                    maxHeight: 400,
+                    padding: 16,
+                    border: '1px solid var(--c-border)',
+                    background: 'rgba(5,10,15,0.8)',
+                    margin: 0,
+                  }}>
+                    {JSON.stringify(result, null, 2)}
+                  </pre>
+                </div>
+              </details>
             </>
           ) : (
-            <div className="c-sub">
+            <div className="c-sub" style={{ marginTop: 40 }}>
               Submit a pilot and gate to receive a live indexed trust decision.
             </div>
           )}
@@ -213,7 +377,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="c-stat__label">{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--c-amber)' }}>
+      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-amber)' }}>
         {value}
       </div>
     </div>

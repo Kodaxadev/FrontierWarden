@@ -21,6 +21,7 @@ fn sample_attestation(value: i64) -> StandingAttestation {
         value,
         issued_tx: "attestation_tx".to_owned(),
         checkpoint_seq: Some(11),
+        active_challenge_id: None,
     }
 }
 

@@ -343,6 +343,30 @@ FrontierWarden exposes POST /v1/cradleos/gate/evaluate, returning
 allow/deny/toll decisions from live indexed reputation state with proof fields.
 ```
 
+## Stress Test Results
+
+Local API against indexed Sui testnet state, remote Supabase-backed Postgres.
+Concurrency: 10 per scenario, 180 total requests across 6 scenarios + mixed batch.
+
+- 180/180 successful requests
+- 0 HTTP errors
+- 0 schema mismatches
+- 0 decision mismatches
+
+| Scenario | p50 | p95 |
+|---|---|---|
+| `counterparty_risk ALLOW` | 204ms | 320ms |
+| `counterparty_risk DENY` | 209ms | 304ms |
+| `gate_access ALLOW_FREE` | 948ms | 963ms |
+| `gate_access DENY` | 212ms | 300ms |
+| missing gate → INSUFFICIENT | 292ms | 573ms |
+| unsupported action | 3ms | 4ms |
+| mixed batch (120 requests) | 2618ms p50 | 3563ms |
+
+Status: correct and demo-ready; further production optimization pending local/Postgres mirror and read-path caching.
+
+---
+
 The local TypeScript client supports server-side API keys:
 
 ```ts

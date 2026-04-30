@@ -28,6 +28,7 @@ pub(crate) struct StandingAttestation {
     pub(crate) value: i64,
     pub(crate) issued_tx: String,
     pub(crate) checkpoint_seq: Option<i64>,
+    pub(crate) active_challenge_id: Option<String>,
 }
 
 /// Main entry point: dispatches to the appropriate evaluator based on action.
@@ -54,6 +55,7 @@ pub async fn evaluate_gate_access(
     pool: &PgPool,
     req: TrustEvaluationRequest,
 ) -> Result<TrustEvaluationResponse> {
+    let req_start = std::time::Instant::now();
     let subject = req.entity.trim().to_owned();
     let gate_id = req
         .context
@@ -71,8 +73,17 @@ pub async fn evaluate_gate_access(
         .unwrap_or(DEFAULT_GATE_SCHEMA)
         .to_owned();
 
-    let policy = latest_gate_policy(pool, &gate_id).await?;
-    let Some(policy) = policy else {
+    // Run independent queries concurrently
+    let t0 = std::time::Instant::now();
+    let (maybe_policy, attestation) = tokio::try_join!(
+        latest_gate_policy(pool, &gate_id),
+        latest_standing_attestation(pool, &subject, &schema)
+    )?;
+    let parallel_ms = t0.elapsed().as_millis();
+
+    let Some(policy) = maybe_policy else {
+        let total_ms = req_start.elapsed().as_millis();
+        tracing::info!(total_ms, parallel_ms, action = "gate_access", decision = "INSUFFICIENT", gate_policy_ms = parallel_ms, attestation_ms = parallel_ms);
         return Ok(insufficient(
             subject,
             Some(gate_id),
@@ -82,10 +93,13 @@ pub async fn evaluate_gate_access(
         ));
     };
 
-    let attestation = latest_standing_attestation(pool, &subject, &schema).await?;
     let Some(attestation) = attestation else {
         let mut proof_bundle = proof(&schema, &subject, &gate_id, Some(&policy), None);
+        let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
+        let freshness_ms = t0.elapsed().as_millis();
+        let total_ms = req_start.elapsed().as_millis();
+        tracing::info!(total_ms, parallel_ms, freshness_ms, action = "gate_access", decision = "DENY", gate_policy_ms = parallel_ms, attestation_ms = parallel_ms);
         return Ok(response(
             "DENY",
             false,
@@ -121,9 +135,16 @@ pub async fn evaluate_gate_access(
         Some(&policy),
         Some(&attestation),
     );
+    let t0 = std::time::Instant::now();
     add_freshness_warnings(pool, &mut proof_bundle).await?;
-    add_challenge_warning(pool, &mut proof_bundle, &attestation.attestation_id).await?;
+    let freshness_ms = t0.elapsed().as_millis();
+    if let Some(challenge_id) = &attestation.active_challenge_id {
+        proof_bundle.warnings.push(format!("ATTESTATION_UNDER_CHALLENGE:{challenge_id}"));
+    }
+    let challenge_ms = 0u128;
     let confidence = compute_confidence(&proof_bundle, 1.0);
+    let total_ms = req_start.elapsed().as_millis();
+    tracing::info!(total_ms, parallel_ms, freshness_ms, challenge_ms, action = "gate_access", decision, gate_policy_ms = parallel_ms, attestation_ms = parallel_ms);
     Ok(response(
         decision,
         allow,
@@ -146,6 +167,7 @@ pub async fn evaluate_counterparty_risk(
     pool: &PgPool,
     req: TrustEvaluationRequest,
 ) -> Result<TrustEvaluationResponse> {
+    let req_start = std::time::Instant::now();
     let subject = req.entity.trim().to_owned();
     let schema = req
         .context
@@ -161,10 +183,16 @@ pub async fn evaluate_counterparty_risk(
         .filter(|&s| s > 0)
         .unwrap_or(DEFAULT_MINIMUM_SCORE);
 
+    let t0 = std::time::Instant::now();
     let attestation = latest_standing_attestation(pool, &subject, &schema).await?;
+    let attestation_ms = t0.elapsed().as_millis();
     let Some(attestation) = attestation else {
         let mut proof_bundle = proof_counterparty(&schema, &subject, None);
+        let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
+        let freshness_ms = t0.elapsed().as_millis();
+        let total_ms = req_start.elapsed().as_millis();
+        tracing::info!(total_ms, attestation_ms, freshness_ms, action = "counterparty_risk", decision = "DENY", reason = "no_attestation");
         return Ok(response_counterparty(
             "DENY",
             false,
@@ -183,9 +211,15 @@ pub async fn evaluate_counterparty_risk(
     if score < minimum_score {
         let mut proof_bundle =
             proof_counterparty(&schema, &subject, Some(&attestation));
+        let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
-        add_challenge_warning(pool, &mut proof_bundle, &attestation.attestation_id).await?;
-        let _confidence = compute_confidence(&proof_bundle, 0.9);
+        let freshness_ms = t0.elapsed().as_millis();
+        if let Some(challenge_id) = &attestation.active_challenge_id {
+            proof_bundle.warnings.push(format!("ATTESTATION_UNDER_CHALLENGE:{challenge_id}"));
+        }
+        let challenge_ms = 0u128;
+        let total_ms = req_start.elapsed().as_millis();
+        tracing::info!(total_ms, attestation_ms, freshness_ms, challenge_ms, action = "counterparty_risk", decision = "DENY", reason = "score_too_low");
         return Ok(response_counterparty(
             "DENY",
             false,
@@ -204,9 +238,16 @@ pub async fn evaluate_counterparty_risk(
     }
 
     let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation));
+    let t0 = std::time::Instant::now();
     add_freshness_warnings(pool, &mut proof_bundle).await?;
-    add_challenge_warning(pool, &mut proof_bundle, &attestation.attestation_id).await?;
+    let freshness_ms = t0.elapsed().as_millis();
+    if let Some(challenge_id) = &attestation.active_challenge_id {
+        proof_bundle.warnings.push(format!("ATTESTATION_UNDER_CHALLENGE:{challenge_id}"));
+    }
+    let challenge_ms = 0u128;
+    let total_ms = req_start.elapsed().as_millis();
     let _confidence = compute_confidence(&proof_bundle, 0.95);
+    tracing::info!(total_ms, attestation_ms, freshness_ms, challenge_ms, action = "counterparty_risk", decision = "ALLOW");
     Ok(response_counterparty(
         "ALLOW",
         true,
@@ -222,33 +263,6 @@ pub async fn evaluate_counterparty_risk(
         proof_bundle,
         "counterparty_risk",
     ))
-}
-
-/// If the attestation used in this decision has an unresolved fraud challenge,
-/// add a warning and reduce confidence.
-async fn add_challenge_warning(
-    pool: &PgPool,
-    proof: &mut TrustProof,
-    attestation_id: &str,
-) -> Result<()> {
-    let active_challenge: Option<(String, String)> = sqlx::query_as(
-        "SELECT challenge_id, attestation_id
-         FROM fraud_challenges
-         WHERE attestation_id = $1 AND NOT resolved
-         ORDER BY created_at DESC
-         LIMIT 1",
-    )
-    .bind(attestation_id)
-    .fetch_optional(pool)
-    .await?;
-
-    if let Some((challenge_id, _att_id)) = active_challenge {
-        proof
-            .warnings
-            .push(format!("ATTESTATION_UNDER_CHALLENGE:{challenge_id}"));
-    }
-
-    Ok(())
 }
 
 /// Reduce confidence when proof warnings indicate data quality issues.
@@ -290,14 +304,27 @@ async fn latest_standing_attestation(
     schema: &str,
 ) -> Result<Option<StandingAttestation>> {
     sqlx::query_as::<_, StandingAttestation>(
-        "SELECT a.attestation_id, a.value, a.issued_tx,
-                NULLIF(MAX(r.checkpoint_seq), 0)::BIGINT AS checkpoint_seq
-         FROM attestations a
-         LEFT JOIN raw_events r ON r.tx_digest = a.issued_tx
-         WHERE a.subject = $1 AND a.schema_id = $2 AND NOT a.revoked
-         GROUP BY a.attestation_id, a.value, a.issued_tx, a.issued_at
-         ORDER BY a.issued_at DESC
-         LIMIT 1",
+        "WITH latest AS (
+             SELECT attestation_id, value, issued_tx, issued_at
+             FROM attestations
+             WHERE subject = $1 AND schema_id = $2 AND NOT revoked
+             ORDER BY issued_at DESC
+             LIMIT 1
+           ),
+           active_challenge AS (
+             SELECT fc.attestation_id, fc.challenge_id
+             FROM fraud_challenges fc
+             JOIN latest l ON l.attestation_id = fc.attestation_id
+             WHERE NOT fc.resolved
+             ORDER BY fc.created_at DESC
+             LIMIT 1
+           )
+           SELECT l.attestation_id, l.value, l.issued_tx,
+                  r.checkpoint_seq::BIGINT AS checkpoint_seq,
+                  ac.challenge_id AS active_challenge_id
+           FROM latest l
+           LEFT JOIN raw_events r ON r.tx_digest = l.issued_tx
+           LEFT JOIN active_challenge ac ON ac.attestation_id = l.attestation_id",
     )
     .bind(subject)
     .bind(schema)
