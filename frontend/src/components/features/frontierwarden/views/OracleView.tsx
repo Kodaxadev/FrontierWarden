@@ -124,8 +124,6 @@ export function OracleView({ provenance }: OracleViewProps = {}) {
     <>
       <div className="c-view__title">Oracle Console</div>
       <LiveStatus
-        loading={false}
-        live={true}
         provenance={provenance}
         liveText={`Oracle · ${shortId(ORACLE_ADDRESS)}`}
         emptyText="Oracle offline"
@@ -173,7 +171,7 @@ export function OracleView({ provenance }: OracleViewProps = {}) {
               ))}
             </select>
           </label>
-          <label style={{ gridColumn: 'span 2' }}>
+          <label>
             <div className="c-policy__label">Subject Address</div>
             <input
               className="c-input"
@@ -288,7 +286,7 @@ export function OracleView({ provenance }: OracleViewProps = {}) {
             </button>
           </div>
         </div>
-        {schemaState.step !== 'idle' && <button className="c-tab" style={{ marginTop: 12 }} onClick={schemaReset}>CLEAR STATUS</button>}
+        {schemaState.step !== 'idle' && <button className="c-tab" style={{ marginTop: 12 }} onClick={schemaReset}>CLEAR</button>}
       </div>
 
       {/* ── Registered Schemas index ───────────────────────────────────── */}
@@ -299,7 +297,7 @@ export function OracleView({ provenance }: OracleViewProps = {}) {
       {schemasLoading && <div className="c-sub">Loading…</div>}
       {!schemasLoading && schemas.length === 0 && <div className="c-sub">No schemas indexed yet.</div>}
       {schemas.length > 0 && (
-        <table className="c-table" style={{ marginBottom: 28 }}>
+        <table className="c-table" style={{ marginBottom: 36 }}>
           <thead><tr><th>Schema ID</th><th>Ver</th><th>Resolver</th><th>Deprecated By</th><th style={{ textAlign: 'right' }}>Registered At</th></tr></thead>
           <tbody>
             {schemas.map(s => (
@@ -327,7 +325,7 @@ export function OracleView({ provenance }: OracleViewProps = {}) {
       {oraclesLoading && <div className="c-sub">Loading…</div>}
       {!oraclesLoading && oracles.length === 0 && <div className="c-sub">No oracles indexed yet.</div>}
       {oracles.length > 0 && (
-        <table className="c-table" style={{ marginBottom: 28 }}>
+        <table className="c-table" style={{ marginBottom: 36 }}>
           <thead><tr><th>Name</th><th>Address</th><th>TEE</th><th>System</th><th style={{ textAlign: 'right' }}>Registered At</th></tr></thead>
           <tbody>
             {oracles.map(o => (

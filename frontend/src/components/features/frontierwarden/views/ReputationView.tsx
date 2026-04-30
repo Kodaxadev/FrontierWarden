@@ -4,7 +4,6 @@
 
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
-import { SUI_NETWORK_LABEL } from '../../../../lib/network';
 import type { FwData } from '../fw-data';
 
 // Tier thresholds: score >= threshold → tier name
@@ -114,16 +113,6 @@ export function ReputationView({ data, live = false, loading = false, error = nu
           liveText={pilot.checkpoint ? `Live profile / checkpoint ${pilot.checkpoint}` : 'Live profile'}
           emptyText="No profile indexed"
         />
-        <div className="c-sub" style={{ display: 'none' }}>
-          {loading
-            ? 'SYNCING REPUTATION INDEX'
-            : live
-              ? `LIVE ${SUI_NETWORK_LABEL} PROFILE${pilot.checkpoint ? ` · CHECKPOINT ${pilot.checkpoint}` : ''}`
-              : error
-                ? 'DESIGN FALLBACK - INDEXER OFFLINE'
-                : 'DESIGN FALLBACK - NO LIVE PROFILES'}
-        </div>
-
         {/* Score */}
         <div className="c-stat">
           <div className="c-stat__label">Composite Score · 0–1000</div>

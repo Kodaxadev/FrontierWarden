@@ -128,6 +128,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
         ))}
       </div>
 
+      {gates.length > 0 && (
       <table className="c-table">
         <thead>
           <tr>
@@ -179,6 +180,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
           ))}
         </tbody>
       </table>
+      )}
 
       {gates.length === 0 && (
         <div style={{
@@ -191,10 +193,11 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
 
       {selectedGate && (
         <>
+        {/* ── Passage Feed ──────────────────────────────────────────────── */}
         <div style={{
-          marginTop: 28,
-          borderTop: '1px solid var(--c-border)',
-          paddingTop: 18,
+          marginTop: 36,
+          paddingTop: 24,
+          borderTop: '2px solid var(--c-border)',
         }}>
           <div className="c-view__title" style={{ marginBottom: 12 }}>
             Passage Feed / {selectedGate.id}

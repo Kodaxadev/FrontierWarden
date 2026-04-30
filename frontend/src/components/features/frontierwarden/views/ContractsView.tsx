@@ -54,6 +54,16 @@ export function ContractsView({ data, live = false, loading = false, error = nul
           </tr>
         </thead>
         <tbody>
+          {data.contracts.length === 0 && (
+            <tr>
+              <td colSpan={8} style={{
+                padding: '48px 0', textAlign: 'center',
+                fontSize: 11, color: 'var(--c-mid)',
+              }}>
+                No contracts indexed yet.
+              </td>
+            </tr>
+          )}
           {data.contracts.map(c => (
             <tr key={c.id}>
               <td>

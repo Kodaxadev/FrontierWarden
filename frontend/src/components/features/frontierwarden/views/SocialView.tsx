@@ -235,7 +235,7 @@ export function SocialView({ provenance }: SocialViewProps = {}) {
       <div style={{ maxWidth: 760, marginBottom: 24, padding: '16px 20px', border: '1px solid var(--c-border)', background: 'rgba(255,255,255,0.012)' }}>
         <div className="c-stat__label" style={{ marginBottom: 10 }}>Loan Management</div>
         <div className="c-sub" style={{ marginBottom: 12 }}>Repay an active loan or mark an overdue loan as defaulted. Loan issuance requires a multi-party flow (lender + borrower vouch).</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 14 }}>
           <label>
             <div className="c-policy__label">Loan Object ID</div>
             <input className="c-input" placeholder="0x…" value={loanId} onChange={e => setLoanId(e.target.value)} />
@@ -383,7 +383,7 @@ export function SocialView({ provenance }: SocialViewProps = {}) {
       )}
 
       {/* Vouches you gave — voucher side, useful for tracking defaults */}
-      <div className="c-view__title" style={{ marginBottom: 10 }}>Vouches You've Given</div>
+      <div className="c-view__title" style={{ marginBottom: 10, marginTop: 24 }}>Vouches You've Given</div>
       {account && !feedLoading && givenVouches.length === 0 && (
         <div className="c-sub">No vouches issued by this wallet.</div>
       )}

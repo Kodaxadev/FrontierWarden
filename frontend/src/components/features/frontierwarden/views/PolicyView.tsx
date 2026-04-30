@@ -321,11 +321,11 @@ export function PolicyView({ data, live = false, loading = false, error = null, 
           <div>
             <div className="c-kv">
               <span className="c-kv__k">Selected</span>
-              <span className="c-kv__v">{account ? account.address : 'none'}</span>
+              <span className="c-kv__v">{account ? shortId(account.address) : 'none'}</span>
             </div>
             <div className="c-kv">
               <span className="c-kv__k">Required</span>
-              <span className="c-kv__v">{ADMIN_WALLET}</span>
+              <span className="c-kv__v">{shortId(ADMIN_WALLET)}</span>
             </div>
             <div className="c-kv">
               <span className="c-kv__k">Detected</span>
@@ -365,13 +365,25 @@ export function PolicyView({ data, live = false, loading = false, error = null, 
           color: txState.step === 'error' ? 'var(--c-crimson)'
                : txState.step === 'done'  ? 'var(--c-green)'
                : 'var(--c-mid)',
-        }}>
-          {txState.step === 'done' && txState.digest
-            ? `✓ committed · tx ${shortId(txState.digest)}`
+          maxWidth: 320,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }} title={
+          txState.step === 'done' && txState.digest
+            ? `Committed · tx ${txState.digest}`
             : txState.step === 'error' && txState.error
               ? txState.error
               : policy
-                ? `Read path live · tx ${shortId(policy.txDigest)} · checkpoint ${policy.checkpoint}`
+                ? `Read path live · tx ${policy.txDigest} · checkpoint ${policy.checkpoint}`
+                : undefined
+        }>
+          {txState.step === 'done' && txState.digest
+            ? `✓ committed · tx ${shortId(txState.digest)}`
+            : txState.step === 'error' && txState.error
+              ? (txState.error.length > 120 ? `${txState.error.slice(0, 120)}…` : txState.error)
+              : policy
+                ? `Live · tx ${shortId(policy.txDigest)} · cp ${policy.checkpoint}`
                 : 'Attestor: WRDN-7 · block 18,402,114 · Editor: Vex Korith'}
         </span>
 

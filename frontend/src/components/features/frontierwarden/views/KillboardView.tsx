@@ -85,6 +85,16 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         ))}
       </div>
 
+      {kills.length === 0 && (
+        <div style={{
+          padding: '48px 0', textAlign: 'center',
+          fontSize: 11, color: 'var(--c-mid)',
+        }}>
+          No kills match the current filter.
+        </div>
+      )}
+
+      {kills.length > 0 && (
       <table className="c-table">
         <thead>
           <tr>
@@ -147,6 +157,7 @@ export function KillboardView({ data, live = false, loading = false, error = nul
           })}
         </tbody>
       </table>
+      )}
     </>
   );
 }

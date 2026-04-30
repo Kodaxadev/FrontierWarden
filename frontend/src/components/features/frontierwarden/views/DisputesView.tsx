@@ -39,6 +39,7 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
   const [evidence, setEvidence] = useState('manual-review');
   const [stakeMist, setStakeMist] = useState(MIN_CHALLENGE_STAKE);
   const [selectedChallenge, setSelectedChallenge] = useState('');
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const loadRows = useCallback(async () => {
     try {
@@ -196,8 +197,8 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
         background: 'rgba(255,255,255,0.018)',
       }}>
         <div className="c-stat__label" style={{ marginBottom: 14 }}>Council Actions</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) auto auto auto', gap: 14, alignItems: 'end' }}>
-          <label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-end' }}>
+          <label style={{ flex: '1 1 260px' }}>
             <div className="c-policy__label">Challenge</div>
             <select className="c-input" value={selectedChallenge} onChange={event => setSelectedChallenge(event.target.value)}>
               <option value="">Select challenge</option>
@@ -241,8 +242,14 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
             {rows.map(row => (
               <tr key={row.challenge_id} style={{
                 cursor: 'pointer',
-                background: selectedChallenge === row.challenge_id ? 'rgba(0,210,255,0.04)' : undefined,
-              }} onClick={() => setSelectedChallenge(row.challenge_id)}>
+                background: hoveredRow === row.challenge_id
+                  ? 'rgba(0,210,255,0.06)'
+                  : selectedChallenge === row.challenge_id
+                    ? 'rgba(0,210,255,0.04)'
+                    : undefined,
+              }} onClick={() => setSelectedChallenge(row.challenge_id)}
+                onMouseEnter={() => setHoveredRow(row.challenge_id)}
+                onMouseLeave={() => setHoveredRow(null)}>
                 <td>
                   <div style={{ fontSize: 12 }}>{shortId(row.challenge_id)}</div>
                   <div className="c-sub">{row.created_at}</div>
@@ -266,7 +273,7 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
       )}
 
       {state.step !== 'idle' && (
-        <button className="c-tab" style={{ marginTop: 18 }} onClick={reset}>CLEAR STATUS</button>
+        <button className="c-tab" style={{ marginTop: 18 }} onClick={reset}>CLEAR</button>
       )}
     </>
   );
