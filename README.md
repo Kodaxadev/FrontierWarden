@@ -17,6 +17,9 @@ Status as of 2026-04-29:
 - Sui testnet protocol package is deployed and upgraded.
 - Rust indexer projects protocol events into Supabase/Postgres.
 - Public Supabase table access is locked down; reads go through the Rust API.
+- Rust API supports opt-in `EFREP_API_KEY` authentication for non-health routes.
+- Rust API supports opt-in in-process rate limiting with `EFREP_RATE_LIMIT_PER_MINUTE`.
+- React operator console requires a wallet-signed session before mounting the dashboard.
 - React operator console builds cleanly.
 - Sponsored gate policy update, gate passage, and toll withdrawal flows have been proven.
 - Trust Decision API v0 is live locally and backed by indexed chain state.
@@ -137,8 +140,10 @@ This is pre-mainnet software. Known pre-mainnet limitations are tracked privatel
 
 Before production:
 - Complete a Move security review.
-- Add wallet-authenticated API access.
-- Add rate limits and observability.
+- Enable `EFREP_API_KEY` on the Rust API.
+- Enable `EFREP_RATE_LIMIT_PER_MINUTE` and deployment-level rate limits.
+- Use wallet-signed operator sessions for browser access.
+- Expand observability and deploy behind gateway-level rate limits.
 - Verify EVE/EVT payment coin type before replacing SUI test flows.
 - Keep database credentials out of committed config.
 

@@ -1,5 +1,4 @@
 # FrontierWarden Trust Decision API
-# FrontierWarden Trust Decision API
 
 Last updated: 2026-04-29
 
@@ -20,6 +19,63 @@ POST /v1/cradleos/gate/evaluate
 
 All three endpoints currently run the same evaluator. The CradleOS route is a
 stable integration alias for gate-access decisions.
+
+## Authentication
+
+Local development can run without API authentication. Set `EFREP_API_KEY` in the
+indexer environment to require authentication on every API route except
+`GET /health`.
+
+Accepted headers:
+
+```http
+x-api-key: <key>
+authorization: Bearer <key>
+```
+
+Browser operator sessions use a separate wallet challenge flow:
+
+```http
+POST /auth/nonce
+POST /auth/session
+```
+
+`/auth/nonce` accepts `{ "address": "0x..." }` and returns a one-use message.
+The browser signs `message` with Sui personal-message signing, then submits
+`{ address, nonce, message, signature }` to `/auth/session`. The response
+contains a short-lived bearer token for the operator console:
+
+```json
+{
+  "address": "0xoperator",
+  "token": "session-token",
+  "expires_at": 1770000000
+}
+```
+
+The current verifier supports Ed25519 Sui personal-message signatures. If EVE
+Wallet returns another Sui signature scheme, the session request will fail until
+that scheme is implemented and tested.
+
+Use `GET /health` for unauthenticated uptime checks. Do not expose the API
+publicly without `EFREP_API_KEY`, rate limits, and deployment-level logging.
+Do not put this key in browser code; use it from server-side integrations,
+workers, or trusted backend services.
+
+## Rate Limits And Logs
+
+Set `EFREP_RATE_LIMIT_PER_MINUTE` to a positive integer to enable an in-process
+per-minute limit on non-health API routes. Requests identify by API key when
+present, otherwise by `x-forwarded-for`, `x-real-ip`, or a shared fallback key.
+
+The API emits one structured `api_request` log per request with method, path,
+status, and elapsed milliseconds. It does not log API key values.
+For long-term retention, prefer aggregated counters and avoid storing full
+client IPs, wallet signatures, API keys, or request bodies.
+
+This limiter is a testnet guardrail. Public deployments should also use
+gateway, reverse-proxy, or platform-level rate limits because in-process limits
+do not coordinate across multiple API instances.
 
 ## Request
 
@@ -157,6 +213,7 @@ examples use `http://localhost:3000`.
 ```bash
 curl -s http://localhost:3000/v1/trust/evaluate \
   -H "content-type: application/json" \
+  -H "x-api-key: $EFREP_API_KEY" \
   -d '{
     "entity": "0xALLOW_EXAMPLE",
     "action": "gate_access",
@@ -184,6 +241,7 @@ Expected core result:
 ```bash
 curl -s http://localhost:3000/v1/cradleos/gate/evaluate \
   -H "content-type: application/json" \
+  -H "x-api-key: $EFREP_API_KEY" \
   -d '{
     "entity": "0xDENY_EXAMPLE",
     "action": "gate_access",
@@ -212,6 +270,17 @@ FrontierWarden is designed to complement existing EVE Frontier tools by providin
 ```text
 FrontierWarden exposes POST /v1/cradleos/gate/evaluate, returning
 allow/deny/toll decisions from live indexed reputation state with proof fields.
+```
+
+The local TypeScript client supports server-side API keys:
+
+```ts
+import { createTrustkit } from '@frontierwarden/trustkit';
+
+const trust = createTrustkit({
+  endpoint: 'https://your-frontierwarden-api.example',
+  apiKey: process.env.EFREP_API_KEY,
+});
 ```
 
 For more details on specific integrations, please contact the maintainers at Justin.DavisWE@icloud.com.

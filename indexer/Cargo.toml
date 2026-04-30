@@ -2,7 +2,7 @@
 name    = "efrep-indexer"
 version = "0.1.0"
 edition = "2021"
-description = "Event indexer for the EVE Frontier Reputation Protocol on Sui devnet"
+description = "Event indexer for the EVE Frontier Reputation Protocol on Sui testnet"
 
 [dependencies]
 # Sui RPC via JSON-RPC over HTTP — no git dep, fast compile, stable API
@@ -30,6 +30,11 @@ axum = "0.8"
 
 # Ergonomic error handling
 anyhow = "1"
+base64 = "0.22"
+blake2 = "0.10"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+hex = "0.4"
+rand = "0.8"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

@@ -48,8 +48,21 @@ Run the indexer/API on Windows PowerShell:
 ```powershell
 cd indexer
 $env:EFREP_DATABASE_URL = "<postgres-url>"
+$env:EFREP_API_KEY = "<local-api-key>"
+$env:EFREP_RATE_LIMIT_PER_MINUTE = "120"
 cargo run --release
 ```
+
+`EFREP_API_KEY` is optional for local development, but required before exposing
+the Rust API beyond localhost. When set, all API routes except `GET /health`
+require `x-api-key` or `Authorization: Bearer`. Browser operators should use
+the wallet-signed session flow exposed by `/auth/nonce` and `/auth/session`,
+not a browser-bundled API key.
+
+`EFREP_RATE_LIMIT_PER_MINUTE` is optional. When set to a positive integer, it
+adds an in-process per-minute request limit for non-health API routes,
+including the session nonce endpoints. Treat it as a testnet guardrail; public
+deployments should still use gateway or reverse proxy rate limits.
 
 Run the frontend:
 

@@ -19,6 +19,9 @@ import type {
   SchemaRow,
   OracleRow,
   ProfileRow,
+  OperatorNonceResponse,
+  OperatorSessionRequest,
+  OperatorSessionResponse,
   TrustEvaluateRequest,
   TrustEvaluateResponse,
 } from '../types/api.types';
@@ -26,8 +29,22 @@ import type {
 const BASE     = import.meta.env.VITE_API_BASE         ?? '/api';
 const GAS_BASE = import.meta.env.VITE_GAS_STATION_URL  ?? '/gas';
 
+let operatorSessionToken: string | null = null;
+
+export function setOperatorSessionToken(token: string | null) {
+  operatorSessionToken = token;
+}
+
+function apiHeaders(extra: Record<string, string> = {}) {
+  return operatorSessionToken
+    ? { ...extra, Authorization: `Bearer ${operatorSessionToken}` }
+    : extra;
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+  const res = await fetch(`${BASE}${path}`, {
+    headers: apiHeaders(),
+  });
   if (!res.ok) {
     throw new Error(`API ${path} -> ${res.status} ${res.statusText}`);
   }
@@ -37,7 +54,7 @@ async function get<T>(path: string): Promise<T> {
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -51,6 +68,14 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 export const fetchHealth = (): Promise<HealthResponse> =>
   get('/health');
+
+export const requestOperatorNonce = (address: string): Promise<OperatorNonceResponse> =>
+  post('/auth/nonce', { address });
+
+export const createOperatorSession = (
+  input: OperatorSessionRequest,
+): Promise<OperatorSessionResponse> =>
+  post('/auth/session', input);
 
 // ── Scores ────────────────────────────────────────────────────────────────────
 

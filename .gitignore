@@ -2,6 +2,7 @@
 build/
 node_modules/
 frontend/dist/
+sdk/trustkit/dist/
 frontend/node_modules/
 indexer/target/
 

@@ -6,6 +6,30 @@ export interface HealthResponse {
   uptime_secs: number;
 }
 
+export interface OperatorNonceRequest {
+  address: string;
+}
+
+export interface OperatorNonceResponse {
+  address:    string;
+  nonce:      string;
+  message:    string;
+  expires_at: number;
+}
+
+export interface OperatorSessionRequest {
+  address:   string;
+  nonce:     string;
+  message:   string;
+  signature: string;
+}
+
+export interface OperatorSessionResponse {
+  address:    string;
+  token:      string;
+  expires_at: number;
+}
+
 export interface ScoreRow {
   profile_id:      string;
   schema_id:       string;

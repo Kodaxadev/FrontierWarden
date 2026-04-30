@@ -58,6 +58,26 @@ The system has 7 modules across 4 trust zones:
 
 ## 3. Governance and Lifecycle
 
+### API Boundary
+
+`EFREP_API_KEY` is intended as a partner access gate and rate-limit aid for the
+Rust API; it is not user authentication, wallet authentication, or per-tenant
+authorization.
+
+Browser operators authenticate through short-lived wallet-signed sessions:
+
+1. `POST /auth/nonce` returns a one-use FrontierWarden session message.
+2. The connected wallet signs that message with Sui personal-message signing.
+3. `POST /auth/session` verifies the signature and returns a bearer token.
+
+The first verifier supports Ed25519 Sui personal-message signatures. Other Sui
+signature schemes should be added only after live EVE Wallet validation, not by
+guessing serialization details.
+
+`api_request` logs should be treated as operational telemetry. Do not log API
+keys, wallet signatures, request bodies, or full client IPs in long-term logs;
+prefer short retention and aggregated counters for public deployments.
+
 ### Mainnet Readiness Requirements
 1. **Full Smart Contract Audit**: MUST be completed before mainnet deployment.
 2. **Governance Transfer**: Admin rights must be transferred to a multisig or DAO.

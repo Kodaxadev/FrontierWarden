@@ -56,6 +56,7 @@ export interface TrustEvaluateResponse {
 
 export interface TrustkitOptions {
   endpoint: string;
+  apiKey?: string;
   fetcher?: typeof fetch;
 }
 
@@ -69,13 +70,19 @@ export interface CradleGateRequest {
 export function createTrustkit(options: TrustkitOptions) {
   const endpoint = options.endpoint.replace(/\/$/, '');
   const fetcher = options.fetcher ?? fetch;
+  const baseHeaders: Record<string, string> = {
+    'content-type': 'application/json',
+  };
+  if (options.apiKey) {
+    baseHeaders['x-api-key'] = options.apiKey;
+  }
 
   async function evaluateTrust(
     input: TrustEvaluateRequest,
   ): Promise<TrustEvaluateResponse> {
     const res = await fetcher(`${endpoint}/v1/trust/evaluate`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: baseHeaders,
       body: JSON.stringify(input),
     });
     if (!res.ok) {

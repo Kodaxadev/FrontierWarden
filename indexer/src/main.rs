@@ -1,11 +1,15 @@
 mod api;
 mod api_attestations;
+mod api_auth;
 mod api_challenges;
 mod api_common;
 mod api_gate_ops;
 mod api_gates;
+mod api_rate_limit;
 mod api_registry;
 mod api_reputation;
+mod api_request_log;
+mod api_sessions;
 mod api_trust;
 mod config;
 mod db;
