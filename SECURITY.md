@@ -70,9 +70,11 @@ Browser operators authenticate through short-lived wallet-signed sessions:
 2. The connected wallet signs that message with Sui personal-message signing.
 3. `POST /auth/session` verifies the signature and returns a bearer token.
 
-The first verifier supports Ed25519 Sui personal-message signatures. Other Sui
-signature schemes should be added only after live EVE Wallet validation, not by
-guessing serialization details.
+Ed25519 signatures are verified natively in Rust. EVE Vault is a zkLogin wallet,
+so non-Ed25519 wallet-standard signatures are verified through Mysten's official
+JavaScript verifier in `scripts/verify-personal-message.mjs`. Production
+deployments should pin dependency versions, set `SUI_GRAPHQL_URL`, and monitor
+verifier failures.
 
 `api_request` logs should be treated as operational telemetry. Do not log API
 keys, wallet signatures, request bodies, or full client IPs in long-term logs;

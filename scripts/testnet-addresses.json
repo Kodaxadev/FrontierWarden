@@ -41,6 +41,10 @@
       "type": "...::reputation_gate::GatePolicy",
       "initial_version": 349181609,
       "create_tx": "AN5qG3XdQ9PAJ9oJQCh6CjrnFQc3kBkjhtj3m5zZyUaR",
+      "latest_config_tx": "G4fGxvgpdhbjy4yRu474S9S4vTYpYJqAVcEbSzhrTvsC",
+      "latest_config_checkpoint": 331437414,
+      "latest_withdraw_tx": "CAJWpnWSrqGLqtQqvKQ1NQ829C1QJ6qzcEHGf8U5voud",
+      "latest_withdraw_checkpoint": 331437435,
       "config": {
         "schema_id": "TRIBE_STANDING",
         "ally_threshold": 500,
@@ -50,8 +54,8 @@
     "gate_admin_cap": {
       "id": "0xa6c2b1f6ca3855bd968b8e7f7692bee75cc85606ef47078afaeeb7f85bc8d5ff",
       "type": "...::reputation_gate::GateAdminCap",
-      "owner": "0x9cc038e5f0045dbf75ce191870fd7c483020d12bc23f3ebaef7a6f4f22d820e1",
-      "transfer_tx": "ArJC94ELxEKmEg3zwMqJEqeRZGbzUKvoDDG1PbXFjDKf"
+      "owner": "0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f",
+      "transfer_tx": "EjhkVCtU5JfdNZL6gasvudNPzcExLAswCPXigij1HUYy"
     }
   },
   "deployer_objects": {

@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::{
     collections::HashMap,
+    io::Write,
+    process::{Command, Stdio},
     sync::{Arc, Mutex},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -86,17 +88,19 @@ impl SessionState {
         store.sessions.get(token).map(|s| s.address.clone())
     }
 
-    fn insert_nonce(&self, address: String) -> Result<NonceResponse, StatusCode> {
+    fn insert_nonce(&self, address: String) -> Result<NonceResponse, (StatusCode, &'static str)> {
         let nonce = random_token(16);
         let expires_at = unix_now() + NONCE_TTL.as_secs();
         let message = format!(
             "FrontierWarden operator session\nAddress: {address}\nNonce: {nonce}\nExpires: {expires_at}"
         );
 
-        let mut store = self
-            .inner
-            .lock()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let mut store = self.inner.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "session store unavailable",
+            )
+        })?;
         store.nonces.insert(
             nonce.clone(),
             PendingNonce {
@@ -114,26 +118,32 @@ impl SessionState {
         })
     }
 
-    fn create_session(&self, req: SessionRequest) -> Result<SessionResponse, StatusCode> {
-        let mut store = self
-            .inner
-            .lock()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let Some(pending) = store.nonces.remove(&req.nonce) else {
-            return Err(StatusCode::UNAUTHORIZED);
-        };
-        if pending.expires_at <= Instant::now()
-            || pending.address != req.address
-            || pending.message != req.message
-        {
-            return Err(StatusCode::UNAUTHORIZED);
-        }
+    fn create_session(
+        &self,
+        req: SessionRequest,
+    ) -> Result<SessionResponse, (StatusCode, &'static str)> {
+        self.consume_nonce(&req)?;
 
-        verify_personal_message_ed25519(&req.message, &req.signature, &req.address)
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        verify_personal_message(&req.message, &req.signature, &req.address).map_err(|err| {
+            tracing::warn!(
+                scheme = signature_scheme_label(&req.signature),
+                error = %err,
+                "operator session signature verification failed"
+            );
+            (
+                StatusCode::UNAUTHORIZED,
+                "wallet signature verification failed; supports Ed25519 natively and wallet-standard schemes through Mysten verification",
+                )
+        })?;
 
         let token = random_token(32);
         let expires_at = unix_now() + SESSION_TTL.as_secs();
+        let mut store = self.inner.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "session store unavailable",
+            )
+        })?;
         store.sessions.insert(
             token.clone(),
             OperatorSession {
@@ -148,21 +158,42 @@ impl SessionState {
             expires_at,
         })
     }
+
+    fn consume_nonce(&self, req: &SessionRequest) -> Result<(), (StatusCode, &'static str)> {
+        let mut store = self.inner.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "session store unavailable",
+            )
+        })?;
+        let Some(pending) = store.nonces.remove(&req.nonce) else {
+            return Err((StatusCode::UNAUTHORIZED, "unknown or expired nonce"));
+        };
+        if pending.expires_at <= Instant::now()
+            || pending.address != req.address
+            || pending.message != req.message
+        {
+            return Err((StatusCode::UNAUTHORIZED, "nonce mismatch"));
+        }
+        Ok(())
+    }
 }
 
 async fn create_nonce(
     Extension(session_state): Extension<SessionState>,
     Json(req): Json<NonceRequest>,
-) -> Result<Json<NonceResponse>, StatusCode> {
-    let address = normalize_sui_address(&req.address).ok_or(StatusCode::BAD_REQUEST)?;
+) -> Result<Json<NonceResponse>, (StatusCode, &'static str)> {
+    let address =
+        normalize_sui_address(&req.address).ok_or((StatusCode::BAD_REQUEST, "invalid address"))?;
     Ok(Json(session_state.insert_nonce(address)?))
 }
 
 async fn create_session(
     Extension(session_state): Extension<SessionState>,
     Json(req): Json<SessionRequest>,
-) -> Result<Json<SessionResponse>, StatusCode> {
-    let address = normalize_sui_address(&req.address).ok_or(StatusCode::BAD_REQUEST)?;
+) -> Result<Json<SessionResponse>, (StatusCode, &'static str)> {
+    let address =
+        normalize_sui_address(&req.address).ok_or((StatusCode::BAD_REQUEST, "invalid address"))?;
     Ok(Json(
         session_state.create_session(SessionRequest { address, ..req })?,
     ))
@@ -185,6 +216,57 @@ fn verify_personal_message_ed25519(
     let digest = personal_message_digest(message.as_bytes())?;
     verifying_key.verify(&digest, &sig)?;
     Ok(())
+}
+
+fn verify_personal_message(message: &str, signature: &str, address: &str) -> anyhow::Result<()> {
+    if verify_personal_message_ed25519(message, signature, address).is_ok() {
+        return Ok(());
+    }
+    verify_personal_message_with_mysten(message, signature, address)
+}
+
+fn verify_personal_message_with_mysten(
+    message: &str,
+    signature: &str,
+    address: &str,
+) -> anyhow::Result<()> {
+    let script = verifier_script_path();
+    let mut child = Command::new("node")
+        .arg(script)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()?;
+
+    let payload = serde_json::json!({
+        "address": address,
+        "message": message,
+        "signature": signature,
+    });
+    child
+        .stdin
+        .as_mut()
+        .ok_or_else(|| anyhow::anyhow!("missing verifier stdin"))?
+        .write_all(payload.to_string().as_bytes())?;
+
+    let output = child.wait_with_output()?;
+    anyhow::ensure!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr).trim()
+    );
+    Ok(())
+}
+
+fn verifier_script_path() -> std::path::PathBuf {
+    if let Ok(path) = std::env::var("EFREP_SIGNATURE_VERIFIER") {
+        return path.into();
+    }
+    let root_relative = std::path::PathBuf::from("scripts/verify-personal-message.mjs");
+    if root_relative.exists() {
+        return root_relative;
+    }
+    std::path::PathBuf::from("../scripts/verify-personal-message.mjs")
 }
 
 fn personal_message_digest(message: &[u8]) -> anyhow::Result<[u8; 32]> {
@@ -244,6 +326,22 @@ fn random_token(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     rand::thread_rng().fill_bytes(&mut buf);
     general_purpose::URL_SAFE_NO_PAD.encode(buf)
+}
+
+fn signature_scheme_label(signature: &str) -> &'static str {
+    let Ok(bytes) = general_purpose::STANDARD.decode(signature) else {
+        return "invalid-base64";
+    };
+    match bytes.first().copied() {
+        Some(0) => "ed25519",
+        Some(1) => "secp256k1",
+        Some(2) => "secp256r1",
+        Some(3) => "multisig",
+        Some(5) => "zklogin",
+        Some(6) => "passkey",
+        Some(_) => "unknown",
+        None => "empty",
+    }
 }
 
 fn unix_now() -> u64 {

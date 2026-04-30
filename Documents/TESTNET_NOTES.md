@@ -50,6 +50,7 @@ cd indexer
 $env:EFREP_DATABASE_URL = "<postgres-url>"
 $env:EFREP_API_KEY = "<local-api-key>"
 $env:EFREP_RATE_LIMIT_PER_MINUTE = "120"
+$env:SUI_GRAPHQL_URL = "https://graphql.testnet.sui.io/graphql"
 cargo run --release
 ```
 
@@ -58,6 +59,12 @@ the Rust API beyond localhost. When set, all API routes except `GET /health`
 require `x-api-key` or `Authorization: Bearer`. Browser operators should use
 the wallet-signed session flow exposed by `/auth/nonce` and `/auth/session`,
 not a browser-bundled API key.
+
+EVE Vault uses zkLogin. Keep Node.js dependencies installed so the Rust API can
+call `scripts/verify-personal-message.mjs` for wallet-standard signature
+verification. The helper prefers the frontend's `@mysten/sui` v2 package so it
+matches the wallet stack. `SUI_GRAPHQL_URL` is optional, but setting it to the
+active network removes ambiguity for zkLogin verification.
 
 `EFREP_RATE_LIMIT_PER_MINUTE` is optional. When set to a positive integer, it
 adds an in-process per-minute request limit for non-health API routes,
@@ -81,6 +88,14 @@ npm run dev
 | `npm run gas-station` | Run the sponsored transaction service. |
 | `npx tsx scripts/seed-tribe-standing.ts` | Issue `TRIBE_STANDING` proof to the test traveler. |
 | `npx tsx scripts/create-gate.ts` | Create a new testnet gate policy and admin cap. |
+
+## Latest Gate Proofs
+
+| Flow | Transaction | Checkpoint | Evidence |
+|---|---|---:|---|
+| GateAdminCap transfer to EVE Vault | `EjhkVCtU5JfdNZL6gasvudNPzcExLAswCPXigij1HUYy` | object version `349181621` | Sui object owner is `0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f`. |
+| EVE Vault SEAL & COMMIT | `G4fGxvgpdhbjy4yRu474S9S4vTYpYJqAVcEbSzhrTvsC` | `331437414` | Indexed in `gate_config_updates`. |
+| EVE Vault WITHDRAW TOLLS | `CAJWpnWSrqGLqtQqvKQ1NQ829C1QJ6qzcEHGf8U5voud` | `331437435` | Indexed in `toll_withdrawals`. |
 
 ## Archived Devnet Material
 

@@ -26,8 +26,10 @@ export function OperatorSessionGate({ children }: Props) {
   const wallets = useWallets();
   const { authenticate, clearSession, isAuthenticated, state } = useOperatorSession();
   const eveWallets = wallets.filter(isEveWallet);
-  const modalOptions = eveWallets.length > 0 ? { filterFn: isEveWallet } : {};
-  const connectLabel = eveWallets.length > 0 ? 'CONNECT EVE WALLET' : 'CONNECT WALLET';
+  const modalOptions = eveWallets.length > 0
+    ? { sortFn: (a: UiWallet, b: UiWallet) => Number(isEveWallet(b)) - Number(isEveWallet(a)) }
+    : {};
+  const connectLabel = 'CONNECT WALLET';
 
   if (isAuthenticated) {
     return (
@@ -87,7 +89,7 @@ export function OperatorSessionGate({ children }: Props) {
         }}>
           <Metric label="Wallet" value={short(state.accountAddress)} />
           <Metric label="Detected" value={wallets.map(w => w.name).join(', ') || 'none'} />
-          <Metric label="Verifier" value="Sui Ed25519 personal message" />
+          <Metric label="Verifier" value="Sui wallet-standard personal message" />
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center' }}>

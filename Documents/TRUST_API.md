@@ -53,9 +53,13 @@ contains a short-lived bearer token for the operator console:
 }
 ```
 
-The current verifier supports Ed25519 Sui personal-message signatures. If EVE
-Wallet returns another Sui signature scheme, the session request will fail until
-that scheme is implemented and tested.
+The Rust API verifies Ed25519 Sui personal-message signatures natively. For EVE
+Vault and other wallet-standard schemes such as zkLogin, it invokes
+`scripts/verify-personal-message.mjs`, which uses Mysten's official
+`verifyPersonalMessageSignature` helper. The helper prefers the frontend's
+`@mysten/sui` v2 dependency so the verifier matches the connected wallet stack.
+Set `SUI_GRAPHQL_URL` if a deployment needs to force a specific GraphQL verifier
+endpoint; otherwise the helper tries Sui testnet and mainnet GraphQL endpoints.
 
 Use `GET /health` for unauthenticated uptime checks. Do not expose the API
 publicly without `EFREP_API_KEY`, rate limits, and deployment-level logging.

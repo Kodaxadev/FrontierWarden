@@ -24,6 +24,15 @@ Status as of 2026-04-29:
 - Sponsored gate policy update, gate passage, and toll withdrawal flows have been proven.
 - Trust Decision API v0 is live locally and backed by indexed chain state.
 
+## Operational Proofs
+
+Key protocol flows are verified on Sui Testnet and tracked in the [Operational Proof Log](./PROOF_LOG.md).
+
+| Flow | Transaction Digest | Status |
+|---|---|---|
+| **Gate Policy Update** | `G4fGxvg...hrTvsC` | ✅ Indexed |
+| **Toll Withdrawal** | `CAJWpnW...5voud` | ✅ Indexed |
+
 Key docs:
 
 - [Trust API](./Documents/TRUST_API.md)

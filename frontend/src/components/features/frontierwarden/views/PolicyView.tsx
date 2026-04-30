@@ -8,6 +8,7 @@ import { fetchGateWithdrawals } from '../../../../lib/api';
 import { useUpdateGatePolicy } from '../../../../hooks/useUpdateGatePolicy';
 import { useWithdrawTolls } from '../../../../hooks/useWithdrawTolls';
 import { gatePolicyConfigReady, missingGatePolicyConfig } from '../../../../lib/tx-gate-policy';
+import { GateAdminTransferPanel } from '../GateAdminTransferPanel';
 import { LiveStatus } from '../LiveStatus';
 import { TollWithdrawalLedger } from '../TollWithdrawalLedger';
 import type { FwData } from '../fw-data';
@@ -24,7 +25,6 @@ const isEveWallet = (wallet: UiWallet) =>
   wallet.name.toLowerCase().includes('eve vault')
   || wallet.features.includes(EVE_SPONSORED_FEATURE);
 const eveWalletModalOptions = {
-  filterFn: isEveWallet,
   sortFn: (a: UiWallet, b: UiWallet) => Number(isEveWallet(b)) - Number(isEveWallet(a)),
 };
 
@@ -65,10 +65,8 @@ export function PolicyView({ data, live = false, loading = false, error = null }
   const adminConnected = account?.address.toLowerCase() === ADMIN_WALLET.toLowerCase();
   const eveWallets = wallets.filter(isEveWallet);
   const detectedWallets = eveWallets.length > 0 ? eveWallets : wallets;
-  // When EVE Vault is absent fall back to showing all wallets in the connect modal
-  // so dev testing isn't blocked on EVE Vault being installed.
   const connectModalOptions = eveWallets.length > 0 ? eveWalletModalOptions : {};
-  const connectLabel = eveWallets.length > 0 ? 'CONNECT EVE WALLET' : 'CONNECT WALLET';
+  const connectLabel = 'CONNECT WALLET';
   const detectedWalletText = detectedWallets.length > 0
     ? detectedWallets.map(wallet => wallet.name).join(', ')
     : 'No browser wallets detected';
@@ -339,6 +337,8 @@ export function PolicyView({ data, live = false, loading = false, error = null }
           </div>
         </div>
       </div>
+
+      <GateAdminTransferPanel currentOwner={ADMIN_WALLET} />
 
       <div style={{
         paddingTop: 24,
