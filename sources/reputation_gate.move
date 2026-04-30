@@ -23,9 +23,7 @@
 //   score == 0                  ENEMY  -- blocked (no passage)
 
 module reputation::reputation_gate {
-    use sui::object::{Self, UID, ID};
-    use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
+
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::coin::{Self, Coin};
@@ -99,7 +97,8 @@ module reputation::reputation_gate {
 
     /// Deploy a new reputation-gated Smart Gate policy.
     /// Emits no event -- deployment is indexed off the shared object creation.
-    public entry fun create_gate(
+    #[allow(lint(self_transfer))]
+    public fun create_gate(
         schema_id:      vector<u8>,
         ally_threshold: u64,
         base_toll_mist: u64,
@@ -140,7 +139,8 @@ module reputation::reputation_gate {
     ///
     /// On success: deducts toll from payment, returns remainder to sender,
     ///             emits PassageGranted. On denial: emits PassageDenied and aborts.
-    public entry fun check_passage(
+    #[allow(lint(self_transfer))]
+    public fun check_passage(
         gate:        &mut GatePolicy,
         attestation: &Attestation,
         payment:     Coin<SUI>,
@@ -214,7 +214,7 @@ module reputation::reputation_gate {
     }
 
     /// Update passage thresholds. Effective immediately for all future calls.
-    public entry fun update_thresholds(
+    public fun update_thresholds(
         cap:            &GateAdminCap,
         gate:           &mut GatePolicy,
         ally_threshold: u64,
@@ -232,19 +232,19 @@ module reputation::reputation_gate {
     }
 
     /// Emergency pause. All passage attempts abort with EGatePaused.
-    public entry fun pause(cap: &GateAdminCap, gate: &mut GatePolicy) {
+    public fun pause(cap: &GateAdminCap, gate: &mut GatePolicy) {
         assert_admin(cap, gate);
         gate.paused = true;
     }
 
     /// Lift pause.
-    public entry fun unpause(cap: &GateAdminCap, gate: &mut GatePolicy) {
+    public fun unpause(cap: &GateAdminCap, gate: &mut GatePolicy) {
         assert_admin(cap, gate);
         gate.paused = false;
     }
 
     /// Drain accumulated toll treasury to gate owner.
-    public entry fun withdraw_tolls(
+    public fun withdraw_tolls(
         cap:  &GateAdminCap,
         gate: &mut GatePolicy,
         ctx:  &mut TxContext,

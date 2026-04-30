@@ -1,7 +1,5 @@
 module reputation::attestation {
-    use std::option;
-    use sui::object::{Self, UID, ID};
-    use sui::tx_context::{Self, TxContext};
+
     use sui::event;
     // FIX: missing imports -- schema and oracle registries are same-package dependencies
     use reputation::schema_registry::{Self, SchemaRegistry};
@@ -81,7 +79,7 @@ module reputation::attestation {
         attestation
     }
 
-    public entry fun revoke(
+    public fun revoke(
         attestation: &mut Attestation,
         schema_registry: &SchemaRegistry,
         ctx: &mut TxContext

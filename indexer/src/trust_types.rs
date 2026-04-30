@@ -7,6 +7,11 @@ pub const REASON_DENY_NO_STANDING_ATTESTATION: &str = "DENY_NO_STANDING_ATTESTAT
 pub const REASON_ERROR_GATE_NOT_FOUND: &str = "ERROR_GATE_NOT_FOUND";
 pub const REASON_ERROR_UNSUPPORTED_ACTION: &str = "ERROR_UNSUPPORTED_ACTION";
 
+// Counterparty risk reason codes
+pub const REASON_COUNTERPARTY_REQUIREMENTS_MET: &str = "COUNTERPARTY_REQUIREMENTS_MET";
+pub const REASON_DENY_COUNTERPARTY_NO_SCORE: &str = "DENY_COUNTERPARTY_NO_SCORE";
+pub const REASON_DENY_COUNTERPARTY_SCORE_TOO_LOW: &str = "DENY_COUNTERPARTY_SCORE_TOO_LOW";
+
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustEvaluationRequest {
@@ -20,22 +25,28 @@ pub struct TrustEvaluationRequest {
 #[serde(rename_all = "camelCase")]
 pub struct TrustEvaluationContext {
     #[serde(alias = "gate")]
-    pub gate_id: String,
+    pub gate_id: Option<String>,
     pub schema_id: Option<String>,
+    pub minimum_score: Option<i64>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustEvaluationResponse {
+    pub api_version: &'static str,
+    pub action: String,
     pub decision: &'static str,
     pub allow: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gate_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub toll_multiplier: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub toll_mist: Option<i64>,
     pub confidence: f64,
     pub reason: &'static str,
     pub explanation: String,
     pub subject: String,
-    pub gate_id: String,
     pub score: Option<i64>,
     pub threshold: Option<i64>,
     pub requirements: TrustRequirements,
@@ -61,7 +72,8 @@ pub struct TrustObserved {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustProof {
-    pub gate_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gate_id: Option<String>,
     pub subject: String,
     pub checkpoint: Option<i64>,
     pub source: &'static str,

@@ -1,9 +1,5 @@
 module reputation::profile {
-    use std::option::{Self, Option};
-    use std::vector;
-    use sui::object::{Self, UID};
-    use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
+
     use sui::dynamic_field;
     use sui::event;
 
@@ -110,7 +106,7 @@ module reputation::profile {
 
     // === Profile Functions ===
 
-    public entry fun create_profile(ctx: &mut TxContext) {
+    public fun create_profile(ctx: &mut TxContext) {
         let profile = ReputationProfile {
             id: object::new(ctx),
             owner: tx_context::sender(ctx),
@@ -239,7 +235,7 @@ module reputation::profile {
         new_value: u64,
         attestation_count: u64,
         issuer: address,
-        ctx: &mut TxContext
+        ctx: &TxContext
     ): (u64, u64) {
         if (dynamic_field::exists_(&profile.id, schema_id)) {
             let existing: &mut ScoreCache = dynamic_field::borrow_mut(&mut profile.id, schema_id);

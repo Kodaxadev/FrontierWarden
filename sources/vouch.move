@@ -1,7 +1,8 @@
+#[allow(duplicate_alias)]
 module reputation::vouch {
-    use sui::object::{Self, UID};
+    use sui::object;
     use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
+
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::coin;
@@ -45,7 +46,7 @@ module reputation::vouch {
 
     // === Public Functions ===
 
-    public entry fun create_vouch(
+    public fun create_vouch(
         voucher_profile: &ReputationProfile,
         vouchee_address: address,
         stake: Balance<SUI>,
@@ -84,7 +85,7 @@ module reputation::vouch {
     }
 
     // FIX: sends stake back to voucher (not sender), captures vouch_id before destructure
-    public entry fun redeem_expired(vouch: Vouch, ctx: &mut TxContext) {
+    public fun redeem_expired(vouch: Vouch, ctx: &mut TxContext) {
         assert!(tx_context::epoch(ctx) > vouch.expires_at || !vouch.active, ENotExpired);
 
         let voucher_addr = vouch.voucher;

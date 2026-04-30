@@ -1,8 +1,5 @@
 module reputation::schema_registry {
-    use std::option::{Self, Option};
-    use sui::object::{Self, UID};
-    use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
+
     use sui::table::{Self, Table};
     use sui::event;
 
@@ -68,7 +65,7 @@ module reputation::schema_registry {
     }
 
     // === Entry Functions ===
-    public entry fun register_schema(
+    public fun register_schema(
         registry: &mut SchemaRegistry,
         schema_id: vector<u8>,
         version: u64,
@@ -95,7 +92,7 @@ module reputation::schema_registry {
 
     // Re-deprecation is intentional: governance can correct a wrong successor
     // by calling this again. superseded_by will be overwritten with the new value.
-    public entry fun deprecate_schema(
+    public fun deprecate_schema(
         registry: &mut SchemaRegistry,
         old_schema_id: vector<u8>,
         new_schema_id: vector<u8>,
@@ -112,7 +109,7 @@ module reputation::schema_registry {
         event::emit(SchemaDeprecated { old_schema_id, new_schema_id });
     }
 
-    public entry fun transfer_to_governance(
+    public fun transfer_to_governance(
         registry: &mut SchemaRegistry,
         governance_address: address,
         ctx: &mut TxContext

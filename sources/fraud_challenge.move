@@ -1,7 +1,8 @@
+#[allow(duplicate_alias)]
 module reputation::fraud_challenge {
-    use sui::object::{Self, UID, ID};
+    use sui::object;
     use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
+    use sui::tx_context;
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::coin;
@@ -70,7 +71,7 @@ module reputation::fraud_challenge {
 
     // === Entry Functions ===
 
-    public entry fun create_fraud_challenge(
+    public fun create_fraud_challenge(
         registry: &OracleRegistry,
         attestation_id: ID,
         oracle_address: address,
@@ -107,7 +108,7 @@ module reputation::fraud_challenge {
     }
 
     // VecSet prevents double-voting without Table lifecycle management overhead.
-    public entry fun vote_on_challenge(
+    public fun vote_on_challenge(
         challenge: &mut FraudChallenge,
         registry: &OracleRegistry,
         guilty: bool,
@@ -139,7 +140,7 @@ module reputation::fraud_challenge {
     // Quorum is clamped to minimum 1 so a zero-member council cannot
     // silently pass a challenge with zero votes (integer division gives 0
     // when council_size <= 1 without the clamp).
-    public entry fun resolve_challenge(
+    public fun resolve_challenge(
         challenge: &mut FraudChallenge,
         registry: &mut OracleRegistry,
         ctx: &mut TxContext
@@ -201,7 +202,7 @@ module reputation::fraud_challenge {
 
     // GC path for resolved challenges. challenger_stake must be empty (drained
     // in resolve_challenge) so balance::destroy_zero enforces correctness.
-    public entry fun delete_resolved_challenge(
+    public fun delete_resolved_challenge(
         challenge: FraudChallenge,
         _ctx: &mut TxContext
     ) {

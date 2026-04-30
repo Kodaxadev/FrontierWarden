@@ -1,5 +1,5 @@
 module reputation::system_sdk {
-    use sui::tx_context::{Self, TxContext};
+
     use sui::event;
     use reputation::profile::{Self, ReputationProfile, SystemCapability};
 
@@ -18,7 +18,7 @@ module reputation::system_sdk {
     // One-call attestation for in-game contracts (CradleOS, Blood Contract, Bazaar)
     // Requires SystemCapability -- issued to the contract at oracle registration
     // FIX: uses profile::get_system_address() instead of private cap.system_address field access
-    public entry fun system_attest(
+    public fun system_attest(
         cap: &SystemCapability,
         subject_profile: &mut ReputationProfile,
         schema_id: vector<u8>,

@@ -2,9 +2,7 @@
 // Addresses the "Singleton attestations" gap -- CCP whitepaper explicitly calls for
 // "proving a ship was owned by a famous fleet commander or fought in a battle."
 module reputation::singleton {
-    use std::option;
-    use sui::object::{Self, UID, ID};
-    use sui::tx_context::{Self, TxContext};
+
     use sui::event;
     use reputation::schema_registry::{Self, SchemaRegistry};
     use reputation::oracle_registry::{Self, OracleRegistry};
@@ -91,7 +89,7 @@ module reputation::singleton {
         attestation
     }
 
-    public entry fun revoke_singleton_attestation(
+    public fun revoke_singleton_attestation(
         attestation: &mut SingletonAttestation,
         schema_registry: &SchemaRegistry,
         ctx: &mut TxContext

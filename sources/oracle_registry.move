@@ -1,8 +1,6 @@
+#[allow(lint(self_transfer))]
 module reputation::oracle_registry {
-    use std::vector;
-    use sui::object::{Self, UID};
-    use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
+
     use sui::table::{Self, Table};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
@@ -79,7 +77,7 @@ module reputation::oracle_registry {
 
     // schemas_for_cap is copied before move into OracleInfo (prevents use-after-move).
     // Separate branches for system vs normal oracle -- no type unification required.
-    public entry fun register_oracle(
+    public fun register_oracle(
         registry: &mut OracleRegistry,
         name: vector<u8>,
         initial_schemas: vector<vector<u8>>,
@@ -128,7 +126,7 @@ module reputation::oracle_registry {
     }
 
     // Consumes old capability and issues a fresh one with the updated schema list.
-    public entry fun add_schema_to_oracle(
+    public fun add_schema_to_oracle(
         registry: &mut OracleRegistry,
         old_cap: OracleCapability,
         schema_id: vector<u8>,
@@ -147,7 +145,7 @@ module reputation::oracle_registry {
         transfer::public_transfer(new_cap, sender);
     }
 
-    public entry fun add_schema_to_system_oracle(
+    public fun add_schema_to_system_oracle(
         registry: &mut OracleRegistry,
         old_cap: SystemCapability,
         schema_id: vector<u8>,
@@ -236,7 +234,7 @@ module reputation::oracle_registry {
     //       so the two features share one data structure with no further refactor needed.
     // ---------------------------------------------------------------------------
 
-    public entry fun delegate(
+    public fun delegate(
         registry: &mut OracleRegistry,
         oracle_address: address,
         stake: Balance<SUI>,
@@ -263,7 +261,7 @@ module reputation::oracle_registry {
 
     // === Council Management ===
 
-    public entry fun add_council_member(
+    public fun add_council_member(
         registry: &mut OracleRegistry,
         member: address,
         ctx: &mut TxContext

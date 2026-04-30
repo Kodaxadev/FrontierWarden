@@ -193,26 +193,38 @@ export interface ProfileRow {
   created_at: string;
 }
 
-export type TrustDecision = 'ALLOW_FREE' | 'ALLOW_TAXED' | 'DENY' | 'INSUFFICIENT_DATA';
+export type TrustApiVersion = 'trust.v1';
+
+export type TrustAction =
+  | 'gate_access'
+  | 'counterparty_risk';
+
+export type TrustDecision =
+  | 'ALLOW'
+  | 'ALLOW_FREE'
+  | 'ALLOW_TAXED'
+  | 'DENY'
+  | 'INSUFFICIENT_DATA'
+  | 'REVIEW';
 
 export type TrustReason =
   | 'ALLOW_FREE'
   | 'ALLOW_TAXED'
+  | 'COUNTERPARTY_REQUIREMENTS_MET'
   | 'DENY_SCORE_BELOW_THRESHOLD'
   | 'DENY_NO_STANDING_ATTESTATION'
-  | 'DENY_GATE_PAUSED'
-  | 'DENY_GATE_HOSTILE'
-  | 'DENY_ATTESTATION_REVOKED'
-  | 'DENY_ATTESTATION_EXPIRED'
+  | 'DENY_COUNTERPARTY_NO_SCORE'
+  | 'DENY_COUNTERPARTY_SCORE_TOO_LOW'
   | 'ERROR_GATE_NOT_FOUND'
   | 'ERROR_UNSUPPORTED_ACTION';
 
 export interface TrustEvaluateRequest {
   entity: string;
-  action: 'gate_access' | string;
+  action: TrustAction;
   context: {
-    gateId: string;
+    gateId?: string;
     schemaId?: string;
+    minimumScore?: number;
   };
 }
 
@@ -228,7 +240,7 @@ export interface TrustObserved {
 }
 
 export interface TrustProof {
-  gateId: string;
+  gateId?: string;
   subject: string;
   checkpoint: number | null;
   source: 'indexed_protocol_state' | string;
@@ -239,6 +251,8 @@ export interface TrustProof {
 }
 
 export interface TrustEvaluateResponse {
+  apiVersion: TrustApiVersion;
+  action: TrustAction;
   decision: TrustDecision;
   allow: boolean;
   tollMultiplier: number | null;
@@ -247,7 +261,7 @@ export interface TrustEvaluateResponse {
   reason: TrustReason;
   explanation: string;
   subject: string;
-  gateId: string;
+  gateId?: string;
   score: number | null;
   threshold: number | null;
   requirements: TrustRequirements;

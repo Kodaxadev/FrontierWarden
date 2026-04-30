@@ -1,8 +1,5 @@
 module reputation::lending {
-    use std::option::{Self, Option};
-    use sui::object::{Self, UID};
-    use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
+
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::coin;
@@ -122,7 +119,7 @@ module reputation::lending {
 
     // FIX: emits event for oracle to update credit score (no direct score write)
     // FIX: guards against repayment of already-defaulted loans
-    public entry fun repay_loan(
+    public fun repay_loan(
         loan: &mut Loan,
         repayment: Balance<SUI>,
         ctx: &mut TxContext
@@ -145,7 +142,7 @@ module reputation::lending {
     // Anyone can mark a loan as defaulted once its due epoch has passed.
     // Separating this from slashing makes the state transition observable on-chain
     // and means slash_defaulted_vouch can stay a pure asset-handling step.
-    public entry fun mark_loan_defaulted(
+    public fun mark_loan_defaulted(
         loan: &mut Loan,
         ctx: &mut TxContext
     ) {
@@ -158,7 +155,7 @@ module reputation::lending {
     // FIX: actually performs vouch slash and marks loan defaulted
     // FIX: uses LendingCapability as access gate
     // FIX: recover loan.collateral to lender -- was permanently locked before this patch
-    public entry fun slash_defaulted_vouch(
+    public fun slash_defaulted_vouch(
         loan: &mut Loan,
         vouch: &mut Vouch,
         _cap: &LendingCapability,

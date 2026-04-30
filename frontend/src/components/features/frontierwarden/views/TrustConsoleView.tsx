@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { evaluateTrust } from '../../../../lib/api';
 import type { FwData } from '../fw-data';
-import type { TrustEvaluateResponse } from '../../../../types/api.types';
+import type { TrustEvaluateResponse, TrustAction } from '@frontierwarden/trustkit';
 
 const DEFAULT_SUBJECT = '0x9cc038e5f0045dbf75ce191870fd7c483020d12bc23f3ebaef7a6f4f22d820e1';
 const DEFAULT_GATE = '0xb63c9939e28db885392e68537336f85453392ac07d4590c029d1f65938733e36';
@@ -28,9 +28,11 @@ interface Props {
 
 export function TrustConsoleView({ data }: Props) {
   const firstGate = data?.policy?.gateId ?? data?.gates[0]?.sourceId ?? DEFAULT_GATE;
+  const [action, setAction] = useState<TrustAction>('gate_access');
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
   const [gateId, setGateId] = useState(firstGate);
   const [schemaId, setSchemaId] = useState('TRIBE_STANDING');
+  const [minimumScore, setMinimumScore] = useState(500);
   const [result, setResult] = useState<TrustEvaluateResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,7 @@ export function TrustConsoleView({ data }: Props) {
       ['Schemas', result.proof.schemas.join(', ') || '-'],
       ['Attestations', result.proof.attestationIds.map(shortId).join(', ') || '-'],
       ['Tx Digests', result.proof.txDigests.map(shortId).join(', ') || '-'],
+      ['Warnings', result.proof.warnings.join(', ') || 'None'],
     ];
   }, [result]);
 
@@ -52,8 +55,12 @@ export function TrustConsoleView({ data }: Props) {
     try {
       const next = await evaluateTrust({
         entity: subject.trim(),
-        action: 'gate_access',
-        context: { gateId: gateId.trim(), schemaId: schemaId.trim() || undefined },
+        action,
+        context: {
+          gateId: action === 'gate_access' ? gateId.trim() : undefined,
+          schemaId: schemaId.trim() || undefined,
+          minimumScore: action === 'counterparty_risk' ? minimumScore : undefined,
+        },
       });
       setResult(next);
     } catch (err) {
@@ -87,13 +94,40 @@ export function TrustConsoleView({ data }: Props) {
             spellCheck={false}
           />
 
-          <div className="c-stat__label" style={{ marginTop: 18 }}>Gate ID</div>
-          <input
+          <div className="c-stat__label" style={{ marginTop: 18 }}>Action</div>
+          <select
             className="c-input"
-            value={gateId}
-            onChange={event => setGateId(event.target.value)}
-            spellCheck={false}
-          />
+            value={action}
+            onChange={event => setAction(event.target.value as TrustAction)}
+            style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'var(--c-bg-input)', border: '1px solid var(--c-border)', color: 'var(--c-hi)' }}
+          >
+            <option value="gate_access">gate_access</option>
+            <option value="counterparty_risk">counterparty_risk</option>
+          </select>
+
+          {action === 'gate_access' && (
+            <>
+              <div className="c-stat__label" style={{ marginTop: 18 }}>Gate ID</div>
+              <input
+                className="c-input"
+                value={gateId}
+                onChange={event => setGateId(event.target.value)}
+                spellCheck={false}
+              />
+            </>
+          )}
+
+          {action === 'counterparty_risk' && (
+            <>
+              <div className="c-stat__label" style={{ marginTop: 18 }}>Minimum Score</div>
+              <input
+                className="c-input"
+                type="number"
+                value={minimumScore}
+                onChange={event => setMinimumScore(parseInt(event.target.value, 10) || 0)}
+              />
+            </>
+          )}
 
           <div className="c-stat__label" style={{ marginTop: 18 }}>Schema</div>
           <input
@@ -106,7 +140,7 @@ export function TrustConsoleView({ data }: Props) {
           <button
             className="c-commit"
             style={{ width: '100%', marginTop: 24 }}
-            disabled={busy || !subject.trim() || !gateId.trim()}
+            disabled={busy || !subject.trim() || (action === 'gate_access' && !gateId.trim())}
             onClick={runEvaluation}
           >
             {busy ? 'EVALUATING' : 'EVALUATE TRUST'}
@@ -131,7 +165,7 @@ export function TrustConsoleView({ data }: Props) {
             </span>
             {result && (
               <span className="c-sub">
-                {result.reason} / confidence {result.confidence.toFixed(2)}
+                {result.reason} / confidence {result.confidence.toFixed(2)} / API {result.apiVersion}
               </span>
             )}
           </div>
@@ -147,7 +181,9 @@ export function TrustConsoleView({ data }: Props) {
                 <Metric label="Allow" value={result.allow ? 'YES' : 'NO'} />
                 <Metric label="Score" value={result.score?.toString() ?? '-'} />
                 <Metric label="Threshold" value={result.threshold?.toString() ?? '-'} />
-                <Metric label="Toll" value={formatMist(result.tollMist)} />
+                {result.action === 'gate_access' && (
+                  <Metric label="Toll" value={formatMist(result.tollMist ?? null)} />
+                )}
               </div>
 
               <div style={{ color: 'var(--c-hi)', fontSize: 12, lineHeight: 1.7, marginBottom: 24 }}>

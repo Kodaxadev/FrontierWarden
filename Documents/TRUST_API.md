@@ -99,23 +99,26 @@ Fields:
 | Field | Required | Meaning |
 |---|---:|---|
 | `entity` | yes | Pilot wallet address being evaluated. Alias: `subject`. |
-| `action` | yes | Current v0 action: `gate_access`. |
-| `context.gateId` | yes | Indexed `GatePolicy` object ID. Alias: `gate`. |
+| `action` | yes | Action to evaluate: `gate_access` or `counterparty_risk`. |
+| `context.gateId` | for gates | Indexed `GatePolicy` object ID. Required for `gate_access`. Alias: `gate`. |
 | `context.schemaId` | no | Standing schema to use. Defaults to `TRIBE_STANDING`. |
+| `context.minimumScore` | no | Minimum required score for `counterparty_risk`. Defaults to 500. |
 
 ## Response
 
 ```json
 {
+  "apiVersion": "trust.v1",
+  "action": "gate_access",
   "decision": "ALLOW_FREE",
   "allow": true,
+  "gateId": "0xgate",
   "tollMultiplier": 0,
   "tollMist": 0,
   "confidence": 1.0,
   "reason": "ALLOW_FREE",
   "explanation": "TRIBE_STANDING score meets or exceeds this gate's ally threshold.",
   "subject": "0xplayer",
-  "gateId": "0xgate",
   "score": 750,
   "threshold": 500,
   "requirements": {
@@ -140,6 +143,38 @@ Fields:
 }
 ```
 
+## Trust API v1 Compatibility Contract
+
+This section defines the stable surface for v1. Fields listed here will not be
+renamed, removed, or change type semantics until v2.
+
+### Always Present
+
+| Field | Type | Meaning |
+|---|---|---|
+| `apiVersion` | `"trust.v1"` | API version identifier. |
+| `action` | `string` | Echoes the requested action: `gate_access`, `counterparty_risk`, etc. |
+| `decision` | `string` | Final decision code (e.g. `ALLOW_FREE`, `DENY`). |
+| `allow` | `bool` | Machine-readable pass/fail. |
+| `confidence` | `float` | Confidence in the decision (0.0–1.0). |
+| `reason` | `string` | Stable reason code for programmatic consumption. |
+| `explanation` | `string` | Human-readable explanation of the decision. |
+| `subject` | `string` | The entity wallet address that was evaluated. |
+| `score` | `number \| null` | Observed standing score, if available. |
+| `threshold` | `number \| null` | Threshold that was applied, if applicable. |
+| `requirements` | `object` | Schema and threshold requirements used. |
+| `observed` | `object` | The actual observed values (score, attestationId). |
+| `proof` | `object` | Proof bundle with source, schemas, tx digests, and warnings. |
+| `proof.warnings` | `string[]` | Data quality or challenge warnings. |
+
+### Optional by Action
+
+| Field | Actions | Meaning |
+|---|---|---|
+| `gateId` | `gate_access` only | Indexed GatePolicy object ID. Omitted for non-gate actions. |
+| `tollMultiplier` | `gate_access` only | Toll tier (0 = free, 1 = taxed). |
+| `tollMist` | `gate_access` only | Toll amount in MIST (or coin base unit). |
+
 ## Freshness Warnings
 
 `proof.warnings` is intentionally an array of strings so integrations can show
@@ -161,9 +196,10 @@ metadata for operators and external tools.
 
 | Decision | Meaning |
 |---|---|
-| `ALLOW_FREE` | Subject has an active standing attestation with score at or above the gate's ally threshold. |
-| `ALLOW_TAXED` | Subject has positive standing below the ally threshold. Passage is allowed with the gate's base toll. |
-| `DENY` | Subject cannot pass under current indexed state. |
+| `ALLOW_FREE` | (Gate Access) Subject has an active standing attestation with score at or above the gate's ally threshold. |
+| `ALLOW_TAXED` | (Gate Access) Subject has positive standing below the ally threshold. Passage is allowed with the gate's base toll. |
+| `ALLOW` | (Counterparty) Subject meets or exceeds the minimum score requirement. |
+| `DENY` | Subject cannot pass/proceed under current indexed state. |
 | `INSUFFICIENT_DATA` | FrontierWarden cannot produce a protocol-backed decision for the request. |
 
 ## Reason Codes
@@ -193,6 +229,9 @@ Currently emitted in v0:
 - `DENY_NO_STANDING_ATTESTATION`
 - `ERROR_GATE_NOT_FOUND`
 - `ERROR_UNSUPPORTED_ACTION`
+- `COUNTERPARTY_REQUIREMENTS_MET`
+- `DENY_COUNTERPARTY_NO_SCORE`
+- `DENY_COUNTERPARTY_SCORE_TOO_LOW`
 
 Reserved for protocol/indexer expansion:
 
@@ -264,6 +303,34 @@ Expected core result until this wallet receives a `TRIBE_STANDING` attestation:
   "reason": "DENY_NO_STANDING_ATTESTATION",
   "score": null,
   "threshold": 500
+}
+```
+
+### Example: Counterparty Risk Check
+
+```bash
+curl -s http://localhost:3000/v1/trust/evaluate \
+  -H "content-type: application/json" \
+  -H "x-api-key: $EFREP_API_KEY" \
+  -d '{
+    "entity": "0xSELLER_EXAMPLE",
+    "action": "counterparty_risk",
+    "context": {
+      "schemaId": "MERCHANT_REPUTATION",
+      "minimumScore": 800
+    }
+  }'
+```
+
+Expected core result if the seller has a score of 850:
+
+```json
+{
+  "decision": "ALLOW",
+  "allow": true,
+  "reason": "COUNTERPARTY_REQUIREMENTS_MET",
+  "score": 850,
+  "threshold": 800
 }
 ```
 

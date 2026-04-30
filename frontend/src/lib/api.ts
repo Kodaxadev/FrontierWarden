@@ -22,9 +22,9 @@ import type {
   OperatorNonceResponse,
   OperatorSessionRequest,
   OperatorSessionResponse,
-  TrustEvaluateRequest,
-  TrustEvaluateResponse,
 } from '../types/api.types';
+import { createTrustkit } from '@frontierwarden/trustkit';
+import type { TrustEvaluateRequest, TrustEvaluateResponse } from '@frontierwarden/trustkit';
 
 const BASE     = import.meta.env.VITE_API_BASE         ?? '/api';
 const GAS_BASE = import.meta.env.VITE_GAS_STATION_URL  ?? '/gas';
@@ -202,10 +202,23 @@ export const fetchGivenVouches = (
 ): Promise<VouchRow[]> =>
   get(`/profiles/${encodeURIComponent(address)}/given-vouches?limit=${limit}`);
 
+export const trustkit = createTrustkit({
+  endpoint: BASE,
+  fetcher: async (url, init) => {
+    return fetch(url, {
+      ...init,
+      headers: {
+        ...init?.headers,
+        ...apiHeaders(),
+      },
+    });
+  },
+});
+
 export const evaluateTrust = (
   input: TrustEvaluateRequest,
 ): Promise<TrustEvaluateResponse> =>
-  post('/v1/trust/evaluate', input);
+  trustkit.evaluate(input);
 
 export interface SponsorRequest {
   /** Base64-encoded tx kind bytes (Transaction.build({ onlyTransactionKind: true })). */

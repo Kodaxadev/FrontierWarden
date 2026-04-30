@@ -18,6 +18,6 @@ async fn evaluate(
     State(pool): State<PgPool>,
     Json(req): Json<TrustEvaluationRequest>,
 ) -> Result<Json<TrustEvaluationResponse>, ApiError> {
-    let response = trust_evaluator::evaluate_gate_access(&pool, req).await?;
+    let response = trust_evaluator::evaluate(&pool, req).await?;
     Ok(Json(response))
 }

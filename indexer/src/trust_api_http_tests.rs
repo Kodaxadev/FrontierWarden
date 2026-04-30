@@ -42,6 +42,8 @@ async fn trust_http_routes_return_stable_reason_codes() -> anyhow::Result<()> {
         "gate_access",
     )
     .await?;
+    assert_eq!(free["apiVersion"], "trust.v1");
+    assert_eq!(free["action"], "gate_access");
     assert_warning_prefix(&free, "PROOF_CHECKPOINT_BEHIND_LATEST_INDEX:");
     assert_reason(
         &pool,
@@ -83,12 +85,24 @@ async fn trust_http_routes_return_stable_reason_codes() -> anyhow::Result<()> {
         "ERROR_GATE_NOT_FOUND",
     )
     .await?;
+    // counterparty_risk is now supported — verify it returns a proper decision
     assert_reason(
         &pool,
         "/v1/trust/evaluate",
         SUBJECT_FREE,
-        GATE_ID,
+        "",
         "counterparty_risk",
+        "ALLOW",
+        "COUNTERPARTY_REQUIREMENTS_MET",
+    )
+    .await?;
+    // Unsupported action should return ERROR_UNSUPPORTED_ACTION
+    assert_reason(
+        &pool,
+        "/v1/trust/evaluate",
+        SUBJECT_FREE,
+        "",
+        "bounty_evaluation",
         "INSUFFICIENT_DATA",
         "ERROR_UNSUPPORTED_ACTION",
     )
@@ -115,10 +129,19 @@ async fn assert_reason(
     reason: &str,
 ) -> anyhow::Result<()> {
     let value = post_eval(pool, route, subject, gate_id, action).await?;
+    // v1 compatibility contract
+    assert_eq!(value["apiVersion"], "trust.v1");
+    assert_eq!(value["action"], action);
     assert_eq!(value["decision"], decision);
     assert_eq!(value["reason"], reason);
     assert_eq!(value["requirements"]["schema"], SCHEMA_ID);
     assert_eq!(value["proof"]["source"], "indexed_protocol_state");
+    // gate_access responses include gateId; counterparty_risk omits it
+    if action == "gate_access" && !gate_id.is_empty() {
+        assert_eq!(value["gateId"], gate_id);
+    } else {
+        assert!(value.get("gateId").is_none());
+    }
     Ok(())
 }
 
@@ -142,10 +165,15 @@ async fn post_eval(
     action: &str,
 ) -> anyhow::Result<Value> {
     let app = crate::api::router(pool.clone());
+    let mut context = serde_json::Map::new();
+    context.insert("schemaId".to_owned(), json!(SCHEMA_ID));
+    if !gate_id.is_empty() {
+        context.insert("gateId".to_owned(), json!(gate_id));
+    }
     let body = json!({
         "entity": subject,
         "action": action,
-        "context": { "gateId": gate_id, "schemaId": SCHEMA_ID }
+        "context": context
     });
     let response = app
         .oneshot(

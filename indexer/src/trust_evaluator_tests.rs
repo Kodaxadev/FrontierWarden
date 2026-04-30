@@ -37,7 +37,7 @@ fn proof_uses_latest_checkpoint_and_distinct_txs() {
     );
 
     assert_eq!(bundle.checkpoint, Some(11));
-    assert_eq!(bundle.gate_id, "0xgate");
+    assert_eq!(bundle.gate_id, Some("0xgate".to_owned()));
     assert_eq!(bundle.subject, "0xsubject");
     assert_eq!(bundle.source, "indexed_protocol_state");
     assert_eq!(bundle.schemas, vec!["TRIBE_STANDING"]);
@@ -102,10 +102,10 @@ fn non_positive_score_is_denied() {
 fn missing_standing_reason_is_stable() {
     let response = insufficient(
         "0xsubject".to_owned(),
-        "0xgate".to_owned(),
-        "TRIBE_STANDING".to_owned(),
+        Some("0xgate".to_owned()),
         REASON_DENY_NO_STANDING_ATTESTATION,
         "No active standing attestation was found.".to_owned(),
+        "gate_access".to_owned(),
     );
 
     assert_eq!(response.reason, REASON_DENY_NO_STANDING_ATTESTATION);
@@ -117,13 +117,13 @@ fn missing_standing_reason_is_stable() {
 fn gate_not_found_reason_is_stable() {
     let response = insufficient(
         "0xsubject".to_owned(),
-        "0xmissing".to_owned(),
-        "TRIBE_STANDING".to_owned(),
+        Some("0xmissing".to_owned()),
         REASON_ERROR_GATE_NOT_FOUND,
         "No indexed gate policy exists for this gate.".to_owned(),
+        "gate_access".to_owned(),
     );
 
     assert_eq!(response.reason, REASON_ERROR_GATE_NOT_FOUND);
-    assert_eq!(response.proof.gate_id, "0xmissing");
+    assert_eq!(response.proof.gate_id, Some("0xmissing".to_owned()));
     assert_eq!(response.proof.warnings.len(), 1);
 }
