@@ -38,6 +38,14 @@ Key docs:
 - [Trust API](./Documents/TRUST_API.md)
 - [Security Model](./SECURITY.md)
 
+## For EVE Tool Builders
+
+If you are building EVE Frontier tools (CradleOS-style tribe consoles, gate control, route planners, or bounty/cargo boards), treat FrontierWarden as a remote trust engine:
+
+- **Evaluate Trust**: Call `POST /v1/cradleos/gate/evaluate` (or `POST /v1/trust/evaluate`) with a pilot address and gate ID to receive `ALLOW_FREE` / `ALLOW_TAXED` / `DENY` decisions plus a proof bundle you can surface in your own UI.
+- **Verify Live State**: Use the [Operational Proof Log](./PROOF_LOG.md) to verify that gate policy updates and toll withdrawals are actually live on Sui testnet and indexed by the Rust API before wiring into production-like flows.
+- **Complementary Design**: FrontierWarden is designed to complement existing tribe/structure dashboards: you keep your UX and controls; it answers the high-consequence trust questions with verifiable evidence.
+
 ## Trust Decision API
 
 Core endpoints:
