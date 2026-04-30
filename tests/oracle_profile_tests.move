@@ -8,8 +8,10 @@ module reputation::oracle_profile_tests {
     use sui::transfer;
     use sui::object::ID;
     use sui::coin::{Self, Coin};
+    use reputation::attestation;
     use reputation::oracle_registry::{Self, OracleRegistry};
     use reputation::profile::{Self, ReputationProfile, OracleCapability};
+    use reputation::schema_registry::{Self, SchemaRegistry};
     use reputation::vouch;
     use reputation::vouch::Vouch;
     use reputation::lending::{Self, Loan, LendingCapability};
@@ -19,6 +21,7 @@ module reputation::oracle_profile_tests {
     const PLAYER: address = @0xA1;
     const VOUCHER: address = @0xCC;
     const BORROWER: address = @0xB0;
+    const NOT_ORACLE: address = @0xE0;
     const CREDIT_SCORE: u64 = 500;
     const VOUCH_STAKE: u64 = 1_000_000_000;  // 1 SUI
 
@@ -32,6 +35,44 @@ module reputation::oracle_profile_tests {
 
     fun newest_profile_id(): ID {
         option::destroy_some(test_scenario::most_recent_id_shared<ReputationProfile>())
+    }
+
+    fun setup_schema_and_oracle(scenario: &mut test_scenario::Scenario) {
+        test_scenario::next_tx(scenario, ADMIN);
+        {
+            schema_registry::init_for_testing(test_scenario::ctx(scenario));
+            oracle_registry::init_for_testing(test_scenario::ctx(scenario));
+        };
+
+        test_scenario::next_tx(scenario, ADMIN);
+        {
+            let mut schema_registry = test_scenario::take_shared<SchemaRegistry>(scenario);
+            schema_registry::register_schema(
+                &mut schema_registry,
+                b"TRIBE_STANDING",
+                1,
+                option::none(),
+                true,
+                test_scenario::ctx(scenario)
+            );
+            test_scenario::return_shared(schema_registry);
+        };
+
+        test_scenario::next_tx(scenario, ORACLE);
+        {
+            let mut oracle_registry = test_scenario::take_shared<OracleRegistry>(scenario);
+            oracle_registry::register_oracle(
+                &mut oracle_registry,
+                b"Game Oracle",
+                vector[b"TRIBE_STANDING"],
+                one_sui(),
+                false,
+                b"",
+                false,
+                test_scenario::ctx(scenario)
+            );
+            test_scenario::return_shared(oracle_registry);
+        };
     }
 
     // --- Oracle registration issues OracleCapability ---
@@ -65,6 +106,34 @@ module reputation::oracle_profile_tests {
             let cap = test_scenario::take_from_sender<OracleCapability>(scenario);
             assert!(profile::get_oracle_address(&cap) == ORACLE, 0);
             test_scenario::return_to_sender(scenario, cap);
+        };
+
+        test_scenario::end(scenario_val);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = attestation::EInvalidOracle)]
+    fun test_attestation_issue_requires_registered_oracle_sender() {
+        let mut scenario_val = test_scenario::begin(ADMIN);
+        let scenario = &mut scenario_val;
+        setup_schema_and_oracle(scenario);
+
+        test_scenario::next_tx(scenario, NOT_ORACLE);
+        {
+            let schema_registry = test_scenario::take_shared<SchemaRegistry>(scenario);
+            let oracle_registry = test_scenario::take_shared<OracleRegistry>(scenario);
+            let attest = attestation::issue(
+                &schema_registry,
+                &oracle_registry,
+                b"TRIBE_STANDING",
+                PLAYER,
+                750,
+                100,
+                test_scenario::ctx(scenario)
+            );
+            transfer::public_transfer(attest, PLAYER);
+            test_scenario::return_shared(schema_registry);
+            test_scenario::return_shared(oracle_registry);
         };
 
         test_scenario::end(scenario_val);

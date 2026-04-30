@@ -10,6 +10,7 @@
     "register:schemas": "tsx scripts/register-schemas.ts",
     "register:schemas:dry": "cross-env DRY_RUN=1 tsx scripts/register-schemas.ts",
     "seed:testnet": "tsx scripts/seed-testnet.ts",
+    "issue:tribe-standing": "tsx scripts/issue-tribe-standing.ts",
     "gas-station":  "tsx scripts/gas-station.ts"
   },
   "keywords": [

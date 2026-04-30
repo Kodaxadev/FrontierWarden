@@ -94,6 +94,16 @@
       "schema": "TRIBE_STANDING",
       "value": 750,
       "issued_tx": "AwN5rdhQNopjaCZ8GNSdLpoBez8FPQKa1t1KEuz1pYSi"
+    },
+    "tribe_standing_attestation_eve": {
+      "id": "0x62219deb27aadf9dad90d03af7934a64a94643fc0ad8a188e38776d32364291a",
+      "type": "...::attestation::Attestation",
+      "owner": "0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f",
+      "issuer": "0xcfcf2247346d7a0676e2018168f94b86e1d1263fd3afd6862685725c8c49db8f",
+      "schema": "TRIBE_STANDING",
+      "value": 750,
+      "issued_tx": "FHwyCS6x2L6GpKj5ML1MoFrNdpqQn6yqFmTBbe2JWDiG",
+      "note": "Legacy deployer-oracle proof. Replace with an EVE Vault-issued proof after 0xabff...b4430f registers as oracle."
     }
   },
   "seed_transactions": {

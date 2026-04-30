@@ -9,6 +9,10 @@ import { useVouchActions } from '../../../../hooks/useVouchActions';
 import { useLendingActions } from '../../../../hooks/useLendingActions';
 import { useOracleRegister } from '../../../../hooks/useOracleRegister';
 import { ORACLE_MIN_STAKE_MIST, SYSTEM_MIN_STAKE_MIST } from '../../../../lib/tx-oracle-register';
+import { WalletStandingIssuerPanel } from '../WalletStandingIssuerPanel';
+
+const ORACLE_REGISTRY_ADMIN =
+  '0xcfcf2247346d7a0676e2018168f94b86e1d1263fd3afd6862685725c8c49db8f';
 
 const shortId = (v: string) => v.length <= 14 ? v : `${v.slice(0, 6)}…${v.slice(-4)}`;
 const formatSui = (mist: number) => `${(mist / 1e9).toFixed(3)} SUI`;
@@ -40,12 +44,14 @@ export function SocialView() {
 
   // ── oracle registration ──────────────────────────────────────────────────────
   const { registerOracle, state: oracleState, reset: oracleReset } = useOracleRegister();
-  const [oracleName,    setOracleName]    = useState('');
-  const [oracleSchemas, setOracleSchemas] = useState('');
+  const [oracleName,    setOracleName]    = useState('EVE Vault Oracle');
+  const [oracleSchemas, setOracleSchemas] = useState('TRIBE_STANDING');
   const [isSystemOracle, setIsSystemOracle] = useState(false);
   const [teeVerified,   setTeeVerified]   = useState(false);
   const [teeHash,       setTeeHash]       = useState('none');
-  const minStake = isSystemOracle ? SYSTEM_MIN_STAKE_MIST : ORACLE_MIN_STAKE_MIST;
+  const canRegisterSystem = account?.address.toLowerCase() === ORACLE_REGISTRY_ADMIN;
+  const requestedSystemOracle = canRegisterSystem && isSystemOracle;
+  const minStake = requestedSystemOracle ? SYSTEM_MIN_STAKE_MIST : ORACLE_MIN_STAKE_MIST;
 
   // ── profile lookup (for post-create_profile UX) ─────────────────────────────
   const [myProfile,     setMyProfile]     = useState<ProfileRow | null>(null);
@@ -210,7 +216,7 @@ export function SocialView() {
       <div style={{ maxWidth: 760, marginBottom: 24, padding: '16px 20px', border: '1px solid var(--c-border)', background: 'rgba(0,210,255,0.018)' }}>
         <div className="c-stat__label" style={{ marginBottom: 10 }}>Register Oracle</div>
         <div className="c-sub" style={{ marginBottom: 12 }}>
-          Stakes {isSystemOracle ? '0.1' : '1'} SUI minimum from wallet. OracleCapability is transferred to sender.
+          Stakes {requestedSystemOracle ? '0.1' : '1'} SUI minimum from wallet. OracleCapability is transferred to sender.
           Schemas can also be added later via the Oracle tab.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, marginBottom: 14 }}>
@@ -229,8 +235,13 @@ export function SocialView() {
         </div>
         <div style={{ display: 'flex', gap: 20, marginBottom: 14, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, cursor: 'pointer' }}>
-            <input type="checkbox" checked={isSystemOracle} onChange={e => setIsSystemOracle(e.target.checked)} />
-            System Oracle (0.1 SUI stake)
+            <input
+              type="checkbox"
+              checked={requestedSystemOracle}
+              disabled={!canRegisterSystem}
+              onChange={e => setIsSystemOracle(e.target.checked)}
+            />
+            System Oracle (admin only)
           </label>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, cursor: 'pointer' }}>
             <input type="checkbox" checked={teeVerified} onChange={e => setTeeVerified(e.target.checked)} />
@@ -245,7 +256,7 @@ export function SocialView() {
               stakeMist: minStake,
               teeVerified,
               teeAttestationHash: teeHash || 'none',
-              isSystemOracle,
+              isSystemOracle: requestedSystemOracle,
             })}>
             {oracleState.step === 'signing' ? 'SIGNING…' : 'REGISTER ORACLE'}
           </button>
@@ -253,6 +264,8 @@ export function SocialView() {
           {oracleState.step !== 'idle' && <button className="c-tab" onClick={oracleReset}>CLEAR</button>}
         </div>
       </div>
+
+      <WalletStandingIssuerPanel />
 
       {/* ── Vouch Feeds ─────────────────────────────────────────────────────── */}
       {!account && <div className="c-sub">Connect wallet to see vouch history.</div>}

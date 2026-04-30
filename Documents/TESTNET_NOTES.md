@@ -85,6 +85,7 @@ npm run dev
 | `npm run register:schemas` | Register the protocol schema set. |
 | `npm run register:schemas:dry` | Simulate schema registration. |
 | `npm run seed:testnet` | Seed deterministic testnet demo data. |
+| `npm run issue:tribe-standing` | Issue `TRIBE_STANDING` to `TRIBE_STANDING_TARGET` or the EVE Vault default. |
 | `npm run gas-station` | Run the sponsored transaction service. |
 | `npx tsx scripts/seed-tribe-standing.ts` | Issue `TRIBE_STANDING` proof to the test traveler. |
 | `npx tsx scripts/create-gate.ts` | Create a new testnet gate policy and admin cap. |
