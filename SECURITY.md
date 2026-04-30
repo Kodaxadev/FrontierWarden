@@ -8,7 +8,7 @@
 
 ## 1. Architecture Overview
 
-The system has 7 modules across 4 trust zones:
+The system is composed of multiple Move modules grouped into trust zones:
 
 ```
 ┌─────────────────────────────────────────────────────────┐

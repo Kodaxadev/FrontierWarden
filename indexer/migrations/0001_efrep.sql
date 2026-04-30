@@ -1,9 +1,7 @@
--- EVE Frontier Reputation Protocol — initial Postgres schema
+-- Initial FrontierWarden projection schema.
 -- =============================================================================
--- Indexes 18 event types from the EFRep package on Sui devnet.
--- Package: 0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37
--- Chain:   e8118007 (devnet)
--- Tag:     v0.1.0-devnet
+-- Historical package IDs are recorded in TESTNET_NOTES / PROOF_LOG.
+-- Current deployment target: Sui testnet.
 --
 -- Convention: Sui addresses and object IDs are 32 bytes, rendered as
 -- '0x' + 64 hex chars = 66 chars total. Tx digests are base58-encoded

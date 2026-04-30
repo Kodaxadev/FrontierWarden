@@ -204,7 +204,7 @@ metadata for operators and external tools.
 
 ## Reason Codes
 
-These are the v0 public integration codes. Do not rename them casually; external
+These are the Trust API v1 public integration codes. Do not rename them casually; external
 tools may key UI and policy behavior off these strings.
 
 ```ts
@@ -221,7 +221,7 @@ type TrustReason =
   | "ERROR_UNSUPPORTED_ACTION";
 ```
 
-Currently emitted in v0:
+Currently emitted in v1:
 
 - `ALLOW_FREE`
 - `ALLOW_TAXED`
@@ -361,7 +361,7 @@ Concurrency: 10 per scenario, 180 total requests across 6 scenarios + mixed batc
 | `gate_access DENY` | 212ms | 300ms |
 | missing gate → INSUFFICIENT | 292ms | 573ms |
 | unsupported action | 3ms | 4ms |
-| mixed batch (120 requests) | 2618ms p50 | 3563ms |
+| mixed batch (120 requests) | 2618ms | 3563ms |
 
 Status: correct and demo-ready; further production optimization pending local/Postgres mirror and read-path caching.
 

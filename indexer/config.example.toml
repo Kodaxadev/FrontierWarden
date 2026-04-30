@@ -1,0 +1,21 @@
+# efrep-indexer configuration template
+# Copy to config.toml and fill in real values.
+# Database URL uses env: syntax to read from environment variable at runtime.
+
+[network]
+rpc_url = "https://fullnode.testnet.sui.io:443"
+
+[package]
+# Current testnet package ID (after v2 upgrade).
+id = "0xYOUR_TESTNET_PACKAGE_ID"
+# Informational — logged on fresh start but not used as RPC filter.
+start_checkpoint = 0
+
+[database]
+# Use env: prefix to read from environment variable at runtime.
+url = "env:SUPABASE_DATABASE_URL"
+max_connections = 20
+
+[indexer]
+batch_size = 50
+poll_interval_ms = 2000

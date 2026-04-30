@@ -12,17 +12,20 @@ FrontierWarden is designed to be a trust backend that other EVE Frontier tools c
 
 ## Current Status
 
-Status as of 2026-04-29:
+Status as of 2026-04-30:
 
 - Sui testnet protocol package is deployed and upgraded.
 - Rust indexer projects protocol events into Supabase/Postgres.
 - Public Supabase table access is locked down; reads go through the Rust API.
 - Rust API supports opt-in `EFREP_API_KEY` authentication for non-health routes.
 - Rust API supports opt-in in-process rate limiting with `EFREP_RATE_LIMIT_PER_MINUTE`.
-- React operator console requires a wallet-signed session before mounting the dashboard.
-- React operator console builds cleanly.
-- Sponsored gate policy update, gate passage, and toll withdrawal flows have been proven.
-- Trust Decision API v0 is live locally and backed by indexed chain state.
+- Trust Decision API v1 is frozen, stress-tested, and backed by indexed Sui testnet state.
+- The Trust Decision Console supports `gate_access` and `counterparty_risk` evaluation.
+- The API response contract is versioned as `apiVersion: "trust.v1"`.
+- React operator dashboard builds cleanly with provenance-aware live/demo states.
+- Sponsored gate policy update, gate passage, and toll withdrawal flows have been proven on testnet.
+- Address normalization is applied across frontend, indexer, and API layers.
+- Duplicate profile prevention with `ON CONFLICT (owner) DO UPDATE` is in place.
 
 ## Operational Proofs
 
@@ -94,6 +97,10 @@ Current live smoke proof:
 
 Full API contract: [Documents/TRUST_API.md](./Documents/TRUST_API.md).
 
+## Testnet Demo Safety
+
+This is a Sui testnet demo. No mainnet deployment has occurred. The public demo mode exposes read/evaluate paths only (Trust API v1, indexed state queries). Write paths — including sponsored transactions, policy updates, oracle registration, and gas station endpoints — are not required for the read-only demo and should remain protected behind auth, rate limits, and origin controls before any public exposure.
+
 ## Architecture
 
 ```mermaid
@@ -110,7 +117,7 @@ Main layers:
 - `sources/`: Sui Move modules for profiles, schemas, oracles, attestations, vouches, lending, fraud challenges, and reputation gates.
 - `indexer/`: Rust event ingester and Axum REST API.
 - `frontend/`: React/Vite operator console.
-- `sdk/trustkit/`: small TypeScript client for external integrations.
+- `sdk/trustkit/`: local TypeScript client for external integrations (file dependency, not yet published to npm).
 - `Documents/`: operational notes and API docs.
 
 ## Protocol Modules
