@@ -10,6 +10,7 @@ import { useWithdrawTolls } from '../../../../hooks/useWithdrawTolls';
 import { gatePolicyConfigReady, missingGatePolicyConfig } from '../../../../lib/tx-gate-policy';
 import { GateAdminTransferPanel } from '../GateAdminTransferPanel';
 import { LiveStatus } from '../LiveStatus';
+import type { Provenance } from '../LiveStatus';
 import { TollWithdrawalLedger } from '../TollWithdrawalLedger';
 import type { FwData } from '../fw-data';
 import type { TollWithdrawalRow } from '../../../../types/api.types';
@@ -29,13 +30,13 @@ const eveWalletModalOptions = {
 };
 
 const POLICIES = FALLBACK_POLICIES;
-interface Props { data?: FwData; live?: boolean; loading?: boolean; error?: string | null; }
+interface Props { data?: FwData; live?: boolean; loading?: boolean; error?: string | null; provenance?: Provenance; }
 const formatSui = (mist: number) =>
   mist === 0 ? '0 SUI' : `${(mist / 1_000_000_000).toFixed(3)} SUI`;
 const shortId = (value: string) =>
   value.length <= 14 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
 
-export function PolicyView({ data, live = false, loading = false, error = null }: Props = {}) {
+export function PolicyView({ data, live = false, loading = false, error = null, provenance }: Props = {}) {
   const { account, state: txState, updatePolicy } = useUpdateGatePolicy();
   const { state: wdState, withdrawTolls, reset: resetWd } = useWithdrawTolls();
   const wallets = useWallets();
@@ -151,8 +152,9 @@ export function PolicyView({ data, live = false, loading = false, error = null }
         loading={loading}
         live={live}
         error={error}
+        provenance={provenance}
         liveText="Live gate policy"
-        emptyText="Design fallback"
+        emptyText="No policy indexed"
       />
       <div style={{
         display: 'grid',

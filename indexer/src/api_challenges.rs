@@ -7,6 +7,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 
 use crate::api_common::{ApiError, LimitParams};
+use crate::rpc::normalize_sui_address;
 
 pub fn router() -> Router<PgPool> {
     Router::new()
@@ -80,6 +81,7 @@ async fn challenges_for_oracle(
     Path(oracle): Path<String>,
     Query(params): Query<LimitParams>,
 ) -> Result<Json<Vec<FraudChallengeRow>>, ApiError> {
+    let normalized = normalize_sui_address(&oracle);
     let limit = params.limit.unwrap_or(50).min(200);
     let rows = sqlx::query_as::<_, FraudChallengeRow>(
         "SELECT challenge_id, attestation_id, challenger, oracle, created_tx,
@@ -90,7 +92,7 @@ async fn challenges_for_oracle(
          ORDER BY created_at DESC
          LIMIT $2",
     )
-    .bind(&oracle)
+    .bind(&normalized)
     .bind(limit)
     .fetch_all(&pool)
     .await?;
@@ -103,6 +105,7 @@ async fn challenges_by_challenger(
     Path(address): Path<String>,
     Query(params): Query<LimitParams>,
 ) -> Result<Json<Vec<FraudChallengeRow>>, ApiError> {
+    let normalized = normalize_sui_address(&address);
     let limit = params.limit.unwrap_or(50).min(200);
     let rows = sqlx::query_as::<_, FraudChallengeRow>(
         "SELECT challenge_id, attestation_id, challenger, oracle, created_tx,
@@ -113,7 +116,7 @@ async fn challenges_by_challenger(
          ORDER BY created_at DESC
          LIMIT $2",
     )
-    .bind(&address)
+    .bind(&normalized)
     .bind(limit)
     .fetch_all(&pool)
     .await?;

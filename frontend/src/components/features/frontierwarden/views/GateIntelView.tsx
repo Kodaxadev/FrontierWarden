@@ -9,6 +9,7 @@ import type { GatePassageRow } from '../../../../types/api.types';
 import { useCheckPassage } from '../../../../hooks/useCheckPassage';
 import { LiveStatus } from '../LiveStatus';
 import type { FwData, FwGate } from '../fw-data';
+import type { Provenance } from '../LiveStatus';
 
 type GateFilter = 'ALL' | 'open' | 'camped' | 'toll' | 'closed';
 const FILTERS: GateFilter[] = ['ALL', 'open', 'camped', 'toll', 'closed'];
@@ -44,9 +45,10 @@ interface Props {
   live?: boolean;
   loading?: boolean;
   error?: string | null;
+  provenance?: Provenance;
 }
 
-export function GateIntelView({ data, live = false, loading = false, error = null }: Props) {
+export function GateIntelView({ data, live = false, loading = false, error = null, provenance }: Props) {
   const [filter, setFilter] = useState<GateFilter>('ALL');
   const [selectedGateId, setSelectedGateId] = useState<string | null>(null);
   const [passages, setPassages] = useState<GatePassageRow[]>([]);
@@ -109,8 +111,9 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
         loading={loading}
         live={live}
         error={error}
+        provenance={provenance}
         liveText={`Live ${SUI_NETWORK} gates`}
-        emptyText="Design fallback"
+        emptyText="No gates indexed"
       />
 
       <div className="c-filters">

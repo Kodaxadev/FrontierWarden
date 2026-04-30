@@ -20,6 +20,13 @@ function humanise(err: unknown): string {
   ) {
     return 'System oracle registration is admin-only. Uncheck System Oracle and register as a regular oracle with 1 SUI stake.';
   }
+  if (
+    msg.includes('MoveAbort') &&
+    msg.includes('oracle_registry::register_oracle') &&
+    msg.includes('abort code: 2')
+  ) {
+    return 'This wallet is already registered as an oracle. Check the Social tab to view your existing oracle status.';
+  }
   const first = msg.split('\n')[0].replace(/^Error:\s*/i, '');
   return first.length > 180 ? `${first.slice(0, 180)}…` : first;
 }

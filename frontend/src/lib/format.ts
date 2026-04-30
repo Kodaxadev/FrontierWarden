@@ -9,6 +9,14 @@ export function truncAddr(addr: string, chars = 4): string {
   return `${addr.slice(0, chars + 2)}…${addr.slice(-chars)}`;
 }
 
+/** Normalize a Sui address to canonical form: 0x prefix, lowercase, 64 hex chars.
+ *  Ensures consistent matching between wallet, API, and database. */
+export function normalizeSuiAddress(addr: string | null | undefined): string {
+  if (!addr) return '';
+  const stripped = addr.toLowerCase().replace(/^0x/, '');
+  return `0x${stripped.padStart(64, '0')}`;
+}
+
 /** Extract just the last N hex chars — useful for tight table cells. */
 export function shortAddr(addr: string, chars = 6): string {
   return addr.slice(-chars).toUpperCase();

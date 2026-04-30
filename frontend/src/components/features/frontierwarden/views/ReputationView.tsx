@@ -3,6 +3,7 @@
 // All data derived from live FwData; no hardcoded values.
 
 import { LiveStatus } from '../LiveStatus';
+import type { Provenance } from '../LiveStatus';
 import { SUI_NETWORK_LABEL } from '../../../../lib/network';
 import type { FwData } from '../fw-data';
 
@@ -85,9 +86,10 @@ interface Props {
   live?: boolean;
   loading?: boolean;
   error?: string | null;
+  provenance?: Provenance;
 }
 
-export function ReputationView({ data, live = false, loading = false, error = null }: Props) {
+export function ReputationView({ data, live = false, loading = false, error = null, provenance }: Props) {
   const { pilot, proofs, vouches } = data;
 
   const tier = computeTier(pilot.score);
@@ -108,8 +110,9 @@ export function ReputationView({ data, live = false, loading = false, error = nu
           loading={loading}
           live={live}
           error={error}
+          provenance={provenance}
           liveText={pilot.checkpoint ? `Live profile / checkpoint ${pilot.checkpoint}` : 'Live profile'}
-          emptyText="Design fallback"
+          emptyText="No profile indexed"
         />
         <div className="c-sub" style={{ display: 'none' }}>
           {loading

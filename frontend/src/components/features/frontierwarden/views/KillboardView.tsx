@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { LiveStatus } from '../LiveStatus';
+import type { Provenance } from '../LiveStatus';
 import type { FwData } from '../fw-data';
 
 type KillFilter = 'ALL' | 'HOSTILE' | 'FRIENDLY';
@@ -17,9 +18,10 @@ interface Props {
   live?: boolean;
   loading?: boolean;
   error?: string | null;
+  provenance?: Provenance;
 }
 
-export function KillboardView({ data, live = false, loading = false, error = null }: Props) {
+export function KillboardView({ data, live = false, loading = false, error = null, provenance }: Props) {
   const [filter, setFilter] = useState<KillFilter>('ALL');
 
   const kills = data.kills.filter(k => {
@@ -40,8 +42,9 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         loading={loading}
         live={live}
         error={error}
+        provenance={provenance}
         liveText="Live ship kills"
-        emptyText="Design fallback"
+        emptyText="No kills indexed"
       />
 
       {/* Summary bar */}
@@ -97,7 +100,7 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         <tbody>
           {kills.map(k => {
             const highIsk = k.isk > 200_000_000;
-            const time = k.t.split('T')[1].replace('Z', '');
+            const time = k.t?.includes('T') ? k.t.split('T')[1]?.replace('Z', '') ?? '--:--:--' : '--:--:--';
             return (
               <tr key={k.id}>
                 <td>

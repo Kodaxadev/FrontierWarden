@@ -845,6 +845,22 @@
 .c-live-note--fallback {
   color: var(--c-mid);
 }
+.c-live-note--empty {
+  color: var(--c-mid);
+  border-color: rgba(255,255,255,0.06);
+}
+.c-live-note--empty::before {
+  background: var(--c-mid);
+}
+.c-live-note--error {
+  color: var(--c-crimson);
+  border-color: rgba(239,68,68,0.18);
+  background: rgba(239,68,68,0.045);
+}
+.c-live-note--error::before {
+  background: var(--c-crimson);
+  box-shadow: 0 0 8px rgba(239,68,68,0.6);
+}
 
 /* ── Stat block (reputation) ────────────────────────── */
 .c-stat { margin-bottom: 32px; }

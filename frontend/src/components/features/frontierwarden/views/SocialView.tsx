@@ -1,9 +1,11 @@
 // SocialView — operator workflows for profiles, vouches, loans, and oracle registration.
 import { useCallback, useEffect, useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
-import { fetchVouches, fetchGivenVouches, fetchProfileByOwner } from '../../../../lib/api';
-import type { VouchRow, ProfileRow } from '../../../../types/api.types';
+import { fetchVouches, fetchGivenVouches, fetchProfileByOwner, fetchOracles } from '../../../../lib/api';
+import type { VouchRow, ProfileRow, OracleRow } from '../../../../types/api.types';
 import { LiveStatus } from '../LiveStatus';
+import type { Provenance } from '../LiveStatus';
+import { normalizeSuiAddress } from '../../../../lib/format';
 import { useProfileCreate } from '../../../../hooks/useProfileCreate';
 import { useVouchActions } from '../../../../hooks/useVouchActions';
 import { useLendingActions } from '../../../../hooks/useLendingActions';
@@ -25,7 +27,11 @@ function StatusLine({ step, digest, error }: { step: string; digest: string | nu
   return <span style={{ fontSize: 10, color: 'var(--c-crimson)' }}>{error}</span>;
 }
 
-export function SocialView() {
+interface SocialViewProps {
+  provenance?: Provenance;
+}
+
+export function SocialView({ provenance }: SocialViewProps = {}) {
   // ── profile ─────────────────────────────────────────────────────────────────
   const { account, createProfile, state: profState, reset: profReset } = useProfileCreate();
 
@@ -49,6 +55,8 @@ export function SocialView() {
   const [isSystemOracle, setIsSystemOracle] = useState(false);
   const [teeVerified,   setTeeVerified]   = useState(false);
   const [teeHash,       setTeeHash]       = useState('none');
+  const [existingOracle, setExistingOracle] = useState<OracleRow | null>(null);
+  const [oracleCheckLoading, setOracleCheckLoading] = useState(false);
   const canRegisterSystem = account?.address.toLowerCase() === ORACLE_REGISTRY_ADMIN;
   const requestedSystemOracle = canRegisterSystem && isSystemOracle;
   const minStake = requestedSystemOracle ? SYSTEM_MIN_STAKE_MIST : ORACLE_MIN_STAKE_MIST;
@@ -60,28 +68,63 @@ export function SocialView() {
   const lookupProfile = useCallback(async () => {
     if (!account) return;
     setProfileLookup(true);
+    const normalized = normalizeSuiAddress(account.address);
+    console.log('[SocialView] profile lookup — wallet:', account.address, 'normalized:', normalized);
     try {
-      const p = await fetchProfileByOwner(account.address);
+      const p = await fetchProfileByOwner(normalized);
+      console.log('[SocialView] profile lookup result:', p);
       setMyProfile(p);
       if (p) setProfileId(p.profile_id);
-    } catch { /* silent */ }
+    } catch (err) {
+      console.warn('[SocialView] profile lookup failed:', err);
+    }
     finally { setProfileLookup(false); }
   }, [account]);
 
   // Auto-lookup on wallet connect
   useEffect(() => { void lookupProfile(); }, [lookupProfile]);
 
-  // Re-lookup 8s after profile creation (indexer lag)
+  // Poll lookup after profile creation (indexer lag)
   useEffect(() => {
-    if (profState.step !== 'done') return;
-    const t = window.setTimeout(() => void lookupProfile(), 8_000);
-    return () => window.clearTimeout(t);
-  }, [profState.step, profState.digest, lookupProfile]);
+    if (profState.step !== 'done' || !account) return;
+    let attempts = 0;
+    const maxAttempts = 10; // 30s total (3s intervals)
+    const t = window.setInterval(() => {
+      attempts++;
+      void (async () => {
+        try {
+          const p = await fetchProfileByOwner(normalizeSuiAddress(account.address));
+          if (p) {
+            setMyProfile(p);
+            setProfileId(p.profile_id);
+            window.clearInterval(t);
+          } else if (attempts >= maxAttempts) {
+            window.clearInterval(t);
+          }
+        } catch { /* keep polling */ }
+      })();
+    }, 3_000);
+    return () => window.clearInterval(t);
+  }, [profState.step, profState.digest, account]);
 
   // ── vouch feed ───────────────────────────────────────────────────────────────
   const [receivedVouches, setReceivedVouches] = useState<VouchRow[]>([]);
   const [givenVouches,    setGivenVouches]    = useState<VouchRow[]>([]);
   const [feedLoading,     setFeedLoading]     = useState(false);
+
+  // Check if connected wallet is already registered as an oracle
+  useEffect(() => {
+    if (!account) { setExistingOracle(null); return; }
+    setOracleCheckLoading(true);
+    const normalized = normalizeSuiAddress(account.address);
+    fetchOracles(200)
+      .then(rows => {
+        const match = rows.find(r => normalizeSuiAddress(r.oracle_address) === normalized);
+        setExistingOracle(match ?? null);
+      })
+      .catch(() => setExistingOracle(null))
+      .finally(() => setOracleCheckLoading(false));
+  }, [account]);
 
   const loadVouches = useCallback(async () => {
     if (!account) return;
@@ -108,7 +151,7 @@ export function SocialView() {
   return (
     <>
       <div className="c-view__title">Social &amp; Protocol Actions</div>
-      <LiveStatus loading={false} live={!!account} liveText={account ? `Wallet ${shortId(account.address)}` : 'No wallet connected'} emptyText="Connect a wallet to sign transactions" />
+      <LiveStatus loading={false} live={!!account} provenance={provenance} liveText={account ? `Wallet ${shortId(account.address)}` : 'No wallet connected'} emptyText="Connect a wallet to sign transactions" />
 
       {/* ── Profile ─────────────────────────────────────────────────────────── */}
       <div style={{ maxWidth: 760, marginBottom: 24, padding: '16px 20px', border: '1px solid var(--c-border)', background: 'rgba(0,210,255,0.018)' }}>
@@ -122,8 +165,18 @@ export function SocialView() {
             <span className="c-sub"> (auto-filled below)</span>
           </div>
         )}
+        {profState.step === 'done' && !myProfile && (
+          <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.2)', fontSize: 11, color: 'var(--c-amber)' }}>
+            Profile transaction confirmed. Waiting for indexer to process…
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <button className="c-commit" disabled={!account || busy} onClick={() => void createProfile()}>
+          <button
+            className="c-commit"
+            disabled={!account || busy || (profState.step === 'done' && !myProfile)}
+            title={profState.step === 'done' && !myProfile ? 'Profile indexed — waiting for indexer…' : 'Create reputation profile'}
+            onClick={() => void createProfile()}
+          >
             {profState.step === 'signing' ? 'SIGNING…' : 'CREATE PROFILE'}
           </button>
           <button className="c-tab" disabled={!account || profileLookup} onClick={() => void lookupProfile()}>
@@ -214,55 +267,90 @@ export function SocialView() {
 
       {/* ── Oracle Registration ─────────────────────────────────────────────── */}
       <div style={{ maxWidth: 760, marginBottom: 24, padding: '16px 20px', border: '1px solid var(--c-border)', background: 'rgba(0,210,255,0.018)' }}>
-        <div className="c-stat__label" style={{ marginBottom: 10 }}>Register Oracle</div>
-        <div className="c-sub" style={{ marginBottom: 12 }}>
-          Stakes {requestedSystemOracle ? '0.1' : '1'} SUI minimum from wallet. OracleCapability is transferred to sender.
-          Schemas can also be added later via the Oracle tab.
+        <div className="c-stat__label" style={{ marginBottom: 10 }}>
+          {existingOracle ? 'Oracle Registration' : 'Register Oracle'}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, marginBottom: 14 }}>
-          <label>
-            <div className="c-policy__label">Oracle Name</div>
-            <input className="c-input" placeholder="my-oracle" value={oracleName} onChange={e => setOracleName(e.target.value)} />
-          </label>
-          <label>
-            <div className="c-policy__label">Initial Schemas (comma-separated)</div>
-            <input className="c-input" placeholder="GATE_HOSTILE,GATE_CAMPED" value={oracleSchemas} onChange={e => setOracleSchemas(e.target.value)} />
-          </label>
-          <label>
-            <div className="c-policy__label">TEE Attestation Hash</div>
-            <input className="c-input" placeholder="none" value={teeHash} onChange={e => setTeeHash(e.target.value)} />
-          </label>
-        </div>
-        <div style={{ display: 'flex', gap: 20, marginBottom: 14, flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={requestedSystemOracle}
-              disabled={!canRegisterSystem}
-              onChange={e => setIsSystemOracle(e.target.checked)}
-            />
-            System Oracle (admin only)
-          </label>
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, cursor: 'pointer' }}>
-            <input type="checkbox" checked={teeVerified} onChange={e => setTeeVerified(e.target.checked)} />
-            TEE Verified
-          </label>
-        </div>
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="c-commit" disabled={!account || busy || !oracleName.trim()}
-            onClick={() => void registerOracle({
-              name: oracleName.trim(),
-              initialSchemas: oracleSchemas.split(',').map(s => s.trim()).filter(Boolean),
-              stakeMist: minStake,
-              teeVerified,
-              teeAttestationHash: teeHash || 'none',
-              isSystemOracle: requestedSystemOracle,
-            })}>
-            {oracleState.step === 'signing' ? 'SIGNING…' : 'REGISTER ORACLE'}
-          </button>
-          <StatusLine {...oracleState} />
-          {oracleState.step !== 'idle' && <button className="c-tab" onClick={oracleReset}>CLEAR</button>}
-        </div>
+
+        {existingOracle ? (
+          <>
+            <div className="c-sub" style={{ marginBottom: 12 }}>
+              This wallet is already registered as an oracle.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, marginBottom: 14 }}>
+              <div>
+                <div className="c-policy__label">Name</div>
+                <div className="c-sub">{existingOracle.name}</div>
+              </div>
+              <div>
+                <div className="c-policy__label">TEE Verified</div>
+                <div className="c-sub">{existingOracle.tee_verified ? 'Yes' : 'No'}</div>
+              </div>
+              <div>
+                <div className="c-policy__label">System Oracle</div>
+                <div className="c-sub">{existingOracle.is_system_oracle ? 'Yes' : 'No'}</div>
+              </div>
+              <div>
+                <div className="c-policy__label">Registered TX</div>
+                <div className="c-sub" style={{ wordBreak: 'break-all' }}>{existingOracle.registered_tx}</div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="c-sub" style={{ marginBottom: 12 }}>
+              Stakes from wallet: 0.1 SUI (system) or 1 SUI (regular). OracleCapability is transferred to sender.
+              Schemas can also be added later via the Oracle tab.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, marginBottom: 14 }}>
+              <label>
+                <div className="c-policy__label">Oracle Name</div>
+                <input className="c-input" placeholder="my-oracle" value={oracleName} onChange={e => setOracleName(e.target.value)} />
+              </label>
+              <label>
+                <div className="c-policy__label">Initial Schemas (comma-separated)</div>
+                <input className="c-input" placeholder="GATE_HOSTILE,GATE_CAMPED" value={oracleSchemas} onChange={e => setOracleSchemas(e.target.value)} />
+              </label>
+              <label>
+                <div className="c-policy__label">TEE Attestation Hash</div>
+                <input className="c-input" placeholder="none" value={teeHash} onChange={e => setTeeHash(e.target.value)} />
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 20, marginBottom: 14, flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={requestedSystemOracle}
+                  disabled={!canRegisterSystem}
+                  onChange={e => setIsSystemOracle(e.target.checked)}
+                />
+                System Oracle (0.1 SUI)
+              </label>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, cursor: 'pointer' }}>
+                <input type="checkbox" checked={teeVerified} onChange={e => setTeeVerified(e.target.checked)} />
+                TEE Verified
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button className="c-commit" disabled={!account || busy || !oracleName.trim()}
+                onClick={() => void registerOracle({
+                  name: oracleName.trim(),
+                  initialSchemas: oracleSchemas.split(',').map(s => s.trim()).filter(Boolean),
+                  stakeMist: minStake,
+                  teeVerified,
+                  teeAttestationHash: teeHash || 'none',
+                  isSystemOracle: requestedSystemOracle,
+                })}>
+                {oracleState.step === 'signing' ? 'SIGNING…' : 'REGISTER ORACLE'}
+              </button>
+              <StatusLine {...oracleState} />
+              {oracleState.step !== 'idle' && <button className="c-tab" onClick={oracleReset}>CLEAR</button>}
+            </div>
+          </>
+        )}
+
+        {oracleCheckLoading && !existingOracle && (
+          <div className="c-sub">Checking registration status…</div>
+        )}
       </div>
 
       <WalletStandingIssuerPanel />

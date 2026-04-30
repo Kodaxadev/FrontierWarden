@@ -2,12 +2,43 @@ import { useMemo, useState } from 'react';
 import { evaluateTrust } from '../../../../lib/api';
 import type { FwData } from '../fw-data';
 import type { TrustEvaluateResponse, TrustAction } from '@frontierwarden/trustkit';
+import { LiveStatus } from '../LiveStatus';
+import type { Provenance } from '../LiveStatus';
 
 const DEFAULT_SUBJECT = '0x9cc038e5f0045dbf75ce191870fd7c483020d12bc23f3ebaef7a6f4f22d820e1';
 const DEFAULT_GATE = '0xb63c9939e28db885392e68537336f85453392ac07d4590c029d1f65938733e36';
 
 const shortId = (value: string) =>
   value.length <= 18 ? value : `${value.slice(0, 8)}...${value.slice(-6)}`;
+
+const ACTION_LABELS: Record<TrustAction, string> = {
+  gate_access: 'Gate Access',
+  counterparty_risk: 'Counterparty Risk',
+};
+
+function humanReadableWarning(raw: string): { label: string; critical: boolean } {
+  if (raw.startsWith('ATTESTATION_UNDER_CHALLENGE:')) {
+    return { label: `Attestation is under fraud challenge: ${raw.split(':')[1]}`, critical: true };
+  }
+  if (raw.startsWith('ATTESTATION_REVOKED')) {
+    return { label: 'Attestation has been revoked', critical: true };
+  }
+  if (raw.startsWith('INDEXER_LAST_EVENT_STALE_SECONDS:')) {
+    const secs = raw.split(':')[1];
+    return { label: `Indexer has not seen a new event for ${secs} seconds`, critical: false };
+  }
+  if (raw.startsWith('PROOF_CHECKPOINT_BEHIND_LATEST_INDEX:')) {
+    const delta = raw.split(':')[1];
+    return { label: `Proof checkpoint is behind latest indexed checkpoint (delta: ${Number(delta).toLocaleString()})`, critical: false };
+  }
+  if (raw === 'PROOF_CHECKPOINT_UNKNOWN') {
+    return { label: 'Proof checkpoint could not be determined', critical: false };
+  }
+  if (raw === 'INDEXER_CHECKPOINT_UNKNOWN') {
+    return { label: 'Indexer checkpoint could not be determined', critical: false };
+  }
+  return { label: raw, critical: false };
+}
 
 const formatMist = (mist: number | null | undefined) => {
   if (mist == null) return '-';
@@ -67,9 +98,12 @@ const PRESETS: Preset[] = [
 
 interface Props {
   data?: FwData;
+  live?: boolean;
+  loading?: boolean;
+  error?: string | null;
 }
 
-export function TrustConsoleView({ data }: Props) {
+export function TrustConsoleView({ data, live = false, loading = false, error = null }: Props) {
   const firstGate = data?.policy?.gateId ?? data?.gates[0]?.sourceId ?? DEFAULT_GATE;
   const [action, setAction] = useState<TrustAction>('gate_access');
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
@@ -78,7 +112,7 @@ export function TrustConsoleView({ data }: Props) {
   const [minimumScore, setMinimumScore] = useState(500);
   const [result, setResult] = useState<TrustEvaluateResponse | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [evalError, setEvalError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const proofRows = useMemo(() => {
@@ -97,7 +131,7 @@ export function TrustConsoleView({ data }: Props) {
 
   const runEvaluation = async () => {
     setBusy(true);
-    setError(null);
+    setEvalError(null);
     try {
       const next = await evaluateTrust({
         entity: subject.trim(),
@@ -111,7 +145,7 @@ export function TrustConsoleView({ data }: Props) {
       setResult(next);
     } catch (err) {
       setResult(null);
-      setError(err instanceof Error ? err.message : String(err));
+      setEvalError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -124,7 +158,7 @@ export function TrustConsoleView({ data }: Props) {
     setSchemaId(preset.schemaId);
     if (preset.minimumScore != null) setMinimumScore(preset.minimumScore);
     setResult(null);
-    setError(null);
+    setEvalError(null);
   };
 
   const copyJson = async () => {
@@ -141,6 +175,16 @@ export function TrustConsoleView({ data }: Props) {
   return (
     <>
       <div className="c-view__title">Trust Decision Console</div>
+      <div className="c-sub" style={{ marginTop: -16, marginBottom: 24 }}>
+        Evaluate gate access or counterparty risk from indexed Sui testnet proof.
+      </div>
+      <LiveStatus
+        loading={loading}
+        live={live}
+        error={error}
+        liveText="Trust API connected"
+        emptyText="Trust API unavailable"
+      />
 
       {/* Presets */}
       <div style={{ marginBottom: 24 }}>
@@ -188,8 +232,8 @@ export function TrustConsoleView({ data }: Props) {
             onChange={event => setAction(event.target.value as TrustAction)}
             style={{ display: 'block', width: '100%', cursor: 'pointer' }}
           >
-            <option value="gate_access">gate_access</option>
-            <option value="counterparty_risk">counterparty_risk</option>
+            <option value="gate_access">Gate Access — gate_access</option>
+            <option value="counterparty_risk">Counterparty Risk — counterparty_risk</option>
           </select>
 
           {action === 'gate_access' && (
@@ -233,9 +277,9 @@ export function TrustConsoleView({ data }: Props) {
             {busy ? 'EVALUATING' : 'EVALUATE TRUST'}
           </button>
 
-          {error && (
+          {evalError && (
             <div style={{ marginTop: 16, color: 'var(--c-crimson)', fontSize: 11 }}>
-              {error}
+              {evalError}
             </div>
           )}
         </section>
@@ -310,17 +354,33 @@ export function TrustConsoleView({ data }: Props) {
                 <div style={{
                   marginBottom: 24,
                   padding: '12px 16px',
-                  border: '1px solid rgba(245,158,11,0.3)',
-                  background: 'rgba(245,158,11,0.04)',
+                  border: warnings.some(w => humanReadableWarning(w).critical)
+                    ? '1px solid rgba(239,68,68,0.3)'
+                    : '1px solid rgba(245,158,11,0.3)',
+                  background: warnings.some(w => humanReadableWarning(w).critical)
+                    ? 'rgba(239,68,68,0.04)'
+                    : 'rgba(245,158,11,0.04)',
                 }}>
-                  <div className="c-stat__label" style={{ color: 'var(--c-amber)', marginBottom: 8 }}>
-                    DATA QUALITY WARNINGS
+                  <div className="c-stat__label" style={{
+                    color: warnings.some(w => humanReadableWarning(w).critical) ? 'var(--c-crimson)' : 'var(--c-amber)',
+                    marginBottom: 8,
+                  }}>
+                    INDEXER / PROOF WARNINGS
                   </div>
-                  {warnings.map((w, i) => (
-                    <div key={i} style={{ fontSize: 10, fontFamily: 'var(--c-mono)', color: 'var(--c-amber)', lineHeight: 1.8 }}>
-                      ▸ {w}
-                    </div>
-                  ))}
+                  {warnings.map((w, i) => {
+                    const { label, critical } = humanReadableWarning(w);
+                    return (
+                      <div key={i} style={{
+                        fontSize: 10,
+                        fontFamily: 'var(--c-mono)',
+                        color: critical ? 'var(--c-crimson)' : 'var(--c-amber)',
+                        lineHeight: 1.8,
+                        fontWeight: critical ? 700 : 400,
+                      }}>
+                        ▸ {label}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 

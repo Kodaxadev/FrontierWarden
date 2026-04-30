@@ -7,6 +7,7 @@ import { networkTitle, SUI_NETWORK_LABEL } from '../lib/network';
 import type { AttestationFeedRow, AttestationRow, FraudChallengeRow, GatePolicyRow, GateSummaryRow, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
 import { FW_DATA } from '../components/features/frontierwarden/fw-data';
 import type { FwAlert, FwContract, FwData, FwGate, FwKill, FwPilot, FwPolicy, FwProof, FwVouch } from '../components/features/frontierwarden/fw-data';
+import type { Provenance } from '../components/features/frontierwarden/LiveStatus';
 
 const POLL_MS = 10_000;
 
@@ -18,8 +19,13 @@ export interface FrontierWardenDataState {
   killboardLive: boolean;
   policyLive: boolean;
   contractsLive: boolean;
+  provenance: Record<string, Provenance>;
   error: string | null;
   refresh: () => void;
+}
+
+export interface UseFrontierWardenDataOptions {
+  demoEnabled?: boolean;
 }
 
 function shortId(id: string): string {
@@ -212,7 +218,8 @@ function mergeLiveData(
   shipKills: AttestationFeedRow[],
   policy: GatePolicyRow | null,
   contracts: AttestationFeedRow[],
-): FwData {
+  demoEnabled: boolean,
+): { data: FwData; provenance: Record<string, Provenance> } {
   const liveGates = gates.map(mapGate);
   const liveAlerts = challenges.slice(0, 5).map(challengeAlert);
   const liveVouches = mapVouches(vouches);
@@ -221,26 +228,43 @@ function mergeLiveData(
   const livePolicy = mapPolicy(policy);
   const liveContracts = mapContracts(contracts);
 
+  const gateProv: Provenance = liveGates.length > 0 ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
+  const killProv: Provenance = liveKills.length > 0 ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
+  const contractProv: Provenance = liveContracts.length > 0 ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
+  const repProv: Provenance = profile ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
+  const policyProv: Provenance = livePolicy ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
+
   return {
-    ...FW_DATA,
-    pilot: profile ? mapPilot(profile, scores) : FW_DATA.pilot,
-    policy: livePolicy,
-    gates: liveGates.length > 0 ? liveGates : FW_DATA.gates,
-    kills: liveKills.length > 0 ? liveKills : FW_DATA.kills,
-    contracts: liveContracts.length > 0 ? liveContracts : FW_DATA.contracts,
-    vouches: liveVouches.length > 0 ? liveVouches : FW_DATA.vouches,
-    proofs: liveProofs.length > 0 ? liveProofs : FW_DATA.proofs,
-    alerts: liveAlerts.length > 0 ? liveAlerts : FW_DATA.alerts,
+    data: {
+      ...FW_DATA,
+      pilot: profile ? mapPilot(profile, scores) : (demoEnabled ? FW_DATA.pilot : { ...FW_DATA.pilot, score: 0, scoreDelta: 0, timestamp: 'no profile', sourceId: undefined, checkpoint: null }),
+      policy: livePolicy ?? (demoEnabled ? FW_DATA.policy : undefined),
+      gates: liveGates.length > 0 ? liveGates : (demoEnabled ? FW_DATA.gates : []),
+      kills: liveKills.length > 0 ? liveKills : (demoEnabled ? FW_DATA.kills : []),
+      contracts: liveContracts.length > 0 ? liveContracts : (demoEnabled ? FW_DATA.contracts : []),
+      vouches: liveVouches.length > 0 ? liveVouches : (demoEnabled ? FW_DATA.vouches : []),
+      proofs: liveProofs.length > 0 ? liveProofs : (demoEnabled ? FW_DATA.proofs : []),
+      alerts: liveAlerts.length > 0 ? liveAlerts : (demoEnabled ? FW_DATA.alerts : []),
+    },
+    provenance: {
+      gateNetwork: gateProv,
+      reputation: repProv,
+      killboard: killProv,
+      contracts: contractProv,
+      policy: policyProv,
+    },
   };
 }
 
-export function useFrontierWardenData(): FrontierWardenDataState {
+export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}): FrontierWardenDataState {
+  const { demoEnabled = true } = options;
   const [data, setData] = useState<FwData>(FW_DATA);
   const [live, setLive] = useState(false);
   const [reputationLive, setReputationLive] = useState(false);
   const [killboardLive, setKillboardLive] = useState(false);
   const [policyLive, setPolicyLive] = useState(false);
   const [contractsLive, setContractsLive] = useState(false);
+  const [provenance, setProvenance] = useState<Record<string, Provenance>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -265,7 +289,9 @@ export function useFrontierWardenData(): FrontierWardenDataState {
         : [[], [], []] as [ScoreRow[], VouchRow[], AttestationRow[]];
       const policy = firstGateId ? await fetchGatePolicy(firstGateId) : null;
 
-      setData(mergeLiveData(gates, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts));
+      const result = mergeLiveData(gates, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts, demoEnabled);
+      setData(result.data);
+      setProvenance(result.provenance);
       setLive(gates.length > 0 || challenges.length > 0 || profile != null || shipKills.length > 0 || policy != null || bountyContracts.length > 0);
       setReputationLive(profile != null);
       setKillboardLive(shipKills.length > 0);
@@ -279,11 +305,18 @@ export function useFrontierWardenData(): FrontierWardenDataState {
       setKillboardLive(false);
       setPolicyLive(false);
       setContractsLive(false);
+      setProvenance({
+        gateNetwork: 'ERROR',
+        reputation: 'ERROR',
+        killboard: 'ERROR',
+        contracts: 'ERROR',
+        policy: 'ERROR',
+      });
       setError(err instanceof Error ? err.message : 'fetch failed');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [demoEnabled]);
 
   useEffect(() => {
     refresh();
@@ -291,5 +324,5 @@ export function useFrontierWardenData(): FrontierWardenDataState {
     return () => clearInterval(id);
   }, [refresh]);
 
-  return { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, error, refresh };
+  return { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, refresh };
 }

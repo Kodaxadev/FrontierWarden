@@ -2,6 +2,7 @@
 
 import type { FwData, FwContract } from '../fw-data';
 import { LiveStatus } from '../LiveStatus';
+import type { Provenance } from '../LiveStatus';
 
 type Priority = FwContract['priority'];
 
@@ -23,9 +24,10 @@ interface Props {
   live?: boolean;
   loading?: boolean;
   error?: string | null;
+  provenance?: Provenance;
 }
 
-export function ContractsView({ data, live = false, loading = false, error = null }: Props) {
+export function ContractsView({ data, live = false, loading = false, error = null, provenance }: Props) {
   return (
     <>
       <div className="c-view__title">Contract Queue</div>
@@ -33,8 +35,9 @@ export function ContractsView({ data, live = false, loading = false, error = nul
         loading={loading}
         live={live}
         error={error}
+        provenance={provenance}
         liveText="Live bounties"
-        emptyText="Design fallback"
+        emptyText="No contracts indexed"
       />
 
       <table className="c-table">

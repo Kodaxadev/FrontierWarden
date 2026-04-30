@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_str, field_u64, SuiEvent};
+use crate::rpc::{event_name, field_addr, field_str, field_u64, normalize_sui_address, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
@@ -14,13 +14,16 @@ pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // ProfileCreated → INSERT INTO profiles
 async fn profile_created(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let profile_id = field_addr(p, "profile_id")?;
-    let owner = field_addr(p, "owner")?;
+    let profile_id = normalize_sui_address(&field_addr(p, "profile_id")?);
+    let owner = normalize_sui_address(&field_addr(p, "owner")?);
 
     sqlx::query(
         "INSERT INTO profiles (profile_id, owner, created_tx)
          VALUES ($1, $2, $3)
-         ON CONFLICT (profile_id) DO NOTHING",
+         ON CONFLICT (owner) DO UPDATE SET
+             profile_id = EXCLUDED.profile_id,
+             created_tx = EXCLUDED.created_tx,
+             created_at = EXCLUDED.created_at",
     )
     .bind(&profile_id)
     .bind(&owner)
@@ -35,10 +38,10 @@ async fn profile_created(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // new_value wins; old_value is only used for analytics via raw_events.
 async fn score_updated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let profile_id = field_addr(p, "profile_id")?;
+    let profile_id = normalize_sui_address(&field_addr(p, "profile_id")?);
     let schema_id = field_str(p, "schema_id")?;
     let new_value = field_u64(p, "new_value")?;
-    let issuer = field_addr(p, "issuer")?;
+    let issuer = normalize_sui_address(&field_addr(p, "issuer")?);
     let checkpoint: i64 = ev
         .checkpoint
         .as_deref()

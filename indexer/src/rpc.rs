@@ -246,3 +246,16 @@ pub fn field_bool(payload: &Value, key: &'static str) -> Result<bool> {
         .and_then(|v| v.as_bool())
         .with_context(|| format!("missing bool field '{key}'"))
 }
+
+/// Normalize a Sui address to a canonical form:
+/// `0x` prefix, lowercase, 64 hex chars (zero-padded).
+/// This ensures consistent matching across indexer inserts,
+/// API queries, and frontend lookups.
+pub fn normalize_sui_address(input: &str) -> String {
+    let stripped = input
+        .trim()
+        .trim_start_matches("0x")
+        .trim_start_matches("0X")
+        .to_ascii_lowercase();
+    format!("0x{:0>64}", stripped)
+}

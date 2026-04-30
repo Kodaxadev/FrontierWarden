@@ -7,6 +7,7 @@ import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { fetchAttestationFeed, fetchSchemas, fetchOracles, issueAttestation } from '../../../../lib/api';
 import type { AttestationFeedRow, SchemaRow, OracleRow } from '../../../../types/api.types';
 import { LiveStatus } from '../LiveStatus';
+import type { Provenance } from '../LiveStatus';
 import { useSchemaActions } from '../../../../hooks/useSchemaActions';
 import { useRevokeAttestation } from '../../../../hooks/useRevokeAttestation';
 
@@ -31,7 +32,11 @@ function shortId(v: string) {
 
 interface IssueResult { digest: string; attestationId: string | null }
 
-export function OracleView() {
+interface OracleViewProps {
+  provenance?: Provenance;
+}
+
+export function OracleView({ provenance }: OracleViewProps = {}) {
   // ── gas-station issue (no wallet needed) ────────────────────────────────────
   const [schemaId, setSchemaId]       = useState<string>(AUTHORIZED_SCHEMAS[0]);
   const [subject, setSubject]         = useState('');
@@ -121,6 +126,7 @@ export function OracleView() {
       <LiveStatus
         loading={false}
         live={true}
+        provenance={provenance}
         liveText={`Oracle · ${shortId(ORACLE_ADDRESS)}`}
         emptyText="Oracle offline"
       />

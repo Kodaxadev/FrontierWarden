@@ -7,6 +7,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 
 use crate::api_common::{ApiError, LimitParams};
+use crate::rpc::normalize_sui_address;
 
 pub fn router() -> Router<PgPool> {
     Router::new()
@@ -132,6 +133,8 @@ async fn profile_by_owner(
     State(pool): State<PgPool>,
     Path(address): Path<String>,
 ) -> Result<Json<Option<ProfileRow>>, ApiError> {
+    let normalized = normalize_sui_address(&address);
+    eprintln!("[api] profile_by_owner — raw: {} normalized: {}", address, normalized);
     let row = sqlx::query_as::<_, ProfileRow>(
         "SELECT profile_id, owner, created_tx, created_at::TEXT AS created_at
          FROM profiles
@@ -139,10 +142,10 @@ async fn profile_by_owner(
          ORDER BY created_at DESC
          LIMIT 1",
     )
-    .bind(&address)
+    .bind(&normalized)
     .fetch_optional(&pool)
     .await?;
-
+    eprintln!("[api] profile_by_owner — result: {:?}", row.as_ref().map(|r| &r.profile_id));
     Ok(Json(row))
 }
 
@@ -152,6 +155,7 @@ async fn vouches_by_column(
     address: &str,
     requested_limit: Option<i64>,
 ) -> Result<Json<Vec<VouchRow>>, ApiError> {
+    let normalized = normalize_sui_address(address);
     let limit = requested_limit.unwrap_or(50).min(200);
     let sql = format!(
         "SELECT vouch_id, voucher, vouchee, stake_amount, created_tx,
@@ -163,7 +167,7 @@ async fn vouches_by_column(
          LIMIT $2"
     );
     let rows = sqlx::query_as::<_, VouchRow>(&sql)
-        .bind(address)
+        .bind(&normalized)
         .bind(limit)
         .fetch_all(&pool)
         .await?;

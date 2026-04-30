@@ -91,7 +91,7 @@ CREATE TABLE profiles (
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_profiles_owner ON profiles (owner);
+CREATE UNIQUE INDEX idx_profiles_owner ON profiles (owner);
 
 -- =============================================================================
 -- 5. score_cache — current ScoreUpdated state per (profile, schema)

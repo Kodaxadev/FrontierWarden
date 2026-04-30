@@ -3,6 +3,7 @@ import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { fetchChallenges, fetchChallengeStats } from '../../../../lib/api';
 import type { FraudChallengeRow, ChallengeStatsRow } from '../../../../types/api.types';
 import { LiveStatus } from '../LiveStatus';
+import type { Provenance } from '../LiveStatus';
 import { useDisputeActions } from '../../../../hooks/useDisputeActions';
 
 const DEFAULT_ORACLE =
@@ -23,7 +24,11 @@ function formatMist(value: number | null): string {
   return `${value.toLocaleString()} MIST`;
 }
 
-export function DisputesView() {
+interface DisputesViewProps {
+  provenance?: Provenance;
+}
+
+export function DisputesView({ provenance }: DisputesViewProps = {}) {
   const { account, createChallenge, reset, resolveChallenge, state, voteChallenge } = useDisputeActions();
   const [rows, setRows] = useState<FraudChallengeRow[]>([]);
   const [stats, setStats] = useState<ChallengeStatsRow | null>(null);
@@ -74,6 +79,7 @@ export function DisputesView() {
         loading={loading}
         live={rows.length > 0}
         error={loadError}
+        provenance={provenance}
         liveText={`${activeCount} active challenges`}
         emptyText="No fraud challenges indexed"
       />
