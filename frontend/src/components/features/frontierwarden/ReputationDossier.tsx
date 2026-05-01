@@ -9,7 +9,7 @@ const COMPONENTS = [
   { k: 'Vouch Weight',      v: 412,  max: 500, c: 'var(--standing-ally)',  n: '14 sources' },
   { k: 'Kill Verification', v: 198,  max: 250, c: 'var(--sui-cyan)',        n: '47 attests / 30d' },
   { k: 'Contract History',  v: 142,  max: 200, c: 'var(--alloy-silver)',    n: '22 closed' },
-  { k: 'Stake on Behavior', v: 95,   max: 100, c: 'var(--alloy-gold)',      n: '2.4M ISK locked' },
+  { k: 'Stake on Behavior', v: 95,   max: 100, c: 'var(--alloy-gold)',      n: '2.4M LUX locked' },
   { k: 'Pirate-Idx Penalty',v: -12,  max: -50, c: 'var(--tribe-crimson)',   n: '3 contested' },
 ];
 
@@ -61,7 +61,7 @@ export function ReputationDossier({ data }: ReputationDossierProps = {}) {
           </div>
           <div className="fw-mono" style={{ fontSize: 10, color: 'var(--t-secondary)', marginTop: 6 }}>
             tier <span style={{ color: 'var(--alloy-gold)' }}>WARDEN III</span>
-            {' · '}loan cap <span style={{ color: 'var(--t-primary)' }}>12,400 ISK</span>
+            {' · '}loan cap <span style={{ color: 'var(--t-primary)' }}>12,400 LUX</span>
           </div>
 
           {/* Tier ladder */}

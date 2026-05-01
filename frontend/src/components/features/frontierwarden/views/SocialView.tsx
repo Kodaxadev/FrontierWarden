@@ -1,8 +1,8 @@
 // SocialView — operator workflows for profiles, vouches, loans, and oracle registration.
 import { useCallback, useEffect, useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
-import { fetchVouches, fetchGivenVouches, fetchProfileByOwner, fetchOracles } from '../../../../lib/api';
-import type { VouchRow, ProfileRow, OracleRow } from '../../../../types/api.types';
+import { fetchVouches, fetchGivenVouches, fetchProfileByOwner, fetchOracles, fetchEveIdentity } from '../../../../lib/api';
+import type { VouchRow, ProfileRow, OracleRow, EveIdentity } from '../../../../types/api.types';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
 import { normalizeSuiAddress } from '../../../../lib/format';
@@ -64,6 +64,19 @@ export function SocialView({ provenance }: SocialViewProps = {}) {
   // ── profile lookup (for post-create_profile UX) ─────────────────────────────
   const [myProfile,     setMyProfile]     = useState<ProfileRow | null>(null);
   const [profileLookup, setProfileLookup] = useState(false);
+
+  // ── EVE identity ────────────────────────────────────────────────────────────
+  const [eveIdentity, setEveIdentity] = useState<EveIdentity | null>(null);
+  const [eveIdentityLoading, setEveIdentityLoading] = useState(false);
+
+  useEffect(() => {
+    if (!account) { setEveIdentity(null); return; }
+    setEveIdentityLoading(true);
+    fetchEveIdentity(account.address)
+      .then((id) => setEveIdentity(id))
+      .catch(() => setEveIdentity(null))
+      .finally(() => setEveIdentityLoading(false));
+  }, [account]);
 
   const lookupProfile = useCallback(async () => {
     if (!account) return;
@@ -152,6 +165,49 @@ export function SocialView({ provenance }: SocialViewProps = {}) {
     <>
       <div className="c-view__title">Social &amp; Protocol Actions</div>
       <LiveStatus loading={false} live={!!account} provenance={provenance} liveText={account ? `Wallet ${shortId(account.address)}` : 'No wallet connected'} emptyText="Connect a wallet to sign transactions" />
+
+      {/* ── EVE Identity Status ───────────────────────────────────────────── */}
+      {account && (
+        <div style={{ maxWidth: 760, marginBottom: 24, padding: '12px 16px', border: '1px solid var(--c-border)', background: 'rgba(0,210,255,0.012)' }}>
+          <div className="c-stat__label" style={{ marginBottom: 8 }}>EVE Identity</div>
+          {eveIdentityLoading && <div className="c-sub">Resolving EVE identity…</div>}
+          {!eveIdentityLoading && eveIdentity && (
+            <>
+              {eveIdentity.identity_status === 'resolved' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, fontSize: 11 }}>
+                  {eveIdentity.character_name && (
+                    <div><div className="c-policy__label">EVE Character</div><div style={{ fontFamily: 'monospace', color: 'var(--c-hi)' }}>{eveIdentity.character_name}</div></div>
+                  )}
+                  <div><div className="c-policy__label">Character ID</div><div style={{ fontFamily: 'monospace', color: 'var(--c-hi)' }}>{eveIdentity.character_id ? shortId(eveIdentity.character_id) : '—'}</div></div>
+                  <div><div className="c-policy__label">Tribe</div><div style={{ fontFamily: 'monospace', color: 'var(--c-hi)' }}>{eveIdentity.tribe_name ? `${eveIdentity.tribe_name} (${eveIdentity.tribe_id})` : eveIdentity.tribe_id ?? '—'}</div></div>
+                  {eveIdentity.tenant && (
+                    <div><div className="c-policy__label">Tenant</div><div style={{ fontFamily: 'monospace', color: 'var(--c-hi)' }}>{eveIdentity.tenant}</div></div>
+                  )}
+                  <div><div className="c-policy__label">PlayerProfile</div><div style={{ fontFamily: 'monospace', color: 'var(--c-hi)' }}>{shortId(eveIdentity.player_profile_object ?? '—')}</div></div>
+                  {eveIdentity.frontierwarden_profile_id && (
+                    <div><div className="c-policy__label">FrontierWarden Profile</div><div style={{ fontFamily: 'monospace', color: 'var(--c-green)' }}>{shortId(eveIdentity.frontierwarden_profile_id)}</div></div>
+                  )}
+                </div>
+              )}
+              {eveIdentity.identity_status === 'not_found' && (
+                <div className="c-sub" style={{ color: 'var(--c-amber)' }}>EVE identity not resolved yet — no PlayerProfile found for this wallet.</div>
+              )}
+              {eveIdentity.identity_status === 'package_unknown' && (
+                <div className="c-sub" style={{ color: 'var(--c-mid)' }}>EVE identity lookup not configured for this environment.</div>
+              )}
+              {eveIdentity.identity_status === 'graphql_error' && (
+                <div className="c-sub" style={{ color: 'var(--c-crimson)' }}>EVE identity lookup failed; showing wallet profile only.</div>
+              )}
+              {eveIdentity.identity_status === 'unresolved' && eveIdentity.frontierwarden_profile_id && (
+                <div style={{ fontSize: 11 }}>
+                  <div className="c-policy__label">FrontierWarden Profile</div>
+                  <div style={{ fontFamily: 'monospace', color: 'var(--c-green)' }}>{shortId(eveIdentity.frontierwarden_profile_id)}</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── Profile ─────────────────────────────────────────────────────────── */}
       <div style={{ maxWidth: 760, marginBottom: 24, padding: '16px 20px', border: '1px solid var(--c-border)', background: 'rgba(0,210,255,0.018)' }}>

@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
-import { evaluateTrust } from '../../../../lib/api';
+import { useEffect, useMemo, useState } from 'react';
+import { evaluateTrust, fetchEveIdentity } from '../../../../lib/api';
 import type { FwData } from '../fw-data';
 import type { TrustEvaluateResponse, TrustAction } from '@frontierwarden/trustkit';
+import type { EveIdentity } from '../../../../types/api.types';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
+import { useProfileCreate } from '../../../../hooks/useProfileCreate';
 
 const DEFAULT_SUBJECT = '0x9cc038e5f0045dbf75ce191870fd7c483020d12bc23f3ebaef7a6f4f22d820e1';
 const DEFAULT_GATE = '0xb63c9939e28db885392e68537336f85453392ac07d4590c029d1f65938733e36';
@@ -104,9 +106,10 @@ interface Props {
 }
 
 export function TrustConsoleView({ data, live = false, loading = false, error = null }: Props) {
+  const { account } = useProfileCreate();
   const firstGate = data?.policy?.gateId ?? data?.gates[0]?.sourceId ?? DEFAULT_GATE;
   const [action, setAction] = useState<TrustAction>('gate_access');
-  const [subject, setSubject] = useState(DEFAULT_SUBJECT);
+  const [subject, setSubject] = useState(() => account?.address ?? DEFAULT_SUBJECT);
   const [gateId, setGateId] = useState(firstGate);
   const [schemaId, setSchemaId] = useState('TRIBE_STANDING');
   const [minimumScore, setMinimumScore] = useState(500);
@@ -114,6 +117,19 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
   const [busy, setBusy] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [eveIdentity, setEveIdentity] = useState<EveIdentity | null>(null);
+  const [eveIdentityLoading, setEveIdentityLoading] = useState(false);
+
+  // Resolve EVE identity for the subject address
+  useEffect(() => {
+    const addr = subject.trim();
+    if (!addr || addr.length < 64) { setEveIdentity(null); setEveIdentityLoading(false); return; }
+    setEveIdentityLoading(true);
+    fetchEveIdentity(addr)
+      .then(setEveIdentity)
+      .catch(() => setEveIdentity(null))
+      .finally(() => setEveIdentityLoading(false));
+  }, [subject]);
 
   const proofRows = useMemo(() => {
     if (!result) return [];
@@ -185,6 +201,22 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
         liveText="Trust API connected"
         emptyText="Trust API unavailable"
       />
+
+      {/* EVE Identity Strip */}
+      {(eveIdentityLoading || eveIdentity?.identity_status === 'resolved') && (
+        <div style={{ marginBottom: 24, padding: '14px 18px', border: '1px solid rgba(0,210,255,0.3)', background: 'rgba(0,210,255,0.08)', borderRadius: 4, fontSize: 12 }}>
+          <div className="c-stat__label" style={{ marginBottom: 8, color: 'var(--c-hi)' }}>EVE Identity</div>
+          {eveIdentityLoading && <div className="c-sub">Resolving…</div>}
+          {!eveIdentityLoading && eveIdentity && (
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontFamily: 'monospace' }}>
+              {eveIdentity.character_name && <span><span className="c-policy__label">Character:</span> <strong style={{ color: 'var(--c-hi)' }}>{eveIdentity.character_name}</strong></span>}
+              {eveIdentity.tenant && <span><span className="c-policy__label">Tenant:</span> <span style={{ color: 'var(--c-hi)' }}>{eveIdentity.tenant}</span></span>}
+              {eveIdentity.tribe_id && <span><span className="c-policy__label">Tribe:</span> <span style={{ color: 'var(--c-hi)' }}>{eveIdentity.tribe_name ? `${eveIdentity.tribe_name} (${eveIdentity.tribe_id})` : eveIdentity.tribe_id}</span></span>}
+              {eveIdentity.character_id && <span><span className="c-policy__label">Char ID:</span> <span style={{ color: 'var(--c-hi)' }}>{shortId(eveIdentity.character_id)}</span></span>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Presets */}
       <div style={{ marginBottom: 24 }}>
@@ -334,6 +366,30 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
               <div style={{ color: 'var(--c-hi)', fontSize: 12, lineHeight: 1.7, marginBottom: 24, padding: '12px 16px', border: '1px solid var(--c-border)', background: 'rgba(8,13,20,0.5)' }}>
                 {result.explanation}
               </div>
+
+              {/* EVE Character Identity */}
+              {eveIdentity?.identity_status === 'resolved' && (
+                <div style={{ marginBottom: 24, padding: '14px 18px', border: '1px solid rgba(0,210,255,0.25)', background: 'rgba(0,210,255,0.06)', borderRadius: 4 }}>
+                  <div style={{ marginBottom: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--c-hi)' }}>EVE Character Identity</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, fontFamily: 'monospace', fontSize: 12 }}>
+                    {eveIdentity.character_name && (
+                      <div><span className="c-policy__label">Character:</span> <strong style={{ color: 'var(--c-hi)' }}>{eveIdentity.character_name}</strong></div>
+                    )}
+                    {eveIdentity.tenant && (
+                      <div><span className="c-policy__label">Tenant:</span> <span style={{ color: 'var(--c-hi)' }}>{eveIdentity.tenant}</span></div>
+                    )}
+                    {eveIdentity.tribe_id && (
+                      <div><span className="c-policy__label">Tribe:</span> <span style={{ color: 'var(--c-hi)' }}>{eveIdentity.tribe_name ? `${eveIdentity.tribe_name} (${eveIdentity.tribe_id})` : eveIdentity.tribe_id}</span></div>
+                    )}
+                    {eveIdentity.character_id && (
+                      <div><span className="c-policy__label">Char ID:</span> <span style={{ color: 'var(--c-hi)' }}>{shortId(eveIdentity.character_id)}</span></div>
+                    )}
+                    {eveIdentity.item_id && (
+                      <div><span className="c-policy__label">Item ID:</span> <span style={{ color: 'var(--c-hi)' }}>{eveIdentity.item_id}</span></div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Score / Threshold */}
               <div style={{

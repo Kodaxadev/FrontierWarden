@@ -4,9 +4,10 @@
 export interface FwPilot {
   name: string; handle: string; syndicate: string; syndicateTag: string;
   tribe: string; sec: number; standing: string;
-  score: number; scoreDelta: number; walletIsk: number; timestamp: string; sessionLat: number;
+  score: number; scoreDelta: number; walletLux: number; timestamp: string; sessionLat: number;
   sourceId?: string;
   checkpoint?: number | null;
+  characterName?: string | null;
 }
 
 export interface FwSystem {
@@ -33,7 +34,7 @@ export interface FwPolicy {
 
 export interface FwKill {
   id: string; t: string; victim: string; ship: string;
-  system: string; isk: number; attackers: number;
+  system: string; lux: number; attackers: number;
   hash: string; verified: boolean; friendly?: boolean;
   issuer?: string;
 }
@@ -73,7 +74,7 @@ export const FW_DATA: FwData = {
     name: 'Vex Korith', handle: 'PILOT#0041',
     syndicate: 'Obsidian Veil', syndicateTag: 'OBVL',
     tribe: 'Iron Resonance Compact', sec: 0.42, standing: 'BLUE',
-    score: 847, scoreDelta: 14, timestamp: '2026-04-27T07:32:14Z', walletIsk: 4_128_700_000, sessionLat: 38,
+    score: 847, scoreDelta: 14, timestamp: '2026-04-27T07:32:14Z', walletLux: 0, sessionLat: 38,
   },
   systems: [
     { id: 'SYS#A0-7714', name: 'Pochven Halo III', heat: 'high', kills24: 47, gates: 6, sov: 'Iron Resonance' },
@@ -90,11 +91,11 @@ export const FW_DATA: FwData = {
     { id: 'GATE#7741', from: 'Karuun Verge',  to: 'Black Lattice', status: 'closed', toll: '—',    traffic: 0,   policy: 'LOCKDOWN',  updated: '2026-04-27T07:14:00Z' },
   ],
   kills: [
-    { id: 'KILL#88412', t: '2026-04-27T07:31:48Z', victim: 'M. Drev (Crimson Vanguard)', ship: 'Heron · T2',      system: 'Pochven Halo III', isk: 412_000_000, attackers: 6, hash: '0x9af2c1…44e8', verified: true },
-    { id: 'KILL#88411', t: '2026-04-27T07:29:14Z', victim: 'B. Thalo (Solo)',            ship: 'Stabber · Faction',system: 'Karuun Verge',     isk: 178_400_000, attackers: 1, hash: '0x71b801…0a22', verified: true },
-    { id: 'KILL#88408', t: '2026-04-27T07:21:02Z', victim: 'I. Sorn (Iron Resonance)',   ship: 'Capsule',          system: 'Mire Anomaly',     isk: 14_200_000,  attackers: 3, hash: '0x4e90a2…b7f1', verified: true,  friendly: true },
-    { id: 'KILL#88401', t: '2026-04-27T07:14:33Z', victim: 'V. Kaine (Obsidian Veil)',   ship: 'Sabre · T2',       system: 'Pochven Halo III', isk: 287_100_000, attackers: 4, hash: '0x2f10c7…e201', verified: false },
-    { id: 'KILL#88393', t: '2026-04-27T07:08:11Z', victim: 'R. Dax (Free Pilot)',        ship: 'Venture',          system: 'Thelas Reach',     isk: 3_400_000,   attackers: 1, hash: '0xc8ae12…9930', verified: true },
+    { id: 'KILL#88412', t: '2026-04-27T07:31:48Z', victim: 'M. Drev (Crimson Vanguard)', ship: 'Heron · T2',      system: 'Pochven Halo III', lux: 412_000_000, attackers: 6, hash: '0x9af2c1…44e8', verified: true },
+    { id: 'KILL#88411', t: '2026-04-27T07:29:14Z', victim: 'B. Thalo (Solo)',            ship: 'Stabber · Faction',system: 'Karuun Verge',     lux: 178_400_000, attackers: 1, hash: '0x71b801…0a22', verified: true },
+    { id: 'KILL#88408', t: '2026-04-27T07:21:02Z', victim: 'I. Sorn (Iron Resonance)',   ship: 'Capsule',          system: 'Mire Anomaly',     lux: 14_200_000,  attackers: 3, hash: '0x4e90a2…b7f1', verified: true,  friendly: true },
+    { id: 'KILL#88401', t: '2026-04-27T07:14:33Z', victim: 'V. Kaine (Obsidian Veil)',   ship: 'Sabre · T2',       system: 'Pochven Halo III', lux: 287_100_000, attackers: 4, hash: '0x2f10c7…e201', verified: false },
+    { id: 'KILL#88393', t: '2026-04-27T07:08:11Z', victim: 'R. Dax (Free Pilot)',        ship: 'Venture',          system: 'Thelas Reach',     lux: 3_400_000,   attackers: 1, hash: '0xc8ae12…9930', verified: true },
   ],
   contracts: [
     { id: 'CONTRACT#0019', kind: 'BOUNTY',    target: 'M. Drev',    bounty: '127.0M', age: '00:14:22', priority: 'HIGH', state: 'OPEN' },

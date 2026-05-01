@@ -3,6 +3,23 @@ name    = "efrep-indexer"
 version = "0.1.0"
 edition = "2021"
 description = "Event indexer for the EVE Frontier Reputation Protocol on Sui testnet"
+default-run = "efrep-indexer"
+
+[[bin]]
+name = "efrep-indexer"
+path = "src/main.rs"
+
+[[bin]]
+name = "sync_eve_world"
+path = "src/bin/sync_eve_world.rs"
+
+[[bin]]
+name = "run_migration"
+path = "src/bin/run_migration.rs"
+
+[lib]
+name = "efrep_indexer"
+path = "src/lib.rs"
 
 [dependencies]
 # Sui RPC via JSON-RPC over HTTP — no git dep, fast compile, stable API
@@ -35,6 +52,7 @@ blake2 = "0.10"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 hex = "0.4"
 rand = "0.8"
+chrono = "0.4"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

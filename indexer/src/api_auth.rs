@@ -124,6 +124,7 @@ mod tests {
             None,
             crate::api_sessions::SessionState::new(),
             crate::api_trust::TrustConfig::default(),
+            None,
         );
         let response = app
             .oneshot(
@@ -149,6 +150,7 @@ mod tests {
             None,
             crate::api_sessions::SessionState::new(),
             crate::api_trust::TrustConfig::default(),
+            None,
         );
         let response = app
             .oneshot(

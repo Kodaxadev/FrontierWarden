@@ -19,7 +19,7 @@ function latestCheckpoint(data: FwData): number | null {
 export function FwHeader({ data }: FwHeaderProps) {
   const { pilot, alerts } = data;
   const crits = alerts.filter(a => a.lvl === 'CRIT').length;
-  const iskM   = (pilot.walletIsk / 1_000_000).toFixed(1);
+  const luxM   = (pilot.walletLux / 1_000_000).toFixed(1);
   const checkpoint = latestCheckpoint(data);
 
   return (
@@ -38,7 +38,7 @@ export function FwHeader({ data }: FwHeaderProps) {
       <span className="c-header__spacer" />
 
       <span className="c-header__pilot">
-        {pilot.name}
+        {pilot.characterName ?? pilot.name}
         <span style={{ color: 'var(--c-mid)', marginLeft: 8 }}>
           {pilot.syndicateTag}
         </span>
@@ -48,7 +48,7 @@ export function FwHeader({ data }: FwHeaderProps) {
       <span className="c-header__delta">+{pilot.scoreDelta}</span>
 
       <span className="c-header__wallet">
-        <strong>{iskM}M</strong> ISK
+        <strong>{luxM}M</strong> LUX
       </span>
 
       {crits > 0 && (

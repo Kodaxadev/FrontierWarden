@@ -19,3 +19,33 @@ max_connections = 20
 [indexer]
 batch_size = 50
 poll_interval_ms = 2000
+
+# ── EVE Frontier Integration ──────────────────────────────────────────────────
+# Stillness is the primary environment for the current demo.
+# Utopia remains available as a sandbox environment.
+# Both Stillness and Utopia currently use Sui testnet GraphQL for identity lookup.
+# IMPORTANT: Do not use Utopia PlayerProfile type for Stillness identities —
+# the package IDs and type strings are different between environments.
+
+[eve]
+enabled = true
+world_api_base = "https://world-api-stillness.live.tech.evefrontier.com"
+graphql_url = "https://graphql.testnet.sui.io/graphql"
+world_package_id = "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c"
+player_profile_type = "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c::character::PlayerProfile"
+
+# ── Utopia sandbox preset (commented) ─────────────────────────────────────────
+# To switch to Utopia, replace the [eve] section above with:
+#
+# [eve]
+# enabled = true
+# world_api_base = "https://world-api-utopia.uat.pub.evefrontier.com"
+# graphql_url = "https://graphql.testnet.sui.io/graphql"
+# world_package_id = "0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75"
+# player_profile_type = "0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75::character::PlayerProfile"
+#
+# Environment variable overrides (optional):
+#   EFREP_EVE_WORLD_API_BASE
+#   EFREP_EVE_GRAPHQL_URL
+#   EFREP_EVE_WORLD_PACKAGE_ID
+#   EFREP_EVE_PLAYER_PROFILE_TYPE

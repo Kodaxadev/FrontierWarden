@@ -2,9 +2,10 @@
 // Static design data remains the empty-indexer fallback.
 
 import { useCallback, useEffect, useState } from 'react';
-import { fetchAttestationFeed, fetchAttestations, fetchChallenges, fetchGatePolicy, fetchGates, fetchLeaderboard, fetchScores, fetchVouches } from '../lib/api';
+import { useCurrentAccount } from '@mysten/dapp-kit-react';
+import { fetchAttestationFeed, fetchAttestations, fetchChallenges, fetchEveIdentity, fetchGatePolicy, fetchGates, fetchLeaderboard, fetchScores, fetchVouches } from '../lib/api';
 import { networkTitle, SUI_NETWORK_LABEL } from '../lib/network';
-import type { AttestationFeedRow, AttestationRow, FraudChallengeRow, GatePolicyRow, GateSummaryRow, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
+import type { AttestationFeedRow, AttestationRow, EveIdentity, FraudChallengeRow, GatePolicyRow, GateSummaryRow, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
 import { FW_DATA } from '../components/features/frontierwarden/fw-data';
 import type { FwAlert, FwContract, FwData, FwGate, FwKill, FwPilot, FwPolicy, FwProof, FwVouch } from '../components/features/frontierwarden/fw-data';
 import type { Provenance } from '../components/features/frontierwarden/LiveStatus';
@@ -112,23 +113,32 @@ function liveScore(scores: ScoreRow[], fallback: LeaderboardEntry): ScoreRow | n
     };
 }
 
-function mapPilot(entry: LeaderboardEntry, scores: ScoreRow[]): FwPilot {
+function mapPilot(entry: LeaderboardEntry, scores: ScoreRow[], eveIdentity?: EveIdentity | null): FwPilot {
   const primary = liveScore(scores, entry);
   const checkpoint = primary?.last_checkpoint ?? null;
 
+  const characterName = eveIdentity?.character_name ?? null;
+  const tribeDisplay = eveIdentity?.tribe_name
+    ? `${eveIdentity.tribe_name} (${eveIdentity.tribe_id})`
+    : eveIdentity?.tribe_id
+      ? eveIdentity.tribe_id
+      : `Issuer ${shortId(primary?.issuer ?? entry.issuer)}`;
+
   return {
     ...FW_DATA.pilot,
-    name: `Live Profile ${shortId(entry.profile_id)}`,
+    name: characterName ?? `Live Profile ${shortId(entry.profile_id)}`,
     handle: shortId(entry.profile_id),
     syndicate: `${networkTitle(SUI_NETWORK_LABEL.toLowerCase())} indexed profile`,
     syndicateTag: primary?.schema_id ?? 'LIVE',
-    tribe: `Issuer ${shortId(primary?.issuer ?? entry.issuer)}`,
+    tribe: tribeDisplay,
     standing: primary?.schema_id ?? 'INDEXED',
     score: primary?.value ?? entry.value,
     scoreDelta: 0,
+    walletLux: 0,
     timestamp: checkpoint ? `checkpoint ${checkpoint}` : FW_DATA.pilot.timestamp,
     sourceId: entry.profile_id,
     checkpoint,
+    characterName,
   };
 }
 
@@ -161,7 +171,7 @@ function mapKills(rows: AttestationFeedRow[]): FwKill[] {
     victim: shortId(row.subject),
     ship: 'SHIP_KILL attestation',
     system: `${networkTitle(SUI_NETWORK_LABEL.toLowerCase())} indexed`,
-    isk: Math.max(0, row.value),
+    lux: Math.max(0, row.value),
     attackers: 1,
     hash: row.issued_tx,
     verified: !row.revoked,
@@ -218,6 +228,7 @@ function mergeLiveData(
   shipKills: AttestationFeedRow[],
   policy: GatePolicyRow | null,
   contracts: AttestationFeedRow[],
+  eveIdentity: EveIdentity | null,
   demoEnabled: boolean,
 ): { data: FwData; provenance: Record<string, Provenance> } {
   const liveGates = gates.map(mapGate);
@@ -237,7 +248,7 @@ function mergeLiveData(
   return {
     data: {
       ...FW_DATA,
-      pilot: profile ? mapPilot(profile, scores) : (demoEnabled ? FW_DATA.pilot : { ...FW_DATA.pilot, score: 0, scoreDelta: 0, timestamp: 'no profile', sourceId: undefined, checkpoint: null }),
+      pilot: profile ? mapPilot(profile, scores, eveIdentity) : (demoEnabled ? FW_DATA.pilot : { ...FW_DATA.pilot, score: 0, scoreDelta: 0, timestamp: 'no profile', sourceId: undefined, checkpoint: null }),
       policy: livePolicy ?? (demoEnabled ? FW_DATA.policy : undefined),
       gates: liveGates.length > 0 ? liveGates : (demoEnabled ? FW_DATA.gates : []),
       kills: liveKills.length > 0 ? liveKills : (demoEnabled ? FW_DATA.kills : []),
@@ -258,6 +269,7 @@ function mergeLiveData(
 
 export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}): FrontierWardenDataState {
   const { demoEnabled = true } = options;
+  const account = useCurrentAccount();
   const [data, setData] = useState<FwData>(FW_DATA);
   const [live, setLive] = useState(false);
   const [reputationLive, setReputationLive] = useState(false);
@@ -267,6 +279,8 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
   const [provenance, setProvenance] = useState<Record<string, Provenance>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [eveIdentity, setEveIdentity] = useState<EveIdentity | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -289,7 +303,13 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
         : [[], [], []] as [ScoreRow[], VouchRow[], AttestationRow[]];
       const policy = firstGateId ? await fetchGatePolicy(firstGateId) : null;
 
-      const result = mergeLiveData(gates, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts, demoEnabled);
+      // Fetch EVE identity for the connected wallet
+      const identity = account?.address
+        ? await fetchEveIdentity(account.address).catch(() => null)
+        : null;
+      setEveIdentity(identity);
+
+      const result = mergeLiveData(gates, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts, identity, demoEnabled);
       setData(result.data);
       setProvenance(result.provenance);
       setLive(gates.length > 0 || challenges.length > 0 || profile != null || shipKills.length > 0 || policy != null || bountyContracts.length > 0);
@@ -316,7 +336,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
     } finally {
       setLoading(false);
     }
-  }, [demoEnabled]);
+  }, [demoEnabled, account]);
 
   useEffect(() => {
     refresh();

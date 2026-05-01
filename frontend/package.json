@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "2": "^3.0.0",
     "@evefrontier/dapp-kit": "^0.1.9",
     "@frontierwarden/trustkit": "file:../sdk/trustkit",
     "@tanstack/react-query": "^5.0.0",

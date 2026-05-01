@@ -3,6 +3,7 @@ mod api_attestations;
 mod api_auth;
 mod api_challenges;
 mod api_common;
+mod api_eve;
 mod api_gate_ops;
 mod api_gates;
 mod api_rate_limit;
@@ -16,6 +17,7 @@ mod api_trust;
 use api_trust::TrustConfig;
 mod config;
 mod db;
+mod eve_identity;
 mod ingester;
 mod processor;
 mod rpc;
@@ -26,6 +28,7 @@ mod trust_evaluator;
 mod trust_evaluator_tests;
 mod trust_freshness;
 mod trust_types;
+mod world_api;
 
 use anyhow::Result;
 use tracing_subscriber::{fmt, EnvFilter};
@@ -62,7 +65,7 @@ async fn main() -> Result<()> {
         default_gate_schema: cfg.trust.default_gate_schema.clone(),
         default_counterparty_schema: cfg.trust.default_counterparty_schema.clone(),
     };
-    let app = api::router(pool.clone(), trust_cfg);
+    let app = api::router(pool.clone(), trust_cfg, cfg.eve.clone());
     tokio::spawn(async move {
         axum::serve(listener, app)
             .await

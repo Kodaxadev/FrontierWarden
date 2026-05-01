@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { FwPanel, ClsHeader, FwGateGlyph } from './fw-atoms';
+import { EveWorldStatusStrip } from './EveWorldStatusStrip';
 import type { FwData, FwGate } from './fw-data';
 
 function gateStatusColor(status: FwGate['status']): string {
@@ -152,6 +153,7 @@ export function GateIntel({ data }: GateIntelProps) {
         {data.gates.map((g, i) => (
           <GateRow key={g.id} gate={g} index={i} />
         ))}
+        <EveWorldStatusStrip />
       </div>
     </FwPanel>
   );

@@ -23,7 +23,7 @@ export const FALLBACK_POLICIES = [
     pct: 0.28,
     min: 'Free  (Ally)',
     max: '10x  (Enemy)',
-    note: 'Neutral pass at 2.0x base - approx 14M ISK / transit',
+    note: 'Neutral pass at 2.0x base - approx 14M LUX / transit',
     unit: '2.0x',
   },
 ];

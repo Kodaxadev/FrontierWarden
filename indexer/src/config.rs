@@ -9,6 +9,7 @@ pub struct Config {
     pub database: DatabaseConfig,
     pub indexer: IndexerConfig,
     pub trust: TrustConfig,
+    pub eve: Option<EveConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -52,6 +53,15 @@ impl Default for TrustConfig {
     }
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct EveConfig {
+    pub enabled: bool,
+    pub world_api_base: String,
+    pub graphql_url: String,
+    pub world_package_id: String,
+    pub player_profile_type: String,
+}
+
 impl Config {
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let text = std::fs::read_to_string(path.as_ref())
@@ -64,6 +74,21 @@ impl Config {
         }
         if let Ok(s) = std::env::var("EFREP_TRUST_COUNTERPARTY_SCHEMA") {
             cfg.trust.default_counterparty_schema = s;
+        }
+        // Env var overrides for EVE config
+        if let Some(eve) = &mut cfg.eve {
+            if let Ok(s) = std::env::var("EFREP_EVE_WORLD_API_BASE") {
+                eve.world_api_base = s;
+            }
+            if let Ok(s) = std::env::var("EFREP_EVE_GRAPHQL_URL") {
+                eve.graphql_url = s;
+            }
+            if let Ok(s) = std::env::var("EFREP_EVE_WORLD_PACKAGE_ID") {
+                eve.world_package_id = s;
+            }
+            if let Ok(s) = std::env::var("EFREP_EVE_PLAYER_PROFILE_TYPE") {
+                eve.player_profile_type = s;
+            }
         }
         Ok(cfg)
     }

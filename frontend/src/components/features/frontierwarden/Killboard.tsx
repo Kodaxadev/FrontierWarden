@@ -1,5 +1,5 @@
 // Killboard — Center column · middle panel.
-// Kill table with attestation hashes, ISK lost, verify status.
+// Kill table with attestation hashes, LUX lost, verify status.
 // First row shows hover tooltip (baked hi-fi state).
 
 import { useState } from 'react';
@@ -12,7 +12,7 @@ const COL_HEADERS = [
   { label: 'Time (Z)',    align: 'left' as const },
   { label: 'Victim · Ship', align: 'left' as const },
   { label: 'System',     align: 'left' as const },
-  { label: 'ISK Lost',   align: 'right' as const },
+  { label: 'LUX Lost',   align: 'right' as const },
   { label: 'Attestation',align: 'right' as const },
   { label: 'Verify',     align: 'right' as const },
 ];
@@ -22,8 +22,8 @@ interface KillRowProps { kill: FwKill; }
 function KillRow({ kill }: KillRowProps) {
   const [hovered, setHovered] = useState(false);
   const active = hovered;
-  const iskM = (kill.isk / 1_000_000).toFixed(1);
-  const highIsk = kill.isk > 200_000_000;
+  const luxM = (kill.lux / 1_000_000).toFixed(1);
+  const highLux = kill.lux > 200_000_000;
   const time = kill.t.split('T')[1].replace('Z', '');
 
   return (
@@ -58,10 +58,10 @@ function KillRow({ kill }: KillRowProps) {
 
       <span className="fw-mono" style={{
         fontSize: 12, textAlign: 'right',
-        color: highIsk ? 'var(--frontier-amber)' : 'var(--t-primary)',
-        textShadow: highIsk ? '0 0 8px var(--frontier-amber-glow)' : 'none',
+        color: highLux ? 'var(--frontier-amber)' : 'var(--t-primary)',
+        textShadow: highLux ? '0 0 8px var(--frontier-amber-glow)' : 'none',
       }}>
-        {iskM}<span style={{ color: 'var(--t-muted)' }}>M</span>
+        {luxM}<span style={{ color: 'var(--t-muted)' }}>M</span>
       </span>
 
       <span className="fw-mono" style={{
@@ -100,7 +100,7 @@ function KillRow({ kill }: KillRowProps) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
             <StatC k="Final blow" v="K. Renn" sub="OBVL · ENT#0014" />
-            <StatC k="ISK efficiency" v="98.2%" sub="vs hostile loss" color="var(--status-clear)" />
+            <StatC k="LUX efficiency" v="98.2%" sub="vs hostile loss" color="var(--status-clear)" />
           </div>
           <div className="fw-mono" style={{ fontSize: 10, color: 'var(--t-secondary)', marginTop: 8, lineHeight: 1.5 }}>
             Witnesses: <span style={{ color: 'var(--standing-ally)' }}>3 ally</span>, 1 neutral · σ 0.04<br />

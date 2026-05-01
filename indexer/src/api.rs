@@ -4,10 +4,11 @@ use sqlx::PgPool;
 use std::time::Instant;
 
 use crate::api_trust::TrustConfig;
+use crate::config::EveConfig;
 
 static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 
-pub fn router(pool: PgPool, trust_cfg: TrustConfig) -> Router {
+pub fn router(pool: PgPool, trust_cfg: TrustConfig, eve_cfg: Option<EveConfig>) -> Router {
     let sessions = crate::api_sessions::SessionState::new();
     router_with_security(
         pool,
@@ -15,6 +16,7 @@ pub fn router(pool: PgPool, trust_cfg: TrustConfig) -> Router {
         crate::api_rate_limit::RateLimitState::from_env(),
         sessions,
         trust_cfg,
+        eve_cfg,
     )
 }
 
@@ -24,12 +26,14 @@ pub(crate) fn router_with_security(
     rate_limit: Option<crate::api_rate_limit::RateLimitState>,
     sessions: crate::api_sessions::SessionState,
     trust_cfg: TrustConfig,
+    eve_cfg: Option<EveConfig>,
 ) -> Router {
     START.get_or_init(Instant::now);
 
     let api_routes = Router::new()
         .merge(crate::api_attestations::router())
         .merge(crate::api_challenges::router())
+        .merge(crate::api_eve::router(eve_cfg))
         .merge(crate::api_gates::router())
         .merge(crate::api_gate_ops::router())
         .merge(crate::api_registry::router())

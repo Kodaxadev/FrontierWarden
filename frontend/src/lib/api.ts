@@ -22,6 +22,12 @@ import type {
   OperatorNonceResponse,
   OperatorSessionRequest,
   OperatorSessionResponse,
+  EveSolarSystem,
+  EveType,
+  EveTribe,
+  EveShip,
+  EveWorldStatus,
+  EveIdentity,
 } from '../types/api.types';
 import { createTrustkit } from '@frontierwarden/trustkit';
 import type { TrustEvaluateRequest, TrustEvaluateResponse } from '@frontierwarden/trustkit';
@@ -281,3 +287,23 @@ export async function sponsorTransaction(req: SponsorRequest): Promise<SponsorRe
 }
 
 export const sponsorAttestation = sponsorTransaction;
+
+// ── EVE World Data ────────────────────────────────────────────────────────────
+
+export const fetchEveWorldStatus = (): Promise<EveWorldStatus> =>
+  get('/eve/status');
+
+export const fetchEveSolarSystems = (limit = 500): Promise<EveSolarSystem[]> =>
+  get(`/eve/solarsystems?limit=${limit}`);
+
+export const fetchEveTypes = (limit = 500): Promise<EveType[]> =>
+  get(`/eve/types?limit=${limit}`);
+
+export const fetchEveTribes = (limit = 500): Promise<EveTribe[]> =>
+  get(`/eve/tribes?limit=${limit}`);
+
+export const fetchEveShips = (limit = 500): Promise<EveShip[]> =>
+  get(`/eve/ships?limit=${limit}`);
+
+export const fetchEveIdentity = (wallet: string): Promise<EveIdentity> =>
+  get(`/eve/identity/${encodeURIComponent(wallet)}?refresh=true`);

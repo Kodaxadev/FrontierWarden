@@ -2,9 +2,13 @@
 // Left: score + tier + identity + vouches | Right: component contribution bars
 // All data derived from live FwData; no hardcoded values.
 
+import { useEffect, useState } from 'react';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
 import type { FwData } from '../fw-data';
+import type { EveIdentity } from '../../../../types/api.types';
+import { fetchEveIdentity } from '../../../../lib/api';
+import { useProfileCreate } from '../../../../hooks/useProfileCreate';
 
 // Tier thresholds: score >= threshold → tier name
 const TIER_BANDS = [
@@ -90,6 +94,17 @@ interface Props {
 
 export function ReputationView({ data, live = false, loading = false, error = null, provenance }: Props) {
   const { pilot, proofs, vouches } = data;
+  const { account } = useProfileCreate();
+  const [eveIdentity, setEveIdentity] = useState<EveIdentity | null>(null);
+
+  // Resolve EVE identity from connected wallet or pilot.sourceId (live API)
+  const identityAddr = account?.address ?? pilot.sourceId ?? null;
+  useEffect(() => {
+    if (!identityAddr || identityAddr.length < 64) { setEveIdentity(null); return; }
+    fetchEveIdentity(identityAddr)
+      .then(setEveIdentity)
+      .catch(() => setEveIdentity(null));
+  }, [identityAddr]);
 
   const tier = computeTier(pilot.score);
   const components = deriveComponents(data);
@@ -157,6 +172,26 @@ export function ReputationView({ data, live = false, loading = false, error = nu
               <span className="c-kv__v">{v}</span>
             </div>
           ))}
+          {eveIdentity?.identity_status === 'resolved' && (
+            <div style={{ marginTop: 12, padding: '12px 14px', border: '1px solid rgba(0,210,255,0.25)', background: 'rgba(0,210,255,0.06)', borderRadius: 4 }}>
+              <div style={{ marginBottom: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--c-hi)' }}>EVE Frontier</div>
+              {eveIdentity.character_name && (
+                <div className="c-kv"><span className="c-kv__k">Character</span><span className="c-kv__v" style={{ color: 'var(--c-hi)' }}>{eveIdentity.character_name}</span></div>
+              )}
+              {eveIdentity.tenant && (
+                <div className="c-kv"><span className="c-kv__k">Tenant</span><span className="c-kv__v" style={{ color: 'var(--c-hi)' }}>{eveIdentity.tenant}</span></div>
+              )}
+              {eveIdentity.tribe_id && (
+                <div className="c-kv"><span className="c-kv__k">Tribe</span><span className="c-kv__v" style={{ color: 'var(--c-hi)' }}>{eveIdentity.tribe_name ? `${eveIdentity.tribe_name} (${eveIdentity.tribe_id})` : eveIdentity.tribe_id}</span></div>
+              )}
+              {eveIdentity.item_id && (
+                <div className="c-kv"><span className="c-kv__k">Item ID</span><span className="c-kv__v" style={{ color: 'var(--c-hi)' }}>{eveIdentity.item_id}</span></div>
+              )}
+              {eveIdentity.character_id && (
+                <div className="c-kv"><span className="c-kv__k">Char ID</span><span className="c-kv__v" style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--c-hi)' }}>{eveIdentity.character_id.slice(0, 8)}…{eveIdentity.character_id.slice(-4)}</span></div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Vouch seals */}

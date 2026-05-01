@@ -767,18 +767,13 @@
   vertical-align: middle;
   transition: background 80ms;
 }
-.c-table td:first-child { padding-left: 0; }
+.c-table td:first-child { padding-left: 16px; }
 .c-table td:last-child { text-align: right; padding-right: 0; }
 .c-table tr:hover td {
   background: var(--c-hover);
 }
-/* Amber left stripe on hover */
-.c-table tbody tr { position: relative; }
-.c-table tbody tr:hover::before {
-  content: '';
-  position: absolute; left: -40px; top: 0; bottom: 0;
-  width: 2px; background: var(--c-amber);
-  box-shadow: 0 0 8px rgba(245,158,11,0.6);
+.c-table tbody tr {
+  padding-left: 0;
 }
 
 /* ── Status badges ──────────────────────────────────── */

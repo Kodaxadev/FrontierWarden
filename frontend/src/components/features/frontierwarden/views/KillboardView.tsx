@@ -8,9 +8,9 @@ import type { FwData } from '../fw-data';
 type KillFilter = 'ALL' | 'HOSTILE' | 'FRIENDLY';
 const FILTERS: KillFilter[] = ['ALL', 'HOSTILE', 'FRIENDLY'];
 
-function iskLabel(isk: number) {
-  if (isk >= 1_000_000_000) return `${(isk / 1e9).toFixed(2)}B`;
-  return `${(isk / 1e6).toFixed(1)}M`;
+function luxLabel(lux: number) {
+  if (lux >= 1_000_000_000) return `${(lux / 1e9).toFixed(2)}B`;
+  return `${(lux / 1e6).toFixed(1)}M`;
 }
 
 interface Props {
@@ -30,7 +30,7 @@ export function KillboardView({ data, live = false, loading = false, error = nul
     return true;
   });
 
-  const totalIsk   = kills.reduce((s, k) => s + k.isk, 0);
+  const totalLux   = kills.reduce((s, k) => s + k.lux, 0);
   const hostile    = kills.filter(k => !k.friendly).length;
   const verified   = kills.filter(k => k.verified).length;
 
@@ -57,7 +57,7 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         {[
           { k: 'Total Kills',     v: kills.length.toString() },
           { k: 'Hostile',         v: hostile.toString() },
-          { k: 'ISK Destroyed',   v: iskLabel(totalIsk) },
+          { k: 'LUX Destroyed',   v: luxLabel(totalLux) },
           { k: 'Verified',        v: `${verified} / ${kills.length}` },
         ].map(s => (
           <div key={s.k} style={{
@@ -101,7 +101,7 @@ export function KillboardView({ data, live = false, loading = false, error = nul
             <th>Time</th>
             <th>Victim</th>
             <th>System</th>
-            <th>ISK Lost</th>
+            <th>LUX Lost</th>
             <th>Issuer</th>
             <th>Attestation</th>
             <th>Status</th>
@@ -109,7 +109,7 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         </thead>
         <tbody>
           {kills.map(k => {
-            const highIsk = k.isk > 200_000_000;
+            const highLux = k.lux > 200_000_000;
             const time = k.t?.includes('T') ? k.t.split('T')[1]?.replace('Z', '') ?? '--:--:--' : '--:--:--';
             return (
               <tr key={k.id}>
@@ -131,9 +131,9 @@ export function KillboardView({ data, live = false, loading = false, error = nul
                   <span style={{ fontSize: 11, color: 'var(--c-mid)' }}>{k.system}</span>
                 </td>
                 <td>
-                  <div className={`c-kill-isk${highIsk ? ' c-kill-isk--large' : ''}`}
-                    style={{ color: highIsk ? 'var(--c-amber)' : 'var(--c-hi)', fontSize: highIsk ? 18 : 13 }}>
-                    {iskLabel(k.isk)}
+                  <div className={`c-kill-isk${highLux ? ' c-kill-isk--large' : ''}`}
+                    style={{ color: highLux ? 'var(--c-amber)' : 'var(--c-hi)', fontSize: highLux ? 18 : 13 }}>
+                    {luxLabel(k.lux)}
                   </div>
                 </td>
                 <td>

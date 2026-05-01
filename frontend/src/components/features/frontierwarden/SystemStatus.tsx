@@ -2,12 +2,14 @@
 // Field report: 5 systems, heat dots, sov, gate count, kills/24h.
 
 import { FwPanel, ClsHeader, DocFootC, FwHeat } from './fw-atoms';
+import { useEveSystemNames } from '../../../hooks/useEveSystemNames';
 import type { FwData } from './fw-data';
 
 interface SystemStatusProps { data: FwData; }
 
 export function SystemStatus({ data }: SystemStatusProps) {
   const { systems, pilot } = data;
+  const resolveSystemName = useEveSystemNames();
 
   return (
     <FwPanel style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>
@@ -44,6 +46,7 @@ export function SystemStatus({ data }: SystemStatusProps) {
         const isMid = s.kills24 > 8 && !isHot;
         const killColor = isHot ? 'var(--tribe-crimson)' : isMid ? 'var(--frontier-amber)' : 'var(--t-secondary)';
         const isMine = s.sov === pilot.syndicate;
+        const eveName = resolveSystemName(s.id);
 
         return (
           <div key={s.id} style={{
@@ -57,8 +60,12 @@ export function SystemStatus({ data }: SystemStatusProps) {
           }}>
             <FwHeat level={s.heat} />
             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <span className="fw-mono" style={{ fontSize: 12, color: 'var(--t-primary)' }}>{s.name}</span>
-              <span className="fw-mono" style={{ fontSize: 9, color: 'var(--t-muted)', letterSpacing: '0.06em' }}>{s.id}</span>
+              <span className="fw-mono" style={{ fontSize: 12, color: 'var(--t-primary)' }}>
+                {eveName ?? s.name}
+              </span>
+              <span className="fw-mono" style={{ fontSize: 9, color: 'var(--t-muted)', letterSpacing: '0.06em' }}>
+                {eveName ? s.id : s.id}
+              </span>
             </div>
             <span className="fw-mono" style={{
               fontSize: 9, textAlign: 'right',
