@@ -164,7 +164,7 @@ async fn post_eval(
     gate_id: &str,
     action: &str,
 ) -> anyhow::Result<Value> {
-    let app = crate::api::router(pool.clone());
+    let app = crate::api::router(pool.clone(), crate::api_trust::TrustConfig::default());
     let mut context = serde_json::Map::new();
     context.insert("schemaId".to_owned(), json!(SCHEMA_ID));
     if !gate_id.is_empty() {

@@ -123,6 +123,7 @@ mod tests {
             Some("secret".to_owned()),
             None,
             crate::api_sessions::SessionState::new(),
+            crate::api_trust::TrustConfig::default(),
         );
         let response = app
             .oneshot(
@@ -147,6 +148,7 @@ mod tests {
             Some("secret".to_owned()),
             None,
             crate::api_sessions::SessionState::new(),
+            crate::api_trust::TrustConfig::default(),
         );
         let response = app
             .oneshot(

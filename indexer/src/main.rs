@@ -11,6 +11,9 @@ mod api_reputation;
 mod api_request_log;
 mod api_sessions;
 mod api_trust;
+
+// Re-export for main
+use api_trust::TrustConfig;
 mod config;
 mod db;
 mod ingester;
@@ -55,7 +58,11 @@ async fn main() -> Result<()> {
     let api_addr = "0.0.0.0:3000";
     let listener = tokio::net::TcpListener::bind(api_addr).await?;
     tracing::info!(addr = api_addr, "API server listening");
-    let app = api::router(pool.clone());
+    let trust_cfg = TrustConfig {
+        default_gate_schema: cfg.trust.default_gate_schema.clone(),
+        default_counterparty_schema: cfg.trust.default_counterparty_schema.clone(),
+    };
+    let app = api::router(pool.clone(), trust_cfg);
     tokio::spawn(async move {
         axum::serve(listener, app)
             .await

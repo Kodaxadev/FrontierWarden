@@ -8,6 +8,7 @@ pub struct Config {
     pub package: PackageConfig,
     pub database: DatabaseConfig,
     pub indexer: IndexerConfig,
+    pub trust: TrustConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -36,12 +37,34 @@ pub struct IndexerConfig {
     pub poll_interval_ms: u64,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct TrustConfig {
+    pub default_gate_schema: String,
+    pub default_counterparty_schema: String,
+}
+
+impl Default for TrustConfig {
+    fn default() -> Self {
+        Self {
+            default_gate_schema: "TRIBE_STANDING".into(),
+            default_counterparty_schema: "TRIBE_STANDING".into(),
+        }
+    }
+}
+
 impl Config {
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let text = std::fs::read_to_string(path.as_ref())
             .with_context(|| format!("cannot read {:?}", path.as_ref()))?;
         let mut cfg: Self = toml::from_str(&text).context("config.toml parse failed")?;
         cfg.database.url = resolve_database_url(&cfg.database.url)?;
+        // Env var overrides for trust schemas (TOML is optional, env wins when set)
+        if let Ok(s) = std::env::var("EFREP_TRUST_GATE_SCHEMA") {
+            cfg.trust.default_gate_schema = s;
+        }
+        if let Ok(s) = std::env::var("EFREP_TRUST_COUNTERPARTY_SCHEMA") {
+            cfg.trust.default_counterparty_schema = s;
+        }
         Ok(cfg)
     }
 }

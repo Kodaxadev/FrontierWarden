@@ -1,13 +1,13 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_bool, field_str, field_u64, normalize_sui_address, SuiEvent};
+use crate::rpc::{event_name, field_addr, field_bool, field_str, normalize_sui_address, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
         "OracleRegistered" => oracle_registered(pool, ev).await,
-        "FraudChallengeCreated" => challenge_created(pool, ev).await,
-        "FraudChallengeResolved" => challenge_resolved(pool, ev).await,
+        // FraudChallengeCreated / FraudChallengeResolved are emitted via the oracle_registry
+        // bridge but projected by fraud_challenge.rs — skip here to avoid double-processing.
         _ => Ok(()),
     }
 }
@@ -32,57 +32,6 @@ async fn oracle_registered(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     .bind(tee_verified)
     .bind(is_system_oracle)
     .bind(&ev.id.tx_digest)
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-// FraudChallengeCreated → INSERT INTO fraud_challenges
-async fn challenge_created(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p = &ev.parsed_json;
-    let challenge_id = normalize_sui_address(&field_addr(p, "challenge_id")?);
-    let attestation_id = normalize_sui_address(&field_addr(p, "attestation_id")?);
-    let challenger = normalize_sui_address(&field_addr(p, "challenger")?);
-    let oracle = normalize_sui_address(&field_addr(p, "oracle")?);
-
-    sqlx::query(
-        "INSERT INTO fraud_challenges
-             (challenge_id, attestation_id, challenger, oracle, created_tx)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (challenge_id) DO NOTHING",
-    )
-    .bind(&challenge_id)
-    .bind(&attestation_id)
-    .bind(&challenger)
-    .bind(&oracle)
-    .bind(&ev.id.tx_digest)
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-// FraudChallengeResolved → UPDATE fraud_challenges SET resolved fields
-async fn challenge_resolved(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
-    let p = &ev.parsed_json;
-    let challenge_id = normalize_sui_address(&field_addr(p, "challenge_id")?);
-    let guilty = field_bool(p, "guilty")?;
-    let slash_amount = field_u64(p, "slash_amount")?;
-
-    sqlx::query(
-        "UPDATE fraud_challenges
-         SET resolved    = TRUE,
-             guilty      = $1,
-             slash_amount= $2,
-             resolved_tx = $3,
-             resolved_at = NOW()
-         WHERE challenge_id = $4",
-    )
-    .bind(guilty)
-    .bind(slash_amount)
-    .bind(&ev.id.tx_digest)
-    .bind(&challenge_id)
     .execute(pool)
     .await?;
 

@@ -134,7 +134,7 @@ async fn profile_by_owner(
     Path(address): Path<String>,
 ) -> Result<Json<Option<ProfileRow>>, ApiError> {
     let normalized = normalize_sui_address(&address);
-    eprintln!("[api] profile_by_owner — raw: {} normalized: {}", address, normalized);
+    tracing::debug!(raw = %address, normalized = %normalized, "profile_by_owner lookup");
     let row = sqlx::query_as::<_, ProfileRow>(
         "SELECT profile_id, owner, created_tx, created_at::TEXT AS created_at
          FROM profiles
@@ -145,7 +145,7 @@ async fn profile_by_owner(
     .bind(&normalized)
     .fetch_optional(&pool)
     .await?;
-    eprintln!("[api] profile_by_owner — result: {:?}", row.as_ref().map(|r| &r.profile_id));
+    tracing::debug!(address = %normalized, found = row.is_some(), "profile_by_owner result");
     Ok(Json(row))
 }
 

@@ -3,15 +3,18 @@ use serde::Serialize;
 use sqlx::PgPool;
 use std::time::Instant;
 
+use crate::api_trust::TrustConfig;
+
 static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 
-pub fn router(pool: PgPool) -> Router {
+pub fn router(pool: PgPool, trust_cfg: TrustConfig) -> Router {
     let sessions = crate::api_sessions::SessionState::new();
     router_with_security(
         pool,
         crate::api_auth::configured_api_key(),
         crate::api_rate_limit::RateLimitState::from_env(),
         sessions,
+        trust_cfg,
     )
 }
 
@@ -20,6 +23,7 @@ pub(crate) fn router_with_security(
     api_key: Option<String>,
     rate_limit: Option<crate::api_rate_limit::RateLimitState>,
     sessions: crate::api_sessions::SessionState,
+    trust_cfg: TrustConfig,
 ) -> Router {
     START.get_or_init(Instant::now);
 
@@ -30,7 +34,7 @@ pub(crate) fn router_with_security(
         .merge(crate::api_gate_ops::router())
         .merge(crate::api_registry::router())
         .merge(crate::api_reputation::router())
-        .merge(crate::api_trust::router());
+        .merge(crate::api_trust::router_with_config(trust_cfg));
 
     let auth_routes = crate::api_sessions::router(sessions.clone());
 
