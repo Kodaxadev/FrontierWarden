@@ -58,8 +58,8 @@ export function GateAdminTransferPanel({ currentOwner }: Props) {
             : state.step === 'error'
               ? state.error
               : connectedOwner
-                ? 'Ready: Slush signs ownership transfer, sponsor pays gas'
-                : 'Connect the current Slush owner to transfer admin control'}
+                ? 'Ready: wallet signs ownership transfer, sponsor pays gas'
+                : 'Connect the current owner wallet to transfer admin control'}
         </span>
       </div>
     </div>

@@ -13,9 +13,6 @@ const SUPPORTED_NETWORKS = Object.keys(GRPC_URLS) as SupportedNetwork[];
 export const dAppKit = createDAppKit({
   networks: SUPPORTED_NETWORKS,
   defaultNetwork: 'testnet',
-  // Disable the Slush web fallback. Browser/native wallets still register
-  // through Wallet Standard; this only removes the my.slush.app popup path.
-  slushWalletConfig: null,
   createClient(network) {
     return new SuiGrpcClient({
       network,
