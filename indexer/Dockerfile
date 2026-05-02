@@ -29,8 +29,8 @@ COPY --from=builder /build/target/release/efrep-indexer /app/efrep-indexer
 # Copy migrations (run manually against DB before deploy)
 COPY migrations /app/migrations
 
-# Copy example config as a minimal production config template
-COPY config.example.toml /app/config.toml
+# Copy production config (all required fields present; env vars override)
+COPY config.prod.toml /app/config.toml
 
 # The binary reads config.toml from CWD (/app).
 # All secrets are injected via Railway env vars which override TOML values.

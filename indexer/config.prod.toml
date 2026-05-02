@@ -1,0 +1,28 @@
+# efrep-indexer — production config
+# All secrets are injected via Railway env vars which override TOML values.
+
+[network]
+rpc_url = "https://fullnode.testnet.sui.io:443"
+
+[package]
+id = "0xPLACEHOLDER"
+start_checkpoint = 0
+
+[database]
+url = "env:DATABASE_URL"
+max_connections = 20
+
+[indexer]
+batch_size = 50
+poll_interval_ms = 2000
+
+[trust]
+default_gate_schema = "TRIBE_STANDING"
+default_counterparty_schema = "TRIBE_STANDING"
+
+[eve]
+enabled = true
+world_api_base = "https://world-api-stillness.live.tech.evefrontier.com"
+graphql_url = "https://graphql.testnet.sui.io/graphql"
+world_package_id = "0xPLACEHOLDER"
+player_profile_type = "0xPLACEHOLDER"
