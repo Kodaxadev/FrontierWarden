@@ -116,6 +116,7 @@ pub async fn evaluate_gate_access(
         let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
         let freshness_ms = t0.elapsed().as_millis();
+        let confidence = compute_confidence(&proof_bundle, 0.8); // DENY decisions use lower base confidence
         let total_ms = req_start.elapsed().as_millis();
         tracing::info!(
             total_ms,
@@ -123,14 +124,15 @@ pub async fn evaluate_gate_access(
             freshness_ms,
             action = "gate_access",
             decision = "DENY",
-            reason = "no_attestation"
+            reason = "no_attestation",
+            confidence
         );
         return Ok(response(
             "DENY",
             false,
             None,
             None,
-            0.0,
+            confidence,
             REASON_DENY_NO_STANDING_ATTESTATION,
             format!("No active {schema} attestation is indexed for this subject."),
             subject,
@@ -237,6 +239,7 @@ pub async fn evaluate_counterparty_risk(
         let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
         let freshness_ms = t0.elapsed().as_millis();
+        let confidence = compute_confidence(&proof_bundle, 0.8); // DENY decisions use lower base confidence
         let total_ms = req_start.elapsed().as_millis();
         tracing::info!(
             total_ms,
@@ -244,7 +247,8 @@ pub async fn evaluate_counterparty_risk(
             freshness_ms,
             action = "counterparty_risk",
             decision = "DENY",
-            reason = "no_attestation"
+            reason = "no_attestation",
+            confidence
         );
         return Ok(response_counterparty(
             "DENY",
@@ -258,6 +262,7 @@ pub async fn evaluate_counterparty_risk(
             proof_bundle,
             "counterparty_risk",
             None,
+            confidence,
         ));
     };
 
@@ -277,6 +282,7 @@ pub async fn evaluate_counterparty_risk(
                 .warnings
                 .push(format!("ATTESTATION_UNDER_CHALLENGE:{challenge_id}"));
         }
+        let confidence = compute_confidence(&proof_bundle, 0.8); // DENY decisions use lower base confidence
         let total_ms = req_start.elapsed().as_millis();
         tracing::info!(
             total_ms,
@@ -286,7 +292,8 @@ pub async fn evaluate_counterparty_risk(
             decision = "DENY",
             score,
             minimum_score,
-            score_source
+            score_source,
+            confidence
         );
         return Ok(response_counterparty(
             "DENY",
@@ -303,6 +310,7 @@ pub async fn evaluate_counterparty_risk(
             proof_bundle,
             "counterparty_risk",
             score_source,
+            confidence,
         ));
     }
 
@@ -315,8 +323,8 @@ pub async fn evaluate_counterparty_risk(
             .warnings
             .push(format!("ATTESTATION_UNDER_CHALLENGE:{challenge_id}"));
     }
+    let confidence = compute_confidence(&proof_bundle, 0.95); // ALLOW decisions use higher base confidence
     let total_ms = req_start.elapsed().as_millis();
-    let confidence = compute_confidence(&proof_bundle, 0.95);
     tracing::info!(
         total_ms,
         attestation_ms,
@@ -342,6 +350,7 @@ pub async fn evaluate_counterparty_risk(
         proof_bundle,
         "counterparty_risk",
         score_source,
+        confidence,
     ))
 }
 
@@ -528,6 +537,7 @@ fn response_counterparty(
     proof: TrustProof,
     action: &'static str,
     score_source: Option<&'static str>,
+    confidence: f64,
 ) -> TrustEvaluationResponse {
     TrustEvaluationResponse {
         api_version: "trust.v1",
@@ -536,7 +546,7 @@ fn response_counterparty(
         allow,
         toll_multiplier: None,
         toll_mist: None,
-        confidence: if allow { 0.95 } else { 0.0 },
+        confidence,
         reason,
         explanation,
         subject,
