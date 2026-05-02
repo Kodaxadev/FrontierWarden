@@ -55,10 +55,14 @@ export function useSponsoredTransaction() {
       return next;
     }
 
+    let phase: SponsoredStep = 'idle';
+
     try {
+      phase = 'building';
       setState({ step: 'building', digest: null, error: null });
       const txKindBytes = await build();
 
+      phase = 'sponsoring';
       setState({ step: 'sponsoring', digest: null, error: null });
       const { txBytes, sponsorSignature } = await sponsorTransaction({
         txKindBytes,
@@ -66,6 +70,7 @@ export function useSponsoredTransaction() {
         gasBudget,
       });
 
+      phase = 'signing';
       setState({ step: 'signing', digest: null, error: null });
       const tx = Transaction.from(txBytes);
       const signed = await dAppKit.signTransaction({ transaction: tx });
@@ -75,6 +80,7 @@ export function useSponsoredTransaction() {
         throw new Error('Wallet signing failed: no signature returned');
       }
 
+      phase = 'executing';
       setState({ step: 'executing', digest: null, error: null });
       const result = await client.core.executeTransaction({
         transaction: fromBase64(txBytes),
@@ -89,7 +95,7 @@ export function useSponsoredTransaction() {
       setState(next);
       return next;
     } catch (err) {
-      const next = { step: 'error' as const, digest: null, error: humaniseError(err) };
+      const next = { step: 'error' as const, digest: null, error: `${phase}: ${humaniseError(err)}` };
       setState(next);
       return next;
     }
