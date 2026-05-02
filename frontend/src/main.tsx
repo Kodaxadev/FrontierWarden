@@ -9,7 +9,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DAppKitProvider }      from '@mysten/dapp-kit-react';
 import {
   NotificationProvider,
-  SmartObjectProvider,
   VaultProvider,
 } from '@evefrontier/dapp-kit';
 import './globals.css';
@@ -36,13 +35,11 @@ createRoot(root).render(
     <QueryClientProvider client={queryClient}>
       <DAppKitProvider dAppKit={dAppKit}>
         <VaultProvider>
-          <SmartObjectProvider>
-            <NotificationProvider>
-              <ErrorBoundary>
-                <App />
-              </ErrorBoundary>
-            </NotificationProvider>
-          </SmartObjectProvider>
+          <NotificationProvider>
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
+          </NotificationProvider>
         </VaultProvider>
       </DAppKitProvider>
     </QueryClientProvider>
