@@ -248,7 +248,7 @@ function mergeLiveData(
   return {
     data: {
       ...FW_DATA,
-      pilot: profile ? mapPilot(profile, scores, eveIdentity) : (demoEnabled ? FW_DATA.pilot : { ...FW_DATA.pilot, score: 0, scoreDelta: 0, timestamp: 'no profile', sourceId: undefined, checkpoint: null }),
+      pilot: profile ? mapPilot(profile, scores, eveIdentity) : (demoEnabled ? { ...FW_DATA.pilot, timestamp: '[DEMO] mockup — no live profile' } : { ...FW_DATA.pilot, score: 0, scoreDelta: 0, timestamp: 'no profile', sourceId: undefined, checkpoint: null }),
       policy: livePolicy ?? (demoEnabled ? FW_DATA.policy : undefined),
       gates: liveGates.length > 0 ? liveGates : (demoEnabled ? FW_DATA.gates : []),
       kills: liveKills.length > 0 ? liveKills : (demoEnabled ? FW_DATA.kills : []),
