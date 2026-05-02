@@ -68,6 +68,13 @@ impl Config {
             .with_context(|| format!("cannot read {:?}", path.as_ref()))?;
         let mut cfg: Self = toml::from_str(&text).context("config.toml parse failed")?;
         cfg.database.url = resolve_database_url(&cfg.database.url)?;
+        // Env var overrides for package config (Railway deployment)
+        if let Ok(s) = std::env::var("EFREP_PACKAGE_ID") {
+            cfg.package.id = s;
+        }
+        if let Ok(s) = std::env::var("EFREP_START_CHECKPOINT") {
+            cfg.package.start_checkpoint = s.parse().unwrap_or(0);
+        }
         // Env var overrides for trust schemas (TOML is optional, env wins when set)
         if let Ok(s) = std::env::var("EFREP_TRUST_GATE_SCHEMA") {
             cfg.trust.default_gate_schema = s;
@@ -98,6 +105,11 @@ fn resolve_database_url(value: &str) -> Result<String> {
     if let Some(env_key) = value.strip_prefix("env:") {
         return std::env::var(env_key)
             .with_context(|| format!("{env_key} must be set for database.url"));
+    }
+
+    // Railway/Supabase standard: DATABASE_URL env var
+    if let Ok(url) = std::env::var("DATABASE_URL") {
+        return Ok(url);
     }
 
     if let Ok(url) = std::env::var("EFREP_DATABASE_URL") {

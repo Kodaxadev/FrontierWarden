@@ -58,8 +58,9 @@ async fn main() -> Result<()> {
     ingester::spawn_heat_refresh(pool.clone());
 
     // REST API — bind before starting indexer so health checks work immediately
-    let api_addr = "0.0.0.0:3000";
-    let listener = tokio::net::TcpListener::bind(api_addr).await?;
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let api_addr = format!("0.0.0.0:{port}");
+    let listener = tokio::net::TcpListener::bind(&api_addr).await?;
     tracing::info!(addr = api_addr, "API server listening");
     let trust_cfg = TrustConfig {
         default_gate_schema: cfg.trust.default_gate_schema.clone(),

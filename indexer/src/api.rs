@@ -1,4 +1,6 @@
 use axum::{middleware, routing::get, Json, Router};
+use axum::http::{HeaderValue, Method};
+use tower_http::cors::{CorsLayer, Any};
 use serde::Serialize;
 use sqlx::PgPool;
 use std::time::Instant;
@@ -77,7 +79,24 @@ pub(crate) fn router_with_security(
         .merge(auth_routes)
         .merge(api_routes)
         .layer(middleware::from_fn(crate::api_request_log::log_request))
+        .layer(cors_layer())
         .with_state(pool)
+}
+
+fn cors_layer() -> CorsLayer {
+    let origins = [
+        "https://frontierwarden.kodaxa.dev",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ];
+    let allowed: Vec<HeaderValue> = origins
+        .iter()
+        .filter_map(|o| o.parse().ok())
+        .collect();
+    CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers(Any)
+        .allow_origin(allowed)
 }
 
 #[derive(Serialize)]

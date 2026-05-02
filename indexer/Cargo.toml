@@ -44,6 +44,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 # HTTP API server
 axum = "0.8"
+tower-http = { version = "0.6", features = ["cors"] }
 
 # Ergonomic error handling
 anyhow = "1"
@@ -53,6 +54,9 @@ ed25519-dalek = { version = "2", features = ["rand_core"] }
 hex = "0.4"
 rand = "0.8"
 chrono = "0.4"
+
+# Pin indexmap < 2.14 — 2.14 requires edition2024 (Rust 1.85+)
+indexmap = ">=2.0, < 2.14"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
