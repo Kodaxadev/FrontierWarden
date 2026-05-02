@@ -18,7 +18,9 @@ RUN cargo build --release --bin efrep-indexer
 FROM debian:bookworm-slim
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates libssl3 libpq-dev && \
+    apt-get install -y --no-install-recommends ca-certificates libssl3 libpq-dev curl && \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -31,6 +33,13 @@ COPY migrations /app/migrations
 
 # Copy production config (all required fields present; env vars override)
 COPY config.prod.toml /app/config.toml
+
+# Signature verifier for non-Ed25519 wallets (zkLogin, passkey, etc.)
+COPY scripts/verify-personal-message.mjs /app/scripts/verify-personal-message.mjs
+RUN cd /app/scripts && npm init -y --silent > /dev/null 2>&1 && \
+    npm install @mysten/sui
+
+ENV EFREP_SIGNATURE_VERIFIER=/app/scripts/verify-personal-message.mjs
 
 # The binary reads config.toml from CWD (/app).
 # All secrets are injected via Railway env vars which override TOML values.
