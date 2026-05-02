@@ -6,6 +6,7 @@ WORKDIR /build
 # Copy manifests first for dependency caching
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs && \
+    echo "" > src/lib.rs && \
     cargo build --release --bin efrep-indexer && \
     rm -rf src target/release/deps/efrep_indexer* target/release/.fingerprint
 
