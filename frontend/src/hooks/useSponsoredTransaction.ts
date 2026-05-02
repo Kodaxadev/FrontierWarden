@@ -69,7 +69,13 @@ export function useSponsoredTransaction() {
       setState({ step: 'signing', digest: null, error: null });
       const signer = new CurrentAccountSigner(dAppKit);
       const rawBytes = fromBase64(txBytes);
+      // Sign the transaction bytes - the dapp-kit signer expects Uint8Array
       const signed = await signer.signTransaction(rawBytes);
+
+      // Validate signed transaction structure
+      if (!signed || !signed.signature) {
+        throw new Error('Wallet signing failed: no signature returned');
+      }
 
       setState({ step: 'executing', digest: null, error: null });
       const result = await client.core.executeTransaction({
