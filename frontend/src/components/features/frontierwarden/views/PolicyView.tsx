@@ -25,6 +25,8 @@ const EVE_SPONSORED_FEATURE = 'evefrontier:sponsoredTransaction';
 const isEveWallet = (wallet: UiWallet) =>
   wallet.name.toLowerCase().includes('eve vault')
   || wallet.features.includes(EVE_SPONSORED_FEATURE);
+const isNotSlush = (wallet: UiWallet) =>
+  !wallet.name.toLowerCase().includes('slush');
 const eveWalletModalOptions = {
   sortFn: (a: UiWallet, b: UiWallet) => Number(isEveWallet(b)) - Number(isEveWallet(a)),
 };
@@ -39,7 +41,7 @@ const shortId = (value: string) =>
 export function PolicyView({ data, live = false, loading = false, error = null, provenance }: Props = {}) {
   const { account, state: txState, updatePolicy } = useUpdateGatePolicy();
   const { state: wdState, withdrawTolls, reset: resetWd } = useWithdrawTolls();
-  const wallets = useWallets();
+  const wallets = useWallets().filter(isNotSlush);
   const policy = data?.policy;
   const [draftThreshold, setDraftThreshold] = useState(policy?.allyThreshold ?? 62);
   const [draftTollMist, setDraftTollMist] = useState(policy?.baseTollMist ?? 0);

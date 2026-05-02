@@ -14,6 +14,9 @@ const short = (value: string | null) =>
 const isEveWallet = (wallet: UiWallet) =>
   wallet.name.toLowerCase().includes('eve');
 
+const isNotSlush = (wallet: UiWallet) =>
+  !wallet.name.toLowerCase().includes('slush');
+
 function expiryText(expiresAt: number | null) {
   if (!expiresAt) return '-';
   return new Date(expiresAt * 1000).toLocaleTimeString([], {
@@ -25,7 +28,8 @@ function expiryText(expiresAt: number | null) {
 export function OperatorSessionGate({ children }: Props) {
   const wallets = useWallets();
   const { authenticate, clearSession, isAuthenticated, state } = useOperatorSession();
-  const eveWallets = wallets.filter(isEveWallet);
+  const filteredWallets = wallets.filter(isNotSlush);
+  const eveWallets = filteredWallets.filter(isEveWallet);
   const modalOptions = eveWallets.length > 0
     ? { sortFn: (a: UiWallet, b: UiWallet) => Number(isEveWallet(b)) - Number(isEveWallet(a)) }
     : {};
@@ -88,7 +92,7 @@ export function OperatorSessionGate({ children }: Props) {
           marginBottom: 26,
         }}>
           <Metric label="Wallet" value={short(state.accountAddress)} />
-          <Metric label="Detected" value={wallets.map(w => w.name).join(', ') || 'none'} />
+          <Metric label="Detected" value={filteredWallets.map(w => w.name).join(', ') || 'none'} />
           <Metric label="Verifier" value="Sui wallet-standard personal message" />
         </div>
 
