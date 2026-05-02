@@ -35,6 +35,8 @@ import { buildIssueAttestationTx } from './lib/oracle-actions.js';
 
 const PORT    = parseInt(process.env.PORT ?? '3001', 10);
 const ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:5173').split(',');
+const ORACLE_API_KEY           = process.env.ORACLE_API_KEY ?? '';
+const ALLOW_INSECURE_DEV_ORACLE = process.env.ALLOW_INSECURE_DEV_ORACLE === 'true';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -44,7 +46,49 @@ function cors(res: ServerResponse, origin: string | undefined): void {
   const allow = origin && ORIGINS.includes(origin) ? origin : ORIGINS[0];
   res.setHeader('Access-Control-Allow-Origin',  allow);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
+}
+
+/**
+ * Auth guard for privileged endpoints (oracle issue, gas sponsor).
+ * Returns true if the request is permitted; writes a 401/403 and returns false otherwise.
+ *
+ * Bypass: ALLOW_INSECURE_DEV_ORACLE=true (dev only — never set in production).
+ * Auth:   ORACLE_API_KEY env var must be set; caller must send matching x-api-key header.
+ */
+function authGuard(
+  req: IncomingMessage,
+  res: ServerResponse,
+  endpoint: string,
+): boolean {
+  const caller = req.socket?.remoteAddress ?? 'unknown';
+  console.log(`[auth] ${endpoint} called from ${caller}`);
+
+  if (ALLOW_INSECURE_DEV_ORACLE) {
+    console.warn(`[auth] ALLOW_INSECURE_DEV_ORACLE=true — skipping auth for ${endpoint}`);
+    return true;
+  }
+
+  if (!ORACLE_API_KEY) {
+    console.error(`[auth] ORACLE_API_KEY not set — rejecting ${endpoint}`);
+    json(res, 403, {
+      error:   'oracle_auth_disabled',
+      message: 'ORACLE_API_KEY is not configured. Set it or use ALLOW_INSECURE_DEV_ORACLE=true for local dev.',
+    });
+    return false;
+  }
+
+  const provided = req.headers['x-api-key'];
+  if (provided !== ORACLE_API_KEY) {
+    console.warn(`[auth] Unauthorized ${endpoint} attempt from ${caller}`);
+    json(res, 401, {
+      error:   'unauthorized',
+      message: 'Invalid or missing x-api-key header.',
+    });
+    return false;
+  }
+
+  return true;
 }
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -95,6 +139,8 @@ async function handleSponsor(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
+  if (!authGuard(req, res, '/sponsor-transaction')) return;
+
   // Parse body
   let body: unknown;
   try {
@@ -145,12 +191,14 @@ async function handleSponsor(
 // ---------------------------------------------------------------------------
 // The gas station key IS the oracle key (deployer = oracle).
 // This endpoint signs and submits directly — no user co-sign needed.
-// NOTE: No auth header in dev. Add API key middleware before production use.
+// Auth: requires x-api-key matching ORACLE_API_KEY, or ALLOW_INSECURE_DEV_ORACLE=true.
 
 async function handleOracleIssue(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
+  if (!authGuard(req, res, '/oracle/issue-attestation')) return;
+
   let body: unknown;
   try {
     body = JSON.parse(await readBody(req));
@@ -261,6 +309,13 @@ server.listen(PORT, () => {
   console.log(`[gas-station] Listening  → http://localhost:${PORT}`);
   console.log(`[gas-station] Sponsor    → ${sponsorAddress()}`);
   console.log(`[gas-station] CORS allow → ${ORIGINS.join(', ')}`);
+  if (ALLOW_INSECURE_DEV_ORACLE) {
+    console.warn('[gas-station] WARNING: ALLOW_INSECURE_DEV_ORACLE=true — oracle/sponsor endpoints are unauthenticated');
+  } else if (ORACLE_API_KEY) {
+    console.log('[gas-station] Auth       → ORACLE_API_KEY set — endpoints require x-api-key header');
+  } else {
+    console.error('[gas-station] Auth       → ORACLE_API_KEY not set — oracle/sponsor endpoints will return 403');
+  }
 });
 
 server.on('error', (err: NodeJS.ErrnoException) => {
