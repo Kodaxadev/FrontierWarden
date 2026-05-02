@@ -1,18 +1,18 @@
 /**
  * seed-tribe-standing.ts — One-shot script to set up TRIBE_STANDING on the
- * live testnet and issue a standing attestation to the Slush (GateAdmin) wallet.
+ * live testnet and issue a standing attestation to the GateAdmin (EVE Vault) wallet.
  *
  * What this does (single PTB):
  *   1. schema_registry::register_schema("TRIBE_STANDING", version=1, revocable=true)
  *   2. oracle_registry::add_schema_to_oracle(oracle_reg, old_cap, "TRIBE_STANDING")
  *      → consumes old OracleCapability, transfers a new one back to deployer
- *   3. attestation::issue("TRIBE_STANDING", subject=SLUSH_ADDR, value=750, ttl=200)
- *      → transferred to SLUSH_ADDR so they own the attestation object
+ *   3. attestation::issue("TRIBE_STANDING", subject=GATE_ADMIN_ADDR, value=750, ttl=200)
+ *      → transferred to GATE_ADMIN_ADDR so they own the attestation object
  *
  * After this runs:
  *   - TRIBE_STANDING is in the SchemaRegistry
  *   - Deployer oracle is authorized for TRIBE_STANDING
- *   - Slush wallet owns a TRIBE_STANDING Attestation (value 750, subject = self)
+ *   - GateAdmin (EVE Vault) wallet owns a TRIBE_STANDING Attestation (value 750, subject = self)
  *   - Indexer will pick up the AttestationIssued event and populate attestations table
  *
  * The new OracleCapability ID is printed. Update testnet-addresses.json manually
@@ -40,7 +40,7 @@ import { loadKeypair, makeClient, execute, findCreatedObject } from './lib/seed-
 interface TestnetAddresses {
   deployer_objects: {
     oracle_cap: { id: string; authorized_schemas?: string[] };
-    tribe_standing_attestation_slush?: Record<string, unknown>;
+    tribe_standing_attestation_gate_admin?: Record<string, unknown>;
   };
   shared_objects: {
     gate_admin_cap?: { owner?: string };
@@ -76,7 +76,7 @@ function encodeStr(s: string): number[] {
 function txTribeStanding(
   sender: string,
   oracleCapId: string,
-  slushAddress: string,
+  gateAdminAddress: string,
 ): Transaction {
   const tx = new Transaction();
   tx.setSender(sender);
@@ -118,7 +118,7 @@ function txTribeStanding(
     ],
   });
 
-  // 3. Issue TRIBE_STANDING attestation to Slush wallet
+  // 3. Issue TRIBE_STANDING attestation to GateAdmin (EVE Vault) wallet
   //    attestation::issue is a public fun (returns Attestation, not entry).
   //    We must transferObjects the result to the intended owner.
   const attest = tx.moveCall({
@@ -127,14 +127,14 @@ function txTribeStanding(
       schemaReg,
       oracleReg,
       tx.pure.vector('u8', encodeStr('TRIBE_STANDING')),
-      tx.pure.address(slushAddress),
+      tx.pure.address(gateAdminAddress),
       tx.pure.u64(750),          // standing score -- ALLY tier (threshold = 500)
       tx.pure.u64(200),          // expiration_epochs -- ~100 days at 2 epochs/day
     ],
   });
 
-  // Transfer attestation to Slush so they own the object for check_passage
-  tx.transferObjects([attest], slushAddress);
+  // Transfer attestation to GateAdmin so they own the object for check_passage
+  tx.transferObjects([attest], gateAdminAddress);
 
   return tx;
 }
@@ -146,11 +146,11 @@ function txTribeStanding(
 async function main(): Promise<void> {
   const addrs       = loadAddresses();
   const oracleCapId = addrs.deployer_objects.oracle_cap.id;
-  // Slush wallet owns the GateAdminCap and is the traveler for our test passage.
-  const slushAddress =
+  // GateAdmin (EVE Vault) wallet owns the GateAdminCap and is the traveler for our test passage.
+  const gateAdminAddress =
     addrs.shared_objects.gate_admin_cap?.owner
-    ?? process.env.SLUSH_ADDRESS
-    ?? '0x9cc038e5f0045dbf75ce191870fd7c483020d12bc23f3ebaef7a6f4f22d820e1';
+    ?? process.env.GATE_ADMIN_ADDRESS
+    ?? '0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f';
 
   const keypair = loadKeypair();
   const client  = makeClient();
@@ -159,7 +159,7 @@ async function main(): Promise<void> {
   console.log('=== seed-tribe-standing ===');
   console.log(`deployer        : ${sender}`);
   console.log(`oracle_cap      : ${oracleCapId}`);
-  console.log(`slush_address   : ${slushAddress}`);
+  console.log(`gate_admin_addr : ${gateAdminAddress}`);
   console.log(`package         : ${PKG}`);
   console.log('');
 
@@ -167,7 +167,7 @@ async function main(): Promise<void> {
   const r = await execute(
     client,
     keypair,
-    txTribeStanding(sender, oracleCapId, slushAddress),
+    txTribeStanding(sender, oracleCapId, gateAdminAddress),
     'TX-TRIBE',
   );
   console.log('');
@@ -178,7 +178,7 @@ async function main(): Promise<void> {
 
   console.log('=== Results ===');
   console.log(`new oracle_cap  : ${newOracleCapId}`);
-  console.log(`attestation_id  : ${attestationId}  (owned by ${slushAddress})`);
+  console.log(`attestation_id  : ${attestationId}  (owned by ${gateAdminAddress})`);
   console.log('');
 
   // Update testnet-addresses.json
@@ -190,22 +190,22 @@ async function main(): Promise<void> {
       'HEAT_TRAP', 'ROUTE_VERIFIED', 'SYSTEM_CONTESTED', 'SHIP_KILL', 'PLAYER_BOUNTY',
       'TRIBE_STANDING',
     ];
-    deployer.tribe_standing_attestation_slush = {
+    deployer.tribe_standing_attestation_gate_admin = {
       id: attestationId,
       type: '...::attestation::Attestation',
-      owner: slushAddress,
+      owner: gateAdminAddress,
       schema: 'TRIBE_STANDING',
       value: 750,
       issued_tx: r.digest,
     };
   });
 
-  console.log('testnet-addresses.json updated (oracle_cap.id + tribe_standing_attestation_slush)');
+  console.log('testnet-addresses.json updated (oracle_cap.id + tribe_standing_attestation_gate_admin)');
   console.log('');
   console.log('Next steps:');
   console.log('  1. Wait ~5s for indexer to ingest AttestationIssued event');
-  console.log(`  2. Verify: curl http://localhost:3000/attestations/${slushAddress}?schema_id=TRIBE_STANDING`);
-  console.log('  3. Open FrontierWarden → Gate Intel → connect Slush → CHECK PASSAGE');
+  console.log(`  2. Verify: curl http://localhost:3000/attestations/${gateAdminAddress}?schema_id=TRIBE_STANDING`);
+  console.log('  3. Open FrontierWarden → Gate Intel → connect EVE Vault → CHECK PASSAGE');
 }
 
 main().catch(err => {

@@ -87,10 +87,10 @@
       ],
       "note": "Seeded via TX-1 seed-testnet.ts (1.0 SUI stake)"
     },
-    "tribe_standing_attestation_slush": {
+    "tribe_standing_attestation_gate_admin": {
       "id": "0x308d20a6dd7e98f9d212d2a9b3066fd5a0208f7f5c66231c2a9ab802a258be49",
       "type": "...::attestation::Attestation",
-      "owner": "0x9cc038e5f0045dbf75ce191870fd7c483020d12bc23f3ebaef7a6f4f22d820e1",
+      "owner": "0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f",
       "schema": "TRIBE_STANDING",
       "value": 750,
       "issued_tx": "AwN5rdhQNopjaCZ8GNSdLpoBez8FPQKa1t1KEuz1pYSi"
