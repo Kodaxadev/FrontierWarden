@@ -125,14 +125,25 @@ impl SessionState {
         self.consume_nonce(&req)?;
 
         verify_personal_message(&req.message, &req.signature, &req.address).map_err(|err| {
+            let sig_bytes = general_purpose::STANDARD.decode(&req.signature).unwrap_or_default();
+            let scheme_byte = sig_bytes.first().copied();
+            let derived_addr = if sig_bytes.len() == 97 {
+                sui_address(sig_bytes[0], &sig_bytes[65..97])
+            } else {
+                format!("n/a (sig_len={})", sig_bytes.len())
+            };
             tracing::warn!(
                 scheme = signature_scheme_label(&req.signature),
+                sig_len = sig_bytes.len(),
+                scheme_byte = ?scheme_byte,
+                derived_addr = %derived_addr,
+                expected_addr = %req.address,
                 error = %err,
                 "operator session signature verification failed"
             );
             (
                 StatusCode::UNAUTHORIZED,
-                "wallet signature verification failed; supports Ed25519 natively and wallet-standard schemes through Mysten verification",
+                "wallet signature verification failed",
                 )
         })?;
 
