@@ -67,9 +67,7 @@ export function useSponsoredTransaction() {
       });
 
       setState({ step: 'signing', digest: null, error: null });
-      // Reconstruct Transaction from kind bytes and sign with dapp-kit
-      // The wallet expects a Transaction object, not raw bytes
-      const tx = Transaction.fromKind(fromBase64(txKindBytes));
+      const tx = Transaction.from(txBytes);
       const signed = await dAppKit.signTransaction({ transaction: tx });
 
       // Validate signed transaction structure
