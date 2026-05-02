@@ -32,6 +32,8 @@ async fn init_indexer_state(pool: &PgPool) -> Result<()> {
 
 /// Runs all migration SQL files from the migrations/ directory in order.
 /// Each file is split by semicolons and executed as individual statements.
+/// Tracks applied migrations in indexer_state under keys "migration:{filename}"
+/// to ensure idempotency across restarts.
 async fn run_migrations(pool: &PgPool) -> Result<()> {
     let migrations_dir = Path::new("migrations");
     if !migrations_dir.exists() {
@@ -63,6 +65,21 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
         let path = entry.path();
         let filename = entry.file_name();
         let filename_str = filename.to_string_lossy();
+        let state_key = format!("migration:{}", filename_str);
+
+        // Check if this migration was already applied
+        let row: Option<(String,)> = sqlx::query_as(
+            "SELECT value FROM indexer_state WHERE key = $1"
+        )
+        .bind(&state_key)
+        .fetch_optional(pool)
+        .await?;
+
+        if row.is_some() {
+            tracing::info!(migration = %filename_str, "Migration already applied; skipping");
+            continue;
+        }
+
         let sql = std::fs::read_to_string(&path)
             .with_context(|| format!("failed to read migration {}", filename_str))?;
 
@@ -93,6 +110,15 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
                 )
             })?;
         }
+
+        // Mark migration as applied
+        sqlx::query(
+            "INSERT INTO indexer_state (key, value, updated_at)
+             VALUES ($1, 'applied', NOW())"
+        )
+        .bind(&state_key)
+        .execute(pool)
+        .await?;
 
         tracing::info!(migration = %filename_str, "Migration applied");
     }
