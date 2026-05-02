@@ -66,6 +66,11 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
         let sql = std::fs::read_to_string(&path)
             .with_context(|| format!("failed to read migration {}", filename_str))?;
 
+        // Strip SQL comments (-- line comments and /* */ block comments)
+        // before splitting on semicolons, since comments can contain
+        // semicolons that shouldn't be treated as statement boundaries.
+        let sql = strip_sql_comments(&sql);
+
         let statements: Vec<&str> = sql
             .split(';')
             .map(|s| s.trim())
@@ -93,6 +98,55 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Strips SQL comments (-- line and /* */ block) from a SQL string.
+/// Preserves semicolons inside string literals (single-quoted).
+fn strip_sql_comments(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        // Single-quoted string literal — preserve everything until closing quote
+        if c == '\'' {
+            result.push(c);
+            while let Some(&next) = chars.peek() {
+                result.push(chars.next().unwrap());
+                if next == '\'' && chars.peek() != Some(&'\'') {
+                    break;
+                }
+                // Handle escaped quote ''
+                if next == '\'' && chars.peek() == Some(&'\'') {
+                    result.push(chars.next().unwrap());
+                }
+            }
+        }
+        // Line comment -- skip until end of line
+        else if c == '-' && chars.peek() == Some(&'-') {
+            chars.next(); // consume second dash
+            while let Some(&next) = chars.peek() {
+                chars.next();
+                if next == '\n' {
+                    break;
+                }
+            }
+        }
+        // Block comment /* */ — skip until */
+        else if c == '/' && chars.peek() == Some(&'*') {
+            chars.next(); // consume *
+            while let Some(next) = chars.next() {
+                if next == '*' && chars.peek() == Some(&'/') {
+                    chars.next(); // consume /
+                    break;
+                }
+            }
+        }
+        else {
+            result.push(c);
+        }
+    }
+
+    result
 }
 
 pub async fn load_cursor(pool: &PgPool, key: &str) -> Result<Option<String>> {
