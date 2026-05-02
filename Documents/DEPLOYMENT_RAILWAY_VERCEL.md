@@ -24,9 +24,11 @@ Railway auto-detects Rust. The `indexer/Procfile` specifies the correct start co
 | Build Command | `cargo build --release --bin efrep-indexer` |
 | Start Command | *(leave blank — Railway reads `indexer/Procfile`)* |
 
-The Procfile contains: `web: ./target/release/efrep-indexer`
+The Procfile contains: `web: /app/indexer/target/release/efrep-indexer`
 
 > **Important**: Do NOT set `cargo run` as the start command. Cargo is not available in the runtime image.
+> The absolute path `/app/indexer/target/release/efrep-indexer` is required because Railway's runtime
+> working directory is `/app` (repo root), not the `indexer/` subdirectory where the build occurs.
 
 ### 3. Database (Supabase)
 The indexer needs a PostgreSQL database. Supabase is recommended:

@@ -1,1 +1,1 @@
-web: ./target/release/efrep-indexer
+web: /app/indexer/target/release/efrep-indexer
