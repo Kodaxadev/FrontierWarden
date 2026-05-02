@@ -29,6 +29,11 @@ pub(crate) struct StandingAttestation {
     pub(crate) active_challenge_id: Option<String>,
 }
 
+#[derive(sqlx::FromRow)]
+pub(crate) struct CachedScore {
+    pub(crate) value: i64,
+}
+
 /// Main entry point: dispatches to the appropriate evaluator based on action.
 pub async fn evaluate(
     pool: &PgPool,
@@ -81,9 +86,10 @@ pub async fn evaluate_gate_access(
 
     // Run independent queries concurrently
     let t0 = std::time::Instant::now();
-    let (maybe_policy, attestation) = tokio::try_join!(
+    let (maybe_policy, attestation, cached) = tokio::try_join!(
         latest_gate_policy(pool, &gate_id),
-        latest_standing_attestation(pool, &subject, &schema)
+        latest_standing_attestation(pool, &subject, &schema),
+        score_from_cache(pool, &subject, &schema)
     )?;
     let parallel_ms = t0.elapsed().as_millis();
 
@@ -134,10 +140,16 @@ pub async fn evaluate_gate_access(
             Some(policy.ally_threshold),
             proof_bundle,
             "gate_access",
+            None,
         ));
     };
 
-    let score = attestation.value;
+    // Prefer cached score (oracle-aggregated), fall back to raw attestation value
+    let (score, score_source) = if let Some(cached) = cached {
+        (cached.value, Some("score_cache"))
+    } else {
+        (attestation.value, Some("attestation_raw"))
+    };
     let (decision, allow, toll_multiplier, toll_mist, reason) =
         classify_score(score, policy.ally_threshold, policy.base_toll_mist);
     let explanation = match reason {
@@ -171,7 +183,8 @@ pub async fn evaluate_gate_access(
         action = "gate_access",
         decision,
         score,
-        threshold = policy.ally_threshold
+        threshold = policy.ally_threshold,
+        score_source
     );
     Ok(response(
         decision,
@@ -188,6 +201,7 @@ pub async fn evaluate_gate_access(
         Some(policy.ally_threshold),
         proof_bundle,
         "gate_access",
+        score_source,
     ))
 }
 
@@ -213,7 +227,10 @@ pub async fn evaluate_counterparty_risk(
         .unwrap_or(DEFAULT_MINIMUM_SCORE);
 
     let t0 = std::time::Instant::now();
-    let attestation = latest_standing_attestation(pool, &subject, &schema).await?;
+    let (attestation, cached) = tokio::try_join!(
+        latest_standing_attestation(pool, &subject, &schema),
+        score_from_cache(pool, &subject, &schema)
+    )?;
     let attestation_ms = t0.elapsed().as_millis();
     let Some(attestation) = attestation else {
         let mut proof_bundle = proof_counterparty(&schema, &subject, None);
@@ -240,10 +257,16 @@ pub async fn evaluate_counterparty_risk(
             minimum_score,
             proof_bundle,
             "counterparty_risk",
+            None,
         ));
     };
 
-    let score = attestation.value;
+    // Prefer cached score (oracle-aggregated), fall back to raw attestation value
+    let (score, score_source) = if let Some(cached) = cached {
+        (cached.value, Some("score_cache"))
+    } else {
+        (attestation.value, Some("attestation_raw"))
+    };
     if score < minimum_score {
         let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation));
         let t0 = std::time::Instant::now();
@@ -262,7 +285,8 @@ pub async fn evaluate_counterparty_risk(
             action = "counterparty_risk",
             decision = "DENY",
             score,
-            minimum_score
+            minimum_score,
+            score_source
         );
         return Ok(response_counterparty(
             "DENY",
@@ -278,6 +302,7 @@ pub async fn evaluate_counterparty_risk(
             minimum_score,
             proof_bundle,
             "counterparty_risk",
+            score_source,
         ));
     }
 
@@ -299,7 +324,8 @@ pub async fn evaluate_counterparty_risk(
         action = "counterparty_risk",
         decision = "ALLOW",
         score,
-        confidence
+        confidence,
+        score_source
     );
     Ok(response_counterparty(
         "ALLOW",
@@ -315,6 +341,7 @@ pub async fn evaluate_counterparty_risk(
         minimum_score,
         proof_bundle,
         "counterparty_risk",
+        score_source,
     ))
 }
 
@@ -386,6 +413,27 @@ async fn latest_standing_attestation(
     .map_err(Into::into)
 }
 
+/// Fetch the latest cached score for a subject (profile owner) and schema.
+/// Joins profiles by owner to score_cache, returning the oracle-aggregated score if available.
+async fn score_from_cache(
+    pool: &PgPool,
+    subject: &str,
+    schema: &str,
+) -> Result<Option<CachedScore>> {
+    sqlx::query_as::<_, CachedScore>(
+        "SELECT sc.value
+         FROM score_cache sc
+         JOIN profiles p ON p.profile_id = sc.profile_id
+         WHERE p.owner = $1 AND sc.schema_id = $2
+         LIMIT 1",
+    )
+    .bind(subject)
+    .bind(schema)
+    .fetch_optional(pool)
+    .await
+    .map_err(Into::into)
+}
+
 pub(crate) fn insufficient(
     subject: String,
     gate_id: Option<String>,
@@ -416,6 +464,7 @@ pub(crate) fn insufficient(
         gate_id,
         proof_bundle,
         action,
+        None,
     )
 }
 
@@ -435,6 +484,7 @@ fn response(
     threshold: Option<i64>,
     proof: TrustProof,
     action: &'static str,
+    score_source: Option<&'static str>,
 ) -> TrustEvaluationResponse {
     TrustEvaluationResponse {
         api_version: "trust.v1",
@@ -458,6 +508,7 @@ fn response(
         observed: TrustObserved {
             score,
             attestation_id: proof.attestation_ids.first().cloned(),
+            score_source,
         },
         proof,
     }
@@ -476,6 +527,7 @@ fn response_counterparty(
     minimum_score: i64,
     proof: TrustProof,
     action: &'static str,
+    score_source: Option<&'static str>,
 ) -> TrustEvaluationResponse {
     TrustEvaluationResponse {
         api_version: "trust.v1",
@@ -499,6 +551,7 @@ fn response_counterparty(
         observed: TrustObserved {
             score,
             attestation_id: proof.attestation_ids.first().cloned(),
+            score_source,
         },
         proof,
     }
@@ -516,6 +569,7 @@ fn response_raw(
     gate_id: Option<String>,
     proof: TrustProof,
     action: String,
+    score_source: Option<&'static str>,
 ) -> TrustEvaluationResponse {
     TrustEvaluationResponse {
         api_version: "trust.v1",
@@ -539,6 +593,7 @@ fn response_raw(
         observed: TrustObserved {
             score: None,
             attestation_id: None,
+            score_source,
         },
         proof,
     }

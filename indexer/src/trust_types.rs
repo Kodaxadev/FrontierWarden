@@ -67,6 +67,8 @@ pub struct TrustRequirements {
 pub struct TrustObserved {
     pub score: Option<i64>,
     pub attestation_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub score_source: Option<&'static str>,
 }
 
 #[derive(Serialize)]
