@@ -103,9 +103,10 @@ interface Props {
   live?: boolean;
   loading?: boolean;
   error?: string | null;
+  provenance?: Provenance;
 }
 
-export function TrustConsoleView({ data, live = false, loading = false, error = null }: Props) {
+export function TrustConsoleView({ data, live = false, loading = false, error = null, provenance }: Props) {
   const { account } = useProfileCreate();
   const firstGate = data?.policy?.gateId ?? data?.gates[0]?.sourceId ?? DEFAULT_GATE;
   const [action, setAction] = useState<TrustAction>('gate_access');
@@ -198,6 +199,7 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
         loading={loading}
         live={live}
         error={error}
+        provenance={provenance}
         liveText="Trust API connected"
         emptyText="Trust API unavailable"
       />

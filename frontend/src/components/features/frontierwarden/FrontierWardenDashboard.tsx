@@ -41,7 +41,7 @@ export function FrontierWardenDashboard() {
         </div>
 
         {tab === 'gates'      && <GateIntelView  data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
-        {tab === 'trust'      && <TrustConsoleView data={data} live={live} loading={loading} error={error} />}
+        {tab === 'trust'      && <TrustConsoleView data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
         {tab === 'killboard'  && <KillboardView  data={data} live={killboardLive} loading={loading} error={error} provenance={provenance.killboard} />}
         {tab === 'reputation' && <ReputationView data={data} live={reputationLive} loading={loading} error={error} provenance={provenance.reputation} />}
         {tab === 'contracts'  && <ContractsView  data={data} live={contractsLive} loading={loading} error={error} provenance={provenance.contracts} />}
