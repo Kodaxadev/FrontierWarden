@@ -55,8 +55,5 @@ hex = "0.4"
 rand = "0.8"
 chrono = "0.4"
 
-# Pin indexmap < 2.14 — 2.14 requires edition2024 (Rust 1.85+)
-indexmap = ">=2.0, < 2.14"
-
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
