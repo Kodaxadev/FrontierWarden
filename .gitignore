@@ -11,6 +11,8 @@ indexer/target/
 .blackbox/
 .blackboxcli/
 .claude/
+.agents/
+.windsurf/
 
 # Logs and research
 *.log
