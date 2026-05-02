@@ -17,12 +17,16 @@ Vercel (static frontend) ──HTTPS──> Railway (Rust indexer + API) ──T
 - Set **Root Directory** to `indexer`
 
 ### 2. Build Configuration
-Railway auto-detects Rust. Override if needed:
+Railway auto-detects Rust. The `indexer/Procfile` specifies the correct start command:
 
 | Setting | Value |
 |---|---|
 | Build Command | `cargo build --release --bin efrep-indexer` |
-| Start Command | `cargo run --bin efrep-indexer` |
+| Start Command | *(leave blank — Railway reads `indexer/Procfile`)* |
+
+The Procfile contains: `web: ./target/release/efrep-indexer`
+
+> **Important**: Do NOT set `cargo run` as the start command. Cargo is not available in the runtime image.
 
 ### 3. Database (Supabase)
 The indexer needs a PostgreSQL database. Supabase is recommended:
