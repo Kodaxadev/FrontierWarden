@@ -67,10 +67,11 @@ export function useSponsoredTransaction() {
       });
 
       setState({ step: 'signing', digest: null, error: null });
+      // For sponsored transactions, sign the transaction kind bytes (without gas envelope)
+      // The gas station signature is on the full transaction bytes
       const signer = new CurrentAccountSigner(dAppKit);
-      const rawBytes = fromBase64(txBytes);
-      // Sign the transaction bytes - the dapp-kit signer expects Uint8Array
-      const signed = await signer.signTransaction(rawBytes);
+      const rawKindBytes = fromBase64(txKindBytes);
+      const signed = await signer.signTransaction(rawKindBytes);
 
       // Validate signed transaction structure
       if (!signed || !signed.signature) {
