@@ -17,18 +17,19 @@ Vercel (static frontend) ──HTTPS──> Railway (Rust indexer + API) ──T
 - Set **Root Directory** to `indexer`
 
 ### 2. Build Configuration
-Railway auto-detects Rust. The `indexer/Procfile` specifies the correct start command:
+Railway auto-detects the `indexer/Dockerfile` and builds a container image.
 
 | Setting | Value |
 |---|---|
-| Build Command | `cargo build --release --bin efrep-indexer` |
-| Start Command | *(leave blank — Railway reads `indexer/Procfile`)* |
+| Build Method | Dockerfile |
+| Root Directory | `indexer` |
+| Start Command | *(leave blank — Docker CMD runs `/app/efrep-indexer`)* |
 
-The Procfile contains: `web: /app/indexer/target/release/efrep-indexer`
+The Dockerfile uses a multi-stage build:
+1. **Builder** (`rust:1.88-bookworm`): `cargo build --release --bin efrep-indexer`
+2. **Runtime** (`debian:bookworm-slim`): copies binary + migrations to `/app/`, runs `/app/efrep-indexer`
 
-> **Important**: Do NOT set `cargo run` as the start command. Cargo is not available in the runtime image.
-> The absolute path `/app/indexer/target/release/efrep-indexer` is required because Railway's runtime
-> working directory is `/app` (repo root), not the `indexer/` subdirectory where the build occurs.
+> **Important**: Do NOT set `cargo run` as the start command. The Docker CMD handles startup.
 
 ### 3. Database (Supabase)
 The indexer needs a PostgreSQL database. Supabase is recommended:
