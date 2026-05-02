@@ -306,7 +306,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
                         : 'Submit gate passage attempt'
                   }
                   onClick={() => {
-                    if (passageState.step === 'done' || passageState.step === 'error') {
+                    if (passageState.step === 'done') {
                       resetPassage();
                     } else {
                       void checkPassage();
@@ -334,7 +334,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
                   {passageState.step === 'done' && passageState.digest
                     ? `✓ passage recorded · tx ${shortAddr(passageState.digest)}`
                     : passageState.step === 'error' && passageState.error
-                      ? passageState.error
+                      ? `${passageState.error} · diag v2`
                       : attestationId
                         ? `TRIBE_STANDING ready · ${shortAddr(attestationId)}`
                         : 'Awaiting attestation'
