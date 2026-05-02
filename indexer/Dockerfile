@@ -36,8 +36,12 @@ COPY config.prod.toml /app/config.toml
 
 # Signature verifier for non-Ed25519 wallets (zkLogin, passkey, etc.)
 COPY scripts/verify-personal-message.mjs /app/scripts/verify-personal-message.mjs
-RUN cd /app/scripts && npm init -y --silent > /dev/null 2>&1 && \
-    npm install @mysten/sui
+
+# Install Node.js dependencies for the Mysten signature verifier
+RUN cd /app && \
+    printf '{"type":"module"}' > package.json && \
+    npm install @mysten/sui@2.16.0 --save && \
+    node -e "import('@mysten/sui/verify').then(() => console.log('OK')).catch(e => { console.error(e.message); process.exit(1) })"
 
 ENV EFREP_SIGNATURE_VERIFIER=/app/scripts/verify-personal-message.mjs
 
