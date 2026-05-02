@@ -130,26 +130,59 @@ export async function buildCheckPassageTxKind(
   // Use a traveler-owned payment coin. The sponsor still pays gas, but the
   // gate toll economics stay attached to the traveler, not the gas station.
   const paymentMist = args.paymentMist ?? 1n;
-  const paymentCoin = await selectPaymentCoin(args.client, args.sender, paymentMist);
+  let paymentCoin: PaymentCoinRef;
+  try {
+    paymentCoin = await selectPaymentCoin(args.client, args.sender, paymentMist);
+  } catch (err) {
+    throw new Error(`building:selectPaymentCoin: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   // Validate payment coin structure before passing to tx.objectRef
   if (!paymentCoin.objectId || !paymentCoin.version || !paymentCoin.digest) {
     throw new Error(`Cannot attempt gate passage: invalid payment coin structure`);
   }
 
+  let gateArg: ReturnType<typeof tx.object>;
+  try {
+    gateArg = tx.object(normalizeObjectId(gatePolicyId));
+  } catch (err) {
+    throw new Error(`building:gateArg: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  let attestationArg: ReturnType<typeof tx.object>;
+  try {
+    attestationArg = tx.object(args.attestationObjectId);
+  } catch (err) {
+    throw new Error(`building:attestationArg: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  let paymentArg: ReturnType<typeof tx.object>;
+  try {
+    paymentArg = tx.object(paymentCoin.objectId);
+  } catch (err) {
+    throw new Error(`building:paymentArg: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const arguments_for_moveCall = [
-    tx.object(normalizeObjectId(gatePolicyId)),
-    // Attestation -- owned by sender, borrowed immutably (&Attestation)
-    tx.object(args.attestationObjectId),
-    // Payment coin -- consumed by check_passage, change returned to sender
-    tx.object(paymentCoin.objectId),
+    gateArg,
+    attestationArg,
+    paymentArg,
   ];
 
-  tx.moveCall({
-    target: `${pkgId}::reputation_gate::check_passage`,
-    arguments: arguments_for_moveCall,
-  });
+  try {
+    tx.moveCall({
+      target: `${pkgId}::reputation_gate::check_passage`,
+      arguments: arguments_for_moveCall,
+    });
+  } catch (err) {
+    throw new Error(`building:moveCall: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
-  const kindBytes = await tx.build({ onlyTransactionKind: true, client: args.client });
+  let kindBytes: Uint8Array;
+  try {
+    kindBytes = await tx.build({ onlyTransactionKind: true, client: args.client });
+  } catch (err) {
+    throw new Error(`building:txBuild: ${err instanceof Error ? err.message : String(err)}`);
+  }
   return toBase64(kindBytes);
 }
