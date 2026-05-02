@@ -1,5 +1,5 @@
 // WalletConnect -- live EVE Vault connection via @evefrontier/dapp-kit.
-// useConnection() reads from VaultContext (set up by EveFrontierProvider in main.tsx).
+// useConnection() reads from VaultContext (set up by VaultProvider in main.tsx).
 //
 // Three states rendered:
 //   not installed  -- "INSTALL EVE VAULT" link to vault.evefrontier.com

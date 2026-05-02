@@ -1,6 +1,10 @@
 // Application entry point.
-// EveFrontierProvider nests: QueryClientProvider -> DAppKitProvider -> VaultProvider
-//   -> SmartObjectProvider -> NotificationProvider
+// Provider hierarchy: QueryClientProvider -> DAppKitProvider -> VaultProvider
+//   -> NotificationProvider
+// Note: EveFrontierProvider/SmartObjectProvider are NOT used here because
+// FrontierWarden doesn't require smart object context. If assembly-specific
+// views are needed, wrap those routes with SmartObjectProvider conditionally
+// (requires VITE_OBJECT_ID or ?itemId= query param).
 // queryClient created here so hooks outside the provider tree can access it if needed.
 
 import { StrictMode }          from 'react';
