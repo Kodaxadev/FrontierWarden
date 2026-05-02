@@ -47,6 +47,21 @@ interface PaymentCoinRef {
   digest: string;
 }
 
+function normalizeObjectId(value: string): string {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(value)) {
+    throw new Error(`Cannot attempt gate passage: invalid object ID "${value}"`);
+  }
+  return value;
+}
+
+function normalizeObjectVersion(value: string | number | bigint): string {
+  const version = value.toString();
+  if (!/^\d+$/.test(version)) {
+    throw new Error(`Cannot attempt gate passage: invalid object version "${version}"`);
+  }
+  return version;
+}
+
 function env(key: ConfigKey): string | undefined {
   return (import.meta.env as Record<string, string | undefined>)[key];
 }
@@ -84,9 +99,9 @@ async function selectPaymentCoin(
   }
 
   return {
-    objectId: selected.objectId,
-    version: selected.version,
-    digest: selected.digest,
+    objectId: normalizeObjectId(String(selected.objectId)),
+    version:  normalizeObjectVersion(selected.version),
+    digest:   String(selected.digest),
   };
 }
 
@@ -95,9 +110,9 @@ export async function buildCheckPassageTxKind(
 ): Promise<string> {
   const pkgId            = requiredEnv('VITE_PKG_ID');
   const gatePolicyId     = requiredEnv('VITE_GATE_POLICY_ID');
-  const gatePolicyVersion = Number(requiredEnv('VITE_GATE_POLICY_VERSION'));
+  const gatePolicyVersion = normalizeObjectVersion(requiredEnv('VITE_GATE_POLICY_VERSION'));
 
-  if (!Number.isFinite(gatePolicyVersion) || gatePolicyVersion <= 0) {
+  if (BigInt(gatePolicyVersion) <= 0n) {
     throw new Error('check passage tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
@@ -125,18 +140,14 @@ export async function buildCheckPassageTxKind(
   const arguments_for_moveCall = [
     // GatePolicy -- shared, mutable (toll accumulates into treasury)
     tx.sharedObjectRef({
-      objectId:             gatePolicyId,
+      objectId:             normalizeObjectId(gatePolicyId),
       initialSharedVersion: gatePolicyVersion,
       mutable:              true,
     }),
     // Attestation -- owned by sender, borrowed immutably (&Attestation)
     tx.object(args.attestationObjectId),
     // Payment coin -- consumed by check_passage, change returned to sender
-    tx.objectRef({
-      objectId: paymentCoin.objectId,
-      version: paymentCoin.version,
-      digest: paymentCoin.digest,
-    }),
+    tx.object(paymentCoin.objectId),
   ];
 
   tx.moveCall({
