@@ -384,7 +384,6 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "hex",
- "indexmap",
  "rand",
  "reqwest",
  "serde",
