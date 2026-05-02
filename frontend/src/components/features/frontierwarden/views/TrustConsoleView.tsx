@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { evaluateTrust, fetchEveIdentity } from '../../../../lib/api';
 import type { FwData } from '../fw-data';
-import type { TrustEvaluateResponse, TrustAction } from '@frontierwarden/trustkit';
+import type { TrustEvaluateResponse, TrustAction } from '../../../../types/api.types';
 import type { EveIdentity } from '../../../../types/api.types';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';

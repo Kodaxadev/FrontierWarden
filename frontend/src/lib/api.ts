@@ -29,8 +29,8 @@ import type {
   EveWorldStatus,
   EveIdentity,
 } from '../types/api.types';
-import { createTrustkit } from '@frontierwarden/trustkit';
-import type { TrustEvaluateRequest, TrustEvaluateResponse } from '@frontierwarden/trustkit';
+import { createTrustkit } from './trustkit';
+import type { TrustEvaluateRequest, TrustEvaluateResponse } from '../types/api.types';
 
 const BASE     = import.meta.env.VITE_API_BASE         ?? '/api';
 const GAS_BASE = import.meta.env.VITE_GAS_STATION_URL  ?? '/gas';
