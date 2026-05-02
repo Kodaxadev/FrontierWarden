@@ -4,7 +4,7 @@
 
 import { useCallback, useState } from 'react';
 import { fromBase64 } from '@mysten/bcs';
-import { CurrentAccountSigner } from '@mysten/dapp-kit-core';
+import { Transaction } from '@mysten/sui/transactions';
 import {
   useCurrentAccount,
   useCurrentClient,
@@ -67,11 +67,10 @@ export function useSponsoredTransaction() {
       });
 
       setState({ step: 'signing', digest: null, error: null });
-      // For sponsored transactions, sign the transaction kind bytes (without gas envelope)
-      // The gas station signature is on the full transaction bytes
-      const signer = new CurrentAccountSigner(dAppKit);
-      const rawKindBytes = fromBase64(txKindBytes);
-      const signed = await signer.signTransaction(rawKindBytes);
+      // Reconstruct Transaction from kind bytes and sign with dapp-kit
+      // The wallet expects a Transaction object, not raw bytes
+      const tx = Transaction.fromKind(fromBase64(txKindBytes));
+      const signed = await dAppKit.signTransaction({ transaction: tx });
 
       // Validate signed transaction structure
       if (!signed || !signed.signature) {
