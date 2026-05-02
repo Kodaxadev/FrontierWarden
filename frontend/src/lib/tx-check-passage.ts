@@ -156,9 +156,13 @@ export async function buildCheckPassageTxKind(
     throw new Error(`building:attestationArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  let paymentArg: ReturnType<typeof tx.object>;
+  let paymentArg: ReturnType<typeof tx.objectRef>;
   try {
-    paymentArg = tx.object(paymentCoin.objectId);
+    paymentArg = tx.objectRef({
+      objectId: paymentCoin.objectId,
+      version: paymentCoin.version,
+      digest: paymentCoin.digest,
+    });
   } catch (err) {
     throw new Error(`building:paymentArg: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -180,7 +184,7 @@ export async function buildCheckPassageTxKind(
 
   let kindBytes: Uint8Array;
   try {
-    kindBytes = await tx.build({ onlyTransactionKind: true, client: args.client });
+    kindBytes = await tx.build({ onlyTransactionKind: true });
   } catch (err) {
     throw new Error(`building:txBuild: ${err instanceof Error ? err.message : String(err)}`);
   }
