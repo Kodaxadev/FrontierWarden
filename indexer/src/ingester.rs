@@ -81,7 +81,7 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
             }
 
             if count > 0 {
-                info!(module, count, "processed event batch");
+                info!(module, count, "pipeline:ingest");
             }
             if count > 0 || page.has_next_page {
                 any_new = true;

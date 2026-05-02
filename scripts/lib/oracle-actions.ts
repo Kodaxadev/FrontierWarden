@@ -45,6 +45,10 @@ export interface IssueAttestationArgs {
  * we must transferObjects the result.
  *
  * Caller must setGasBudget and sign with the oracle keypair before submitting.
+ *
+ * Pipeline note: This is a MANUAL pipeline trigger (step 4 in PIPELINE.md).
+ * It is invoked via gas-station.ts POST /oracle/issue-attestation or seed scripts.
+ * No automated bridge from EVE game events to oracle attestation issuance exists yet.
  */
 export function buildIssueAttestationTx(args: IssueAttestationArgs): Transaction {
   const tx = new Transaction();

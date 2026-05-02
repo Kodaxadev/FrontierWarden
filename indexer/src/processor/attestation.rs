@@ -35,6 +35,7 @@ async fn attestation_issued(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     .execute(pool)
     .await?;
 
+    tracing::info!(attestation_id, schema_id, subject, "pipeline:attestation_indexed");
     Ok(())
 }
 

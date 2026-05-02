@@ -81,5 +81,6 @@ async fn score_updated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     .execute(pool)
     .await?;
 
+    tracing::info!(profile_id, schema_id, new_value, "pipeline:score_cache_updated");
     Ok(())
 }
