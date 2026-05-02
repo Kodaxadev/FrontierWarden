@@ -101,6 +101,14 @@ export async function buildCheckPassageTxKind(
     throw new Error('check passage tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
+  // Defensive validation
+  if (!args.attestationObjectId || args.attestationObjectId.length !== 66) {
+    throw new Error(`Cannot attempt gate passage: invalid attestation object ID "${args.attestationObjectId}"`);
+  }
+  if (!args.sender || !args.sender.startsWith('0x')) {
+    throw new Error(`Cannot attempt gate passage: invalid sender address "${args.sender}"`);
+  }
+
   const tx = new Transaction();
   tx.setSender(args.sender);
 
@@ -109,20 +117,31 @@ export async function buildCheckPassageTxKind(
   const paymentMist = args.paymentMist ?? 1n;
   const paymentCoin = await selectPaymentCoin(args.client, args.sender, paymentMist);
 
+  // Validate payment coin structure before passing to tx.objectRef
+  if (!paymentCoin.objectId || !paymentCoin.version || !paymentCoin.digest) {
+    throw new Error(`Cannot attempt gate passage: invalid payment coin structure`);
+  }
+
+  const arguments_for_moveCall = [
+    // GatePolicy -- shared, mutable (toll accumulates into treasury)
+    tx.sharedObjectRef({
+      objectId:             gatePolicyId,
+      initialSharedVersion: gatePolicyVersion,
+      mutable:              true,
+    }),
+    // Attestation -- owned by sender, borrowed immutably (&Attestation)
+    tx.object(args.attestationObjectId),
+    // Payment coin -- consumed by check_passage, change returned to sender
+    tx.objectRef({
+      objectId: paymentCoin.objectId,
+      version: paymentCoin.version,
+      digest: paymentCoin.digest,
+    }),
+  ];
+
   tx.moveCall({
     target: `${pkgId}::reputation_gate::check_passage`,
-    arguments: [
-      // GatePolicy -- shared, mutable (toll accumulates into treasury)
-      tx.sharedObjectRef({
-        objectId:             gatePolicyId,
-        initialSharedVersion: gatePolicyVersion,
-        mutable:              true,
-      }),
-      // Attestation -- owned by sender, borrowed immutably (&Attestation)
-      tx.object(args.attestationObjectId),
-      // Payment coin -- consumed by check_passage, change returned to sender
-      tx.objectRef(paymentCoin),
-    ],
+    arguments: arguments_for_moveCall,
   });
 
   const kindBytes = await tx.build({ onlyTransactionKind: true, client: args.client });
