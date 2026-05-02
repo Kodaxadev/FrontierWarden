@@ -237,6 +237,7 @@ export interface TrustRequirements {
 export interface TrustObserved {
   score: number | null;
   attestationId: string | null;
+  scoreSource?: string | null;
 }
 
 export interface TrustProof {
