@@ -13,6 +13,7 @@ const SUPPORTED_NETWORKS = Object.keys(GRPC_URLS) as SupportedNetwork[];
 export const dAppKit = createDAppKit({
   networks: SUPPORTED_NETWORKS,
   defaultNetwork: 'testnet',
+  slushWalletConfig: null,
   createClient(network) {
     return new SuiGrpcClient({
       network,
