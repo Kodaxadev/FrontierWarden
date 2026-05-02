@@ -138,12 +138,7 @@ export async function buildCheckPassageTxKind(
   }
 
   const arguments_for_moveCall = [
-    // GatePolicy -- shared, mutable (toll accumulates into treasury)
-    tx.sharedObjectRef({
-      objectId:             normalizeObjectId(gatePolicyId),
-      initialSharedVersion: gatePolicyVersion,
-      mutable:              true,
-    }),
+    tx.object(normalizeObjectId(gatePolicyId)),
     // Attestation -- owned by sender, borrowed immutably (&Attestation)
     tx.object(args.attestationObjectId),
     // Payment coin -- consumed by check_passage, change returned to sender
