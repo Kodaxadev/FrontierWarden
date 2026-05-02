@@ -71,6 +71,8 @@ The indexer needs a PostgreSQL database. Supabase is recommended:
 | `EFREP_EVE_PLAYER_PROFILE_TYPE` | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c::character::PlayerProfile` | Player profile type |
 | `EFREP_TRUST_GATE_SCHEMA` | `TRIBE_STANDING` | Trust eval gate schema |
 | `EFREP_TRUST_COUNTERPARTY_SCHEMA` | `TRIBE_STANDING` | Trust eval counterparty schema |
+| `EFREP_MAX_CONNECTIONS` | `5` (default) | Database connection pool size (default 5 in production, clamped to max 10) |
+| `EFREP_MAX_CONNECTIONS_OVERRIDE` | (set to enable >10) | Set any value to allow max_connections >10 |
 
 **Not required on Railway** — `config.toml` is still needed for non-overridden defaults
 (network.rpc_url, indexer batch_size, poll_interval, etc.). Commit `config.toml`

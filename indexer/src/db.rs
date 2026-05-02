@@ -5,6 +5,10 @@ use std::path::Path;
 use crate::config::DatabaseConfig;
 
 pub async fn create_pool(cfg: &DatabaseConfig) -> Result<PgPool> {
+    tracing::info!(
+        max_connections = cfg.max_connections,
+        "Creating database connection pool"
+    );
     let pool = PgPoolOptions::new()
         .max_connections(cfg.max_connections)
         .connect(&cfg.url)

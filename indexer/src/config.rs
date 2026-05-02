@@ -97,6 +97,19 @@ impl Config {
                 eve.player_profile_type = s;
             }
         }
+        // Env var override for database max connections
+        // Default to 5 in production to avoid Supabase session mode limit (15)
+        // Clamp to 10 unless explicitly set higher via EFREP_MAX_CONNECTIONS_OVERRIDE
+        let is_production = std::env::var("RAILWAY_ENVIRONMENT").as_deref() == Ok("production")
+            || std::env::var("RUST_LOG").as_deref().is_ok();
+        let default_max = if is_production { 5 } else { cfg.database.max_connections };
+        let override_allowed = std::env::var("EFREP_MAX_CONNECTIONS_OVERRIDE").is_ok();
+        let max_limit = if override_allowed { u32::MAX } else { 10 };
+        cfg.database.max_connections = std::env::var("EFREP_MAX_CONNECTIONS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(default_max)
+            .min(max_limit);
         Ok(cfg)
     }
 }
