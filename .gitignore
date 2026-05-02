@@ -13,6 +13,7 @@ indexer/target/
 .claude/
 .agents/
 .windsurf/
+skills-lock.json
 
 # Logs and research
 *.log
