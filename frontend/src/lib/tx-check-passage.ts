@@ -184,7 +184,7 @@ export async function buildCheckPassageTxKind(
 
   let kindBytes: Uint8Array;
   try {
-    kindBytes = await tx.build({ onlyTransactionKind: true });
+    kindBytes = await tx.build({ onlyTransactionKind: true, client: args.client });
   } catch (err) {
     throw new Error(`building:txBuild: ${err instanceof Error ? err.message : String(err)}`);
   }
