@@ -128,3 +128,20 @@ Update these on Vercel (`vercel env add` or dashboard):
 - **EVE identity**: Stillness environment only — no Utopia or mainnet
 - **Rate limiting**: Configured via `EFREP_RATE_LIMIT_*` env vars (optional)
 - **API key auth**: Optional — set `EFREP_API_KEY` to protect write endpoints
+
+## Operator Notes
+
+### Freshness Warnings
+
+The Trust API returns freshness warnings in the proof bundle when no recent FrontierWarden protocol events have been indexed. These warnings are expected and correct:
+
+- `INDEXER_CHECKPOINT_UNKNOWN` — no events exist in `raw_events` yet
+- `INDEXER_LAST_EVENT_STALE_SECONDS:N` — last indexed event was over 5 minutes ago
+- `PROOF_CHECKPOINT_BEHIND_LATEST_INDEX:N` — proof checkpoint lags behind the latest indexed checkpoint
+
+These warnings **clear automatically** when new protocol events are emitted on-chain and indexed. No action is required. The indexer polls the Sui RPC every 1 second and processes events as they appear.
+
+If warnings persist for an extended period, verify:
+1. The `EFREP_PACKAGE_ID` matches the deployed Move package on testnet
+2. The Sui RPC endpoint (`https://fullnode.testnet.sui.io:443`) is reachable
+3. Protocol activity is actually occurring (users registering schemas, creating profiles, issuing attestations, etc.)
