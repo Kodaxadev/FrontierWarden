@@ -3,21 +3,14 @@
 // reputation_gate::check_passage signature:
 //   (gate: &mut GatePolicy, attestation: &Attestation, payment: Coin<SUI>, ctx)
 //
-// The attestation must:
-//   - have schema_id == gate.schema_id (b"TRIBE_STANDING")
-//   - have subject == tx sender (anti-laundering check)
-//   - not be revoked or expired
-//   - value > 0 (score 0 => ENEMY => denied)
-//
-// Payment: pass a traveler-owned SUI coin into the Move call.
-//   ALLY tier (score >= ally_threshold): toll = 0, coin returned to sender.
-//   NEUTRAL tier (score < threshold):    toll = base_toll_mist, caller should
-//                                        pass paymentMist >= base_toll_mist.
+// IMPORTANT: use SuiJsonRpcClient (not dapp-kit SuiGrpcClient) for all object
+// resolution and tx.build. The gRPC resolver triggers valibot CallArgSchema
+// validation that throws "Invalid type: Expected Object but received Object".
+// Confirmed by scripts/debug-build-check-passage.ts (dev diagnostic only).
 
 import { toBase64 } from '@mysten/bcs';
-import type { ClientWithCoreApi } from '@mysten/sui/client';
-import { Transaction, Inputs } from '@mysten/sui/transactions';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { Transaction, Inputs } from '@mysten/sui/transactions';
 
 // Active only in dev builds with VITE_DEBUG_TX=true.
 const devLog = import.meta.env.DEV && import.meta.env.VITE_DEBUG_TX === 'true'
@@ -43,8 +36,6 @@ export interface BuildCheckPassageArgs {
    * Defaults to 1n.
    */
   paymentMist?: bigint;
-  /** Required to resolve owned-object version/digest before building kind bytes. */
-  client: ClientWithCoreApi;
 }
 
 interface PaymentCoinRef {
@@ -87,16 +78,16 @@ function requiredEnv(key: ConfigKey): string {
 }
 
 async function selectPaymentCoin(
-  client: ClientWithCoreApi,
+  client: SuiJsonRpcClient,
   owner: string,
   paymentMist: bigint,
 ): Promise<PaymentCoinRef> {
-  const coins = await client.core.listCoins({
+  const result = await client.getCoins({
     owner,
     coinType: '0x2::sui::SUI',
     limit: 50,
   });
-  const selected = coins.objects
+  const selected = result.data
     .filter(coin => BigInt(coin.balance) >= paymentMist)
     .sort((a, b) => Number(BigInt(a.balance) - BigInt(b.balance)))[0];
 
@@ -105,7 +96,7 @@ async function selectPaymentCoin(
   }
 
   return {
-    objectId: normalizeObjectId(String(selected.objectId)),
+    objectId: normalizeObjectId(String(selected.coinObjectId)),
     version:  normalizeObjectVersion(selected.version),
     digest:   String(selected.digest),
   };
@@ -121,11 +112,16 @@ export async function buildCheckPassageTxKind(
   const suiNetwork = (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
     'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
-  // Local JSON-RPC client — fetches attestation version/digest (backend doesn't provide them).
+  // JSON-RPC client — must NOT be replaced with dapp-kit SuiGrpcClient.
+  // See file header comment and scripts/debug-build-check-passage.ts.
   const rpcClient = new SuiJsonRpcClient({
-    url: getJsonRpcFullnodeUrl(suiNetwork),
+    url:     getJsonRpcFullnodeUrl(suiNetwork),
     network: suiNetwork,
   });
+
+  if (import.meta.env.DEV) {
+    console.log('[tx-check-passage] build client:', rpcClient.constructor.name);
+  }
 
   const safeJson = (value: unknown) =>
     JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? `${v}n` : v), 2);
@@ -144,8 +140,6 @@ export async function buildCheckPassageTxKind(
   const tx = new Transaction();
   tx.setSender(args.sender);
 
-  // Use a traveler-owned payment coin. The sponsor still pays gas, but the
-  // gate toll economics stay attached to the traveler, not the gas station.
   const paymentMist = args.paymentMist ?? 1n;
   let paymentCoin: PaymentCoinRef;
   try {
@@ -158,22 +152,12 @@ export async function buildCheckPassageTxKind(
     throw new Error(`Cannot attempt gate passage: invalid payment coin structure`);
   }
 
-  // Build explicit refs based on Move signature:
-  // check_passage(gate: &mut GatePolicy, attestation: &Attestation, payment: Coin<SUI>, ctx)
-  // - gate: &mut GatePolicy → Inputs.SharedObjectRef (shared object, mutable)
-  // - attestation: &Attestation → Inputs.ObjectRef (owned object, immutable ref)
-  // - payment: Coin<SUI> → Inputs.ObjectRef (owned object, value type)
-
   const gateSharedRef = {
-    objectId: normalizeObjectId(gatePolicyId),
+    objectId:             normalizeObjectId(gatePolicyId),
     initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
-    mutable: true,
+    mutable:              true,
   };
   devLog('[gate passage] gateSharedRef:', safeJson(gateSharedRef));
-
-  if (!gateSharedRef.objectId || !gateSharedRef.initialSharedVersion) {
-    throw new Error(`Cannot attempt gate passage: gate shared object ref is incomplete: ${safeJson(gateSharedRef)}`);
-  }
 
   let gateArg: ReturnType<typeof tx.object>;
   try {
@@ -182,11 +166,10 @@ export async function buildCheckPassageTxKind(
     throw new Error(`building:gateArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  // Fetch attestation object to get version/digest (backend doesn't provide them).
   let attestationObject;
   try {
     attestationObject = await rpcClient.getObject({
-      id: normalizeObjectId(args.attestationObjectId),
+      id:      normalizeObjectId(args.attestationObjectId),
       options: { showBcs: false },
     });
   } catch (err) {
@@ -200,8 +183,8 @@ export async function buildCheckPassageTxKind(
 
   const attestationRef = {
     objectId: normalizeObjectId(args.attestationObjectId),
-    version: normalizeObjectVersion(attestationObject.data.version),
-    digest: String(attestationObject.data.digest),
+    version:  normalizeObjectVersion(attestationObject.data.version),
+    digest:   String(attestationObject.data.digest),
   };
   devLog('[gate passage] attestationRef:', safeJson(attestationRef));
 
@@ -213,8 +196,8 @@ export async function buildCheckPassageTxKind(
   try {
     attestationArg = tx.object(Inputs.ObjectRef({
       objectId: attestationRef.objectId,
-      version: attestationRef.version,
-      digest: attestationRef.digest,
+      version:  attestationRef.version,
+      digest:   attestationRef.digest,
     }));
   } catch (err) {
     throw new Error(`building:attestationArg: ${err instanceof Error ? err.message : String(err)}`);
@@ -222,14 +205,10 @@ export async function buildCheckPassageTxKind(
 
   const paymentObjectRef = {
     objectId: paymentCoin.objectId,
-    version: paymentCoin.version,
-    digest: paymentCoin.digest,
+    version:  paymentCoin.version,
+    digest:   paymentCoin.digest,
   };
   devLog('[gate passage] paymentObjectRef:', safeJson(paymentObjectRef));
-
-  if (!paymentObjectRef.objectId || !paymentObjectRef.version || !paymentObjectRef.digest) {
-    throw new Error(`Cannot attempt gate passage: payment object ref is incomplete: ${safeJson(paymentObjectRef)}`);
-  }
 
   let paymentArg: ReturnType<typeof tx.object>;
   try {
@@ -240,7 +219,7 @@ export async function buildCheckPassageTxKind(
 
   try {
     tx.moveCall({
-      target: `${pkgId}::reputation_gate::check_passage`,
+      target:    `${pkgId}::reputation_gate::check_passage`,
       arguments: [gateArg, attestationArg, paymentArg],
     });
   } catch (err) {

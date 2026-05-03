@@ -9,7 +9,6 @@
 //      picks it up into gate_passages within one polling cycle (~10s).
 
 import { useCallback, useEffect, useState } from 'react';
-import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { fetchAttestations } from '../lib/api';
 import { buildCheckPassageTxKind, checkPassageConfigReady, missingCheckPassageConfig } from '../lib/tx-check-passage';
 import { useSponsoredTransaction } from './useSponsoredTransaction';
@@ -21,7 +20,6 @@ export interface CheckPassageArgs {
 
 export function useCheckPassage() {
   const { account, execute, reset, state } = useSponsoredTransaction();
-  const client = useCurrentClient();
 
   const [attestationId, setAttestationId] = useState<string | null>(null);
   const [attestationLoading, setAttestationLoading] = useState(false);
@@ -84,7 +82,6 @@ export function useCheckPassage() {
         sender:              account.address,
         attestationObjectId: attestationId,
         paymentMist:         args.paymentMist,
-        client,
       }),
       gasBudget: 100_000_000,
     });
@@ -92,7 +89,6 @@ export function useCheckPassage() {
     account,
     attestationError,
     attestationId,
-    client,
     configReady,
     execute,
     missingConfig,
