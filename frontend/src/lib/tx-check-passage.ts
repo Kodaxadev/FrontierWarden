@@ -114,6 +114,12 @@ export async function buildCheckPassageTxKind(
   const gatePolicyId     = requiredEnv('VITE_GATE_POLICY_ID');
   const gatePolicyVersion = normalizeObjectVersion(requiredEnv('VITE_GATE_POLICY_VERSION'));
 
+  // Create local JSON-RPC client for fetching attestation object (backend doesn't provide version/digest)
+  const rpcClient = new SuiJsonRpcClient({
+    url: getJsonRpcFullnodeUrl('testnet'),
+    network: 'testnet',
+  });
+
   if (BigInt(gatePolicyVersion) <= 0n) {
     throw new Error('check passage tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
@@ -147,7 +153,7 @@ export async function buildCheckPassageTxKind(
   // Build explicit refs based on Move signature:
   // check_passage(gate: &mut GatePolicy, attestation: &Attestation, payment: Coin<SUI>, ctx)
   // - gate: &mut GatePolicy → Inputs.SharedObjectRef (shared object, mutable)
-  // - attestation: &Attestation → Inputs.ObjectRef (owned object, immutable ref)
+  // - attestation: &Attestation → Inputs.ObjectRef (owned object, immutable ref) - need version/digest
   // - payment: Coin<SUI> → Inputs.ObjectRef (owned object, value type)
 
   console.log('[ARG LOGS] About to construct gateArg with Inputs.SharedObjectRef');
@@ -164,12 +170,37 @@ export async function buildCheckPassageTxKind(
     throw new Error(`building:gateArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  // Fetch attestation object to get version/digest (backend doesn't provide them)
+  console.log('[ARG LOGS] Fetching attestation object to get version/digest');
+  let attestationObject;
+  try {
+    attestationObject = await rpcClient.getObject({
+      id: normalizeObjectId(args.attestationObjectId),
+      options: { showBcs: false },
+    });
+  } catch (err) {
+    throw new Error(`building:fetchAttestation: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  if (!attestationObject || !attestationObject.data) {
+    throw new Error(`Cannot attempt gate passage: failed to fetch attestation object ${args.attestationObjectId}`);
+  }
+
+  const attestationRef = {
+    objectId: normalizeObjectId(args.attestationObjectId),
+    version: normalizeObjectVersion(attestationObject.data.version),
+    digest: String(attestationObject.data.digest),
+  };
+
+  // Assert attestation has all required fields
+  if (!attestationRef.objectId || !attestationRef.version || !attestationRef.digest) {
+    throw new Error(`Cannot attempt gate passage: attestation object ref is incomplete`);
+  }
+
   console.log('[ARG LOGS] About to construct attestationArg with Inputs.ObjectRef');
   let attestationArg: ReturnType<typeof tx.object>;
   try {
-    // Use plain object ref with version/digest from payment coin structure as fallback
-    // (attestation version/digest not available from gRPC, let SDK resolve)
-    attestationArg = tx.object(args.attestationObjectId);
+    attestationArg = tx.object(Inputs.ObjectRef(attestationRef));
     console.log('[ARG LOGS] attestationArg constructed successfully');
   } catch (err) {
     console.error('[ARG LOGS] attestationArg failed:', err);
@@ -222,12 +253,6 @@ export async function buildCheckPassageTxKind(
   console.log('[GATE PASSAGE] paymentCoinRef proto:', Object.getPrototypeOf(paymentCoin)?.constructor?.name);
   console.log('[GATE PASSAGE] gate source proto:', Object.getPrototypeOf({ objectId: gatePolicyId })?.constructor?.name);
   console.log('[GATE PASSAGE] attestation source proto:', Object.getPrototypeOf({ objectId: args.attestationObjectId })?.constructor?.name);
-
-  // Use local JSON-RPC client for build to avoid gRPC protobuf ValiError
-  const rpcClient = new SuiJsonRpcClient({
-    url: getJsonRpcFullnodeUrl('testnet'),
-    network: 'testnet',
-  });
 
   let kindBytes: Uint8Array;
   try {
