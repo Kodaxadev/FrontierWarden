@@ -119,9 +119,11 @@ export async function buildCheckPassageTxKind(
     network: suiNetwork,
   });
 
-  if (import.meta.env.DEV) {
-    console.log('[tx-check-passage] build client:', rpcClient.constructor.name);
-  }
+  console.info('[CHECK_PASSAGE_BUILD_PATH] JSON_RPC_ONLY v3', {
+    buildClient:       rpcClient.constructor.name,
+    coinClient:        rpcClient.constructor.name,
+    usesDappKitClient: false,
+  });
 
   const safeJson = (value: unknown) =>
     JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? `${v}n` : v), 2);
