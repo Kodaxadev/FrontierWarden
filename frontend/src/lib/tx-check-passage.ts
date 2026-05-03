@@ -3,9 +3,12 @@
 // reputation_gate::check_passage signature:
 //   (gate: &mut GatePolicy, attestation: &Attestation, payment: Coin<SUI>, ctx)
 //
-// IMPORTANT: use SuiJsonRpcClient (not dapp-kit SuiGrpcClient) for all object
-// resolution and tx.build. The gRPC resolver triggers valibot CallArgSchema
-// validation that throws "Invalid type: Expected Object but received Object".
+// IMPORTANT: use SuiJsonRpcClient (not dapp-kit SuiGrpcClient) for object
+// resolution (getCoins, getObject). tx.build MUST be called without a client —
+// all args are pre-resolved via Inputs.SharedObjectRef / Inputs.ObjectRef and
+// onlyTransactionKind skips gas, so no client is needed. Passing any client
+// (even SuiJsonRpcClient) in a dapp-kit Provider context triggers valibot
+// TransactionDataSchema validation: "Expected Object but received Object".
 // Confirmed by scripts/debug-build-check-passage.ts (dev diagnostic only).
 
 import { toBase64 } from '@mysten/bcs';
@@ -231,7 +234,7 @@ export async function buildCheckPassageTxKind(
 
   let kindBytes: Uint8Array;
   try {
-    kindBytes = await tx.build({ onlyTransactionKind: true, client: rpcClient });
+    kindBytes = await tx.build({ onlyTransactionKind: true });
   } catch (err) {
     throw new Error(`building:txBuild: ${err instanceof Error ? err.message : String(err)}`);
   }
