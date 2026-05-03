@@ -84,13 +84,11 @@ pub(crate) fn router_with_security(
 }
 
 fn cors_layer() -> CorsLayer {
-    let origins = [
-        "https://frontierwarden.kodaxa.dev",
-        "http://localhost:5173",
-        "http://localhost:3000",
-    ];
-    let allowed: Vec<HeaderValue> = origins
-        .iter()
+    let raw = std::env::var("EFREP_ALLOWED_ORIGINS")
+        .unwrap_or_else(|_| "http://localhost:5173,http://localhost:3000".to_owned());
+    let allowed: Vec<HeaderValue> = raw
+        .split(',')
+        .map(str::trim)
         .filter_map(|o| o.parse().ok())
         .collect();
     CorsLayer::new()

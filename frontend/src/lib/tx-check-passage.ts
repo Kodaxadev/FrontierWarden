@@ -19,6 +19,11 @@ import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 
+// Active only in dev builds with VITE_DEBUG_TX=true.
+const devLog = import.meta.env.DEV && import.meta.env.VITE_DEBUG_TX === 'true'
+  ? (...args: unknown[]) => console.log(...args)
+  : () => {};
+
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
   'VITE_GATE_POLICY_ID',
@@ -109,30 +114,26 @@ async function selectPaymentCoin(
 export async function buildCheckPassageTxKind(
   args: BuildCheckPassageArgs,
 ): Promise<string> {
-  console.log('[ARG LOGS] buildCheckPassageTxKind called');
-  const pkgId            = requiredEnv('VITE_PKG_ID');
-  const gatePolicyId     = requiredEnv('VITE_GATE_POLICY_ID');
+  const pkgId             = requiredEnv('VITE_PKG_ID');
+  const gatePolicyId      = requiredEnv('VITE_GATE_POLICY_ID');
   const gatePolicyVersion = normalizeObjectVersion(requiredEnv('VITE_GATE_POLICY_VERSION'));
 
-  // Create local JSON-RPC client for fetching attestation object (backend doesn't provide version/digest)
+  const suiNetwork = (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
+    'mainnet' | 'testnet' | 'devnet' | 'localnet';
+
+  // Local JSON-RPC client — fetches attestation version/digest (backend doesn't provide them).
   const rpcClient = new SuiJsonRpcClient({
-    url: getJsonRpcFullnodeUrl('testnet'),
-    network: 'testnet',
+    url: getJsonRpcFullnodeUrl(suiNetwork),
+    network: suiNetwork,
   });
 
-  // JSON-safe logging helper
   const safeJson = (value: unknown) =>
-    JSON.stringify(
-      value,
-      (_key, v) => (typeof v === "bigint" ? `${v}n` : v),
-      2
-    );
+    JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? `${v}n` : v), 2);
 
   if (BigInt(gatePolicyVersion) <= 0n) {
     throw new Error('check passage tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
-  // Defensive validation
   if (!args.attestationObjectId || args.attestationObjectId.length !== 66) {
     throw new Error(`Cannot attempt gate passage: invalid attestation object ID "${args.attestationObjectId}"`);
   }
@@ -153,7 +154,6 @@ export async function buildCheckPassageTxKind(
     throw new Error(`building:selectPaymentCoin: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  // Validate payment coin structure before passing to tx.object
   if (!paymentCoin.objectId || !paymentCoin.version || !paymentCoin.digest) {
     throw new Error(`Cannot attempt gate passage: invalid payment coin structure`);
   }
@@ -161,16 +161,15 @@ export async function buildCheckPassageTxKind(
   // Build explicit refs based on Move signature:
   // check_passage(gate: &mut GatePolicy, attestation: &Attestation, payment: Coin<SUI>, ctx)
   // - gate: &mut GatePolicy → Inputs.SharedObjectRef (shared object, mutable)
-  // - attestation: &Attestation → Inputs.ObjectRef (owned object, immutable ref) - need version/digest
+  // - attestation: &Attestation → Inputs.ObjectRef (owned object, immutable ref)
   // - payment: Coin<SUI> → Inputs.ObjectRef (owned object, value type)
 
-  console.log('[ARG LOGS] About to construct gateArg with Inputs.SharedObjectRef');
   const gateSharedRef = {
     objectId: normalizeObjectId(gatePolicyId),
     initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
     mutable: true,
   };
-  console.log('[ARG LOGS] gateSharedRef input:', safeJson(gateSharedRef));
+  devLog('[gate passage] gateSharedRef:', safeJson(gateSharedRef));
 
   if (!gateSharedRef.objectId || !gateSharedRef.initialSharedVersion) {
     throw new Error(`Cannot attempt gate passage: gate shared object ref is incomplete: ${safeJson(gateSharedRef)}`);
@@ -179,14 +178,11 @@ export async function buildCheckPassageTxKind(
   let gateArg: ReturnType<typeof tx.object>;
   try {
     gateArg = tx.object(Inputs.SharedObjectRef(gateSharedRef));
-    console.log('[ARG LOGS] gateArg constructed successfully');
   } catch (err) {
-    console.error('[ARG LOGS] gateArg failed:', err);
     throw new Error(`building:gateArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  // Fetch attestation object to get version/digest (backend doesn't provide them)
-  console.log('[ARG LOGS] Fetching attestation object to get version/digest');
+  // Fetch attestation object to get version/digest (backend doesn't provide them).
   let attestationObject;
   try {
     attestationObject = await rpcClient.getObject({
@@ -196,8 +192,7 @@ export async function buildCheckPassageTxKind(
   } catch (err) {
     throw new Error(`building:fetchAttestation: ${err instanceof Error ? err.message : String(err)}`);
   }
-
-  console.log('[ARG LOGS] Raw attestation getObject response:', safeJson(attestationObject));
+  devLog('[gate passage] attestation getObject:', safeJson(attestationObject));
 
   if (!attestationObject || !attestationObject.data) {
     throw new Error(`Cannot attempt gate passage: failed to fetch attestation object ${args.attestationObjectId}`);
@@ -208,15 +203,12 @@ export async function buildCheckPassageTxKind(
     version: normalizeObjectVersion(attestationObject.data.version),
     digest: String(attestationObject.data.digest),
   };
+  devLog('[gate passage] attestationRef:', safeJson(attestationRef));
 
-  console.log('[ARG LOGS] resolvedAttestationObjectRef:', safeJson(attestationRef));
-
-  // Assert attestation has all required fields
   if (!attestationRef.objectId || !attestationRef.version || !attestationRef.digest) {
     throw new Error(`Cannot attempt gate passage: attestation object ref is incomplete: ${safeJson(attestationRef)}`);
   }
 
-  console.log('[ARG LOGS] About to construct attestationArg with Inputs.ObjectRef');
   let attestationArg: ReturnType<typeof tx.object>;
   try {
     attestationArg = tx.object(Inputs.ObjectRef({
@@ -224,19 +216,16 @@ export async function buildCheckPassageTxKind(
       version: attestationRef.version,
       digest: attestationRef.digest,
     }));
-    console.log('[ARG LOGS] attestationArg constructed successfully');
   } catch (err) {
-    console.error('[ARG LOGS] attestationArg failed:', err);
     throw new Error(`building:attestationArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  console.log('[ARG LOGS] About to construct paymentArg with Inputs.ObjectRef');
   const paymentObjectRef = {
     objectId: paymentCoin.objectId,
     version: paymentCoin.version,
     digest: paymentCoin.digest,
   };
-  console.log('[ARG LOGS] paymentObjectRef input:', safeJson(paymentObjectRef));
+  devLog('[gate passage] paymentObjectRef:', safeJson(paymentObjectRef));
 
   if (!paymentObjectRef.objectId || !paymentObjectRef.version || !paymentObjectRef.digest) {
     throw new Error(`Cannot attempt gate passage: payment object ref is incomplete: ${safeJson(paymentObjectRef)}`);
@@ -245,52 +234,24 @@ export async function buildCheckPassageTxKind(
   let paymentArg: ReturnType<typeof tx.object>;
   try {
     paymentArg = tx.object(Inputs.ObjectRef(paymentObjectRef));
-    console.log('[ARG LOGS] paymentArg constructed successfully');
   } catch (err) {
-    console.error('[ARG LOGS] paymentArg failed:', err);
     throw new Error(`building:paymentArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  const arguments_for_moveCall = [
-    gateArg,
-    attestationArg,
-    paymentArg,
-  ];
-
-  console.log('[ARG LOGS] About to call tx.moveCall with target:', `${pkgId}::reputation_gate::check_passage`);
   try {
     tx.moveCall({
       target: `${pkgId}::reputation_gate::check_passage`,
-      arguments: arguments_for_moveCall,
+      arguments: [gateArg, attestationArg, paymentArg],
     });
   } catch (err) {
-    console.error('[ARG LOGS] tx.moveCall failed:', err);
     throw new Error(`building:moveCall: ${err instanceof Error ? err.message : String(err)}`);
   }
-
-  console.log('[ARG LOGS] tx.moveCall succeeded, logging tx.getData() before build');
-  console.log('[ARG LOGS] tx.getData after moveCall:', safeJson(tx.getData()));
-
-  // JSON-safe logs with prototypes
-  console.log('[GATE PASSAGE] paymentCoinRef full:', safeJson(paymentCoin));
-  console.log('[GATE PASSAGE] gate source full:', safeJson({ objectId: gatePolicyId, initialSharedVersion: gatePolicyVersion }));
-  console.log('[GATE PASSAGE] attestation source full:', safeJson({ objectId: args.attestationObjectId }));
-  console.log('[GATE PASSAGE] tx data before build:', safeJson(tx.getData()));
-
-  console.log('[GATE PASSAGE] paymentCoinRef proto:', Object.getPrototypeOf(paymentCoin)?.constructor?.name);
-  console.log('[GATE PASSAGE] gate source proto:', Object.getPrototypeOf({ objectId: gatePolicyId })?.constructor?.name);
-  console.log('[GATE PASSAGE] attestation source proto:', Object.getPrototypeOf({ objectId: args.attestationObjectId })?.constructor?.name);
+  devLog('[gate passage] tx.getData after moveCall:', safeJson(tx.getData()));
 
   let kindBytes: Uint8Array;
   try {
-    console.log('[ARG LOGS] About to build with JSON-RPC client');
     kindBytes = await tx.build({ onlyTransactionKind: true, client: rpcClient });
-    console.log('[ARG LOGS] build succeeded with JSON-RPC client');
   } catch (err) {
-    console.error('[ARG LOGS] build failed with JSON-RPC client - error name:', (err as Error)?.name);
-    console.error('[ARG LOGS] build failed - error message:', (err as Error)?.message);
-    console.error('[ARG LOGS] build failed - error stack:', (err as Error)?.stack);
-    console.error('[ARG LOGS] build failed - full error:', safeJson(err));
     throw new Error(`building:txBuild: ${err instanceof Error ? err.message : String(err)}`);
   }
   return toBase64(kindBytes);

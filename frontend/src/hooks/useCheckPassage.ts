@@ -69,7 +69,6 @@ export function useCheckPassage() {
   }, [account?.address]);
 
   const checkPassage = useCallback(async (args: CheckPassageArgs = {}) => {
-    console.log('[CHECK PASSAGE] checkPassage called');
     if (!account) {
       throw new Error('Wallet not connected.');
     }
@@ -80,7 +79,6 @@ export function useCheckPassage() {
       throw new Error(attestationError ?? 'No TRIBE_STANDING attestation found.');
     }
 
-    console.log('[CHECK PASSAGE] About to call execute');
     return execute({
       build: () => buildCheckPassageTxKind({
         sender:              account.address,

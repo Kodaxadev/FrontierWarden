@@ -60,9 +60,7 @@ export function useSponsoredTransaction() {
     try {
       phase = 'building';
       setState({ step: 'building', digest: null, error: null });
-      console.log('[SPONSORED TX] About to call build()');
       const txKindBytes = await build();
-      console.log('[SPONSORED TX] build() returned successfully');
 
       phase = 'sponsoring';
       setState({ step: 'sponsoring', digest: null, error: null });
