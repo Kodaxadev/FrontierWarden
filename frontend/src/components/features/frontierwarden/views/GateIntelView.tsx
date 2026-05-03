@@ -336,7 +336,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
                   {passageState.step === 'done' && passageState.digest
                     ? `✓ passage recorded · tx ${shortAddr(passageState.digest)}`
                     : passageState.step === 'error' && passageState.error
-                      ? `${passageState.error} · diag v2`
+                      ? passageState.error
                       : attestationId
                         ? `TRIBE_STANDING ready · ${shortAddr(attestationId)}`
                         : 'Awaiting attestation'

@@ -149,7 +149,7 @@ export async function buildCheckPassageTxKind(
   const paymentMist = args.paymentMist ?? 1n;
   let paymentCoin: PaymentCoinRef;
   try {
-    paymentCoin = await selectPaymentCoin(args.client, args.sender, paymentMist);
+    paymentCoin = await selectPaymentCoin(rpcClient, args.sender, paymentMist);
   } catch (err) {
     throw new Error(`building:selectPaymentCoin: ${err instanceof Error ? err.message : String(err)}`);
   }
