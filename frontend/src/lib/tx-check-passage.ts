@@ -149,14 +149,14 @@ export async function buildCheckPassageTxKind(
   // - attestation: owned object, immutable reference → tx.object() (let SDK resolve)
   // - payment: value type (Coin) → tx.object() (consumed, SDK resolves)
 
-  console.log('[ARG LOGS] About to construct gateArg with SharedObjectRef');
+  console.log('[ARG LOGS] About to construct gateArg with tx.sharedObjectRef');
   let gateArg: ReturnType<typeof tx.object>;
   try {
-    gateArg = tx.object(Inputs.SharedObjectRef({
+    gateArg = tx.sharedObjectRef({
       objectId: normalizeObjectId(gatePolicyId),
       initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
       mutable: true,
-    }));
+    });
     console.log('[ARG LOGS] gateArg constructed successfully');
   } catch (err) {
     console.error('[ARG LOGS] gateArg failed:', err);
@@ -189,6 +189,7 @@ export async function buildCheckPassageTxKind(
     paymentArg,
   ];
 
+  console.log('[ARG LOGS] About to call tx.moveCall with target:', `${pkgId}::reputation_gate::check_passage`);
   try {
     tx.moveCall({
       target: `${pkgId}::reputation_gate::check_passage`,
