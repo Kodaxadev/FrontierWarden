@@ -17,6 +17,7 @@
 import { toBase64 } from '@mysten/bcs';
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -202,10 +203,19 @@ export async function buildCheckPassageTxKind(
   console.log('[GATE PASSAGE JSON LOGS] tx.getData:', JSON.stringify(txData));
   console.log('[GATE PASSAGE JSON LOGS] === end logs ===');
 
+  // Use local JSON-RPC client for build to avoid gRPC protobuf ValiError
+  const rpcClient = new SuiJsonRpcClient({
+    url: getJsonRpcFullnodeUrl('testnet'),
+    network: 'testnet',
+  });
+
   let kindBytes: Uint8Array;
   try {
-    kindBytes = await tx.build({ onlyTransactionKind: true, client: args.client });
+    console.log('[ARG LOGS] About to build with JSON-RPC client');
+    kindBytes = await tx.build({ onlyTransactionKind: true, client: rpcClient });
+    console.log('[ARG LOGS] build succeeded with JSON-RPC client');
   } catch (err) {
+    console.error('[ARG LOGS] build failed with JSON-RPC client:', err);
     throw new Error(`building:txBuild: ${err instanceof Error ? err.message : String(err)}`);
   }
   return toBase64(kindBytes);
