@@ -145,18 +145,12 @@ export async function buildCheckPassageTxKind(
 
   // Build explicit refs based on Move signature:
   // check_passage(gate: &mut GatePolicy, attestation: &Attestation, payment: Coin<SUI>, ctx)
-  // - gate: shared object, mutable reference → Inputs.SharedObjectRef (have ID + initialSharedVersion from env)
-  // - attestation: owned object, immutable reference → tx.object() (let SDK resolve)
-  // - payment: value type (Coin) → tx.object() (consumed, SDK resolves)
+  // Use tx.object() for all arguments and let SDK resolve with client during build
 
-  console.log('[ARG LOGS] About to construct gateArg with tx.sharedObjectRef');
+  console.log('[ARG LOGS] About to construct gateArg with tx.object');
   let gateArg: ReturnType<typeof tx.object>;
   try {
-    gateArg = tx.sharedObjectRef({
-      objectId: normalizeObjectId(gatePolicyId),
-      initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
-      mutable: true,
-    });
+    gateArg = tx.object(normalizeObjectId(gatePolicyId));
     console.log('[ARG LOGS] gateArg constructed successfully');
   } catch (err) {
     console.error('[ARG LOGS] gateArg failed:', err);
