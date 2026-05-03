@@ -120,6 +120,14 @@ export async function buildCheckPassageTxKind(
     network: 'testnet',
   });
 
+  // JSON-safe logging helper
+  const safeJson = (value: unknown) =>
+    JSON.stringify(
+      value,
+      (_key, v) => (typeof v === "bigint" ? `${v}n` : v),
+      2
+    );
+
   if (BigInt(gatePolicyVersion) <= 0n) {
     throw new Error('check passage tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
@@ -157,13 +165,20 @@ export async function buildCheckPassageTxKind(
   // - payment: Coin<SUI> → Inputs.ObjectRef (owned object, value type)
 
   console.log('[ARG LOGS] About to construct gateArg with Inputs.SharedObjectRef');
+  const gateSharedRef = {
+    objectId: normalizeObjectId(gatePolicyId),
+    initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
+    mutable: true,
+  };
+  console.log('[ARG LOGS] gateSharedRef input:', safeJson(gateSharedRef));
+
+  if (!gateSharedRef.objectId || !gateSharedRef.initialSharedVersion) {
+    throw new Error(`Cannot attempt gate passage: gate shared object ref is incomplete: ${safeJson(gateSharedRef)}`);
+  }
+
   let gateArg: ReturnType<typeof tx.object>;
   try {
-    gateArg = tx.object(Inputs.SharedObjectRef({
-      objectId: normalizeObjectId(gatePolicyId),
-      initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
-      mutable: true,
-    }));
+    gateArg = tx.object(Inputs.SharedObjectRef(gateSharedRef));
     console.log('[ARG LOGS] gateArg constructed successfully');
   } catch (err) {
     console.error('[ARG LOGS] gateArg failed:', err);
@@ -182,6 +197,8 @@ export async function buildCheckPassageTxKind(
     throw new Error(`building:fetchAttestation: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  console.log('[ARG LOGS] Raw attestation getObject response:', safeJson(attestationObject));
+
   if (!attestationObject || !attestationObject.data) {
     throw new Error(`Cannot attempt gate passage: failed to fetch attestation object ${args.attestationObjectId}`);
   }
@@ -192,15 +209,21 @@ export async function buildCheckPassageTxKind(
     digest: String(attestationObject.data.digest),
   };
 
+  console.log('[ARG LOGS] resolvedAttestationObjectRef:', safeJson(attestationRef));
+
   // Assert attestation has all required fields
   if (!attestationRef.objectId || !attestationRef.version || !attestationRef.digest) {
-    throw new Error(`Cannot attempt gate passage: attestation object ref is incomplete`);
+    throw new Error(`Cannot attempt gate passage: attestation object ref is incomplete: ${safeJson(attestationRef)}`);
   }
 
   console.log('[ARG LOGS] About to construct attestationArg with Inputs.ObjectRef');
   let attestationArg: ReturnType<typeof tx.object>;
   try {
-    attestationArg = tx.object(Inputs.ObjectRef(attestationRef));
+    attestationArg = tx.object(Inputs.ObjectRef({
+      objectId: attestationRef.objectId,
+      version: attestationRef.version,
+      digest: attestationRef.digest,
+    }));
     console.log('[ARG LOGS] attestationArg constructed successfully');
   } catch (err) {
     console.error('[ARG LOGS] attestationArg failed:', err);
@@ -208,13 +231,20 @@ export async function buildCheckPassageTxKind(
   }
 
   console.log('[ARG LOGS] About to construct paymentArg with Inputs.ObjectRef');
+  const paymentObjectRef = {
+    objectId: paymentCoin.objectId,
+    version: paymentCoin.version,
+    digest: paymentCoin.digest,
+  };
+  console.log('[ARG LOGS] paymentObjectRef input:', safeJson(paymentObjectRef));
+
+  if (!paymentObjectRef.objectId || !paymentObjectRef.version || !paymentObjectRef.digest) {
+    throw new Error(`Cannot attempt gate passage: payment object ref is incomplete: ${safeJson(paymentObjectRef)}`);
+  }
+
   let paymentArg: ReturnType<typeof tx.object>;
   try {
-    paymentArg = tx.object(Inputs.ObjectRef({
-      objectId: paymentCoin.objectId,
-      version: paymentCoin.version,
-      digest: paymentCoin.digest,
-    }));
+    paymentArg = tx.object(Inputs.ObjectRef(paymentObjectRef));
     console.log('[ARG LOGS] paymentArg constructed successfully');
   } catch (err) {
     console.error('[ARG LOGS] paymentArg failed:', err);
@@ -238,13 +268,6 @@ export async function buildCheckPassageTxKind(
   }
 
   // JSON-safe logs with prototypes
-  const safeJson = (value: unknown) =>
-    JSON.stringify(
-      value,
-      (_key, v) => (typeof v === "bigint" ? `${v}n` : v),
-      2
-    );
-
   console.log('[GATE PASSAGE] paymentCoinRef full:', safeJson(paymentCoin));
   console.log('[GATE PASSAGE] gate source full:', safeJson({ objectId: gatePolicyId, initialSharedVersion: gatePolicyVersion }));
   console.log('[GATE PASSAGE] attestation source full:', safeJson({ objectId: args.attestationObjectId }));
