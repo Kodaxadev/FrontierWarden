@@ -117,10 +117,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn health_bypasses_api_key_gate() -> anyhow::Result<()> {
+    async fn health_is_always_accessible() -> anyhow::Result<()> {
         let app = crate::api::router_with_security(
             dummy_pool()?,
-            Some("secret".to_owned()),
             None,
             crate::api_sessions::SessionState::new(),
             crate::api_trust::TrustConfig::default(),
@@ -139,29 +138,6 @@ mod tests {
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         let body: serde_json::Value = serde_json::from_slice(&bytes)?;
         assert_eq!(body["status"], "ok");
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn protected_routes_require_api_key_before_database_access() -> anyhow::Result<()> {
-        let app = crate::api::router_with_security(
-            dummy_pool()?,
-            Some("secret".to_owned()),
-            None,
-            crate::api_sessions::SessionState::new(),
-            crate::api_trust::TrustConfig::default(),
-            None,
-        );
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method(Method::GET)
-                    .uri("/gates")
-                    .body(Body::empty())?,
-            )
-            .await?;
-
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         Ok(())
     }
 

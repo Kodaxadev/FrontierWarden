@@ -14,7 +14,6 @@ pub fn router(pool: PgPool, trust_cfg: TrustConfig, eve_cfg: Option<EveConfig>) 
     let sessions = crate::api_sessions::SessionState::new();
     router_with_security(
         pool,
-        crate::api_auth::configured_api_key(),
         crate::api_rate_limit::RateLimitState::from_env(),
         sessions,
         trust_cfg,
@@ -24,7 +23,6 @@ pub fn router(pool: PgPool, trust_cfg: TrustConfig, eve_cfg: Option<EveConfig>) 
 
 pub(crate) fn router_with_security(
     pool: PgPool,
-    api_key: Option<String>,
     rate_limit: Option<crate::api_rate_limit::RateLimitState>,
     sessions: crate::api_sessions::SessionState,
     trust_cfg: TrustConfig,
@@ -58,18 +56,6 @@ pub(crate) fn router_with_security(
             limiter,
             crate::api_rate_limit::rate_limit,
         ))
-    } else {
-        api_routes
-    };
-
-    let api_routes = if api_key.is_some() {
-        let access = crate::api_auth::AccessState {
-            api_key,
-            sessions: sessions.clone(),
-        };
-        api_routes.layer(middleware::from_fn(move |req, next| {
-            crate::api_auth::require_access(req, next, access.clone())
-        }))
     } else {
         api_routes
     };

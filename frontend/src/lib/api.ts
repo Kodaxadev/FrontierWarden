@@ -34,7 +34,6 @@ import type { TrustEvaluateRequest, TrustEvaluateResponse } from '../types/api.t
 
 const BASE     = import.meta.env.VITE_API_BASE         ?? '/api';
 const GAS_BASE = import.meta.env.VITE_GAS_STATION_URL  ?? '/gas';
-const API_KEY  = import.meta.env.VITE_API_KEY as string | undefined;
 
 let operatorSessionToken: string | null = null;
 
@@ -45,9 +44,6 @@ export function setOperatorSessionToken(token: string | null) {
 function apiHeaders(extra: Record<string, string> = {}) {
   if (operatorSessionToken) {
     return { ...extra, Authorization: `Bearer ${operatorSessionToken}` };
-  }
-  if (API_KEY) {
-    return { ...extra, 'x-api-key': API_KEY };
   }
   return extra;
 }
