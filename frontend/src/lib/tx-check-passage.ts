@@ -3,9 +3,12 @@
 // reputation_gate::check_passage signature:
 //   (gate: &mut GatePolicy, attestation: &Attestation, payment: Coin<SUI>, ctx)
 //
-// IMPORTANT: use SuiJsonRpcClient (not dapp-kit SuiGrpcClient) for all object
-// resolution and tx.build. The gRPC resolver triggers valibot CallArgSchema
-// validation that throws "Invalid type: Expected Object but received Object".
+// IMPORTANT: use SuiJsonRpcClient (not dapp-kit SuiGrpcClient) for object
+// resolution (getCoins, getObject). tx.build MUST be called without a client —
+// all args are pre-resolved via Inputs.SharedObjectRef / Inputs.ObjectRef and
+// onlyTransactionKind skips gas, so no client is needed. Passing any client
+// (even SuiJsonRpcClient) in a dapp-kit Provider context triggers valibot
+// TransactionDataSchema validation: "Expected Object but received Object".
 // Confirmed by scripts/debug-build-check-passage.ts (dev diagnostic only).
 
 import { toBase64 } from '@mysten/bcs';
@@ -105,135 +108,111 @@ async function selectPaymentCoin(
 export async function buildCheckPassageTxKind(
   args: BuildCheckPassageArgs,
 ): Promise<string> {
-  const pkgId             = requiredEnv('VITE_PKG_ID');
-  const gatePolicyId      = requiredEnv('VITE_GATE_POLICY_ID');
-  const gatePolicyVersion = normalizeObjectVersion(requiredEnv('VITE_GATE_POLICY_VERSION'));
-
-  const suiNetwork = (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
-    'mainnet' | 'testnet' | 'devnet' | 'localnet';
-
-  // JSON-RPC client — must NOT be replaced with dapp-kit SuiGrpcClient.
-  // See file header comment and scripts/debug-build-check-passage.ts.
-  const rpcClient = new SuiJsonRpcClient({
-    url:     getJsonRpcFullnodeUrl(suiNetwork),
-    network: suiNetwork,
-  });
-
-  console.info('[CHECK_PASSAGE_BUILD_PATH] JSON_RPC_ONLY v3', {
-    buildClient:       rpcClient.constructor.name,
-    coinClient:        rpcClient.constructor.name,
-    usesDappKitClient: false,
-  });
-
-  const safeJson = (value: unknown) =>
-    JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? `${v}n` : v), 2);
-
-  if (BigInt(gatePolicyVersion) <= 0n) {
-    throw new Error('check passage tx: VITE_GATE_POLICY_VERSION must be a positive number');
-  }
-
-  if (!args.attestationObjectId || args.attestationObjectId.length !== 66) {
-    throw new Error(`Cannot attempt gate passage: invalid attestation object ID "${args.attestationObjectId}"`);
-  }
-  if (!args.sender || !args.sender.startsWith('0x')) {
-    throw new Error(`Cannot attempt gate passage: invalid sender address "${args.sender}"`);
-  }
-
-  const tx = new Transaction();
-  tx.setSender(args.sender);
-
-  const paymentMist = args.paymentMist ?? 1n;
-  let paymentCoin: PaymentCoinRef;
+  let step = 'init';
   try {
-    paymentCoin = await selectPaymentCoin(rpcClient, args.sender, paymentMist);
-  } catch (err) {
-    throw new Error(`building:selectPaymentCoin: ${err instanceof Error ? err.message : String(err)}`);
-  }
+    step = 'env';
+    const pkgId             = requiredEnv('VITE_PKG_ID');
+    const gatePolicyId      = requiredEnv('VITE_GATE_POLICY_ID');
+    const gatePolicyVersion = normalizeObjectVersion(requiredEnv('VITE_GATE_POLICY_VERSION'));
 
-  if (!paymentCoin.objectId || !paymentCoin.version || !paymentCoin.digest) {
-    throw new Error(`Cannot attempt gate passage: invalid payment coin structure`);
-  }
+    const suiNetwork = (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
+      'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
-  const gateSharedRef = {
-    objectId:             normalizeObjectId(gatePolicyId),
-    initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
-    mutable:              true,
-  };
-  devLog('[gate passage] gateSharedRef:', safeJson(gateSharedRef));
+    step = 'rpcClient';
+    const rpcClient = new SuiJsonRpcClient({
+      url:     getJsonRpcFullnodeUrl(suiNetwork),
+      network: suiNetwork,
+    });
 
-  let gateArg: ReturnType<typeof tx.object>;
-  try {
-    gateArg = tx.object(Inputs.SharedObjectRef(gateSharedRef));
-  } catch (err) {
-    throw new Error(`building:gateArg: ${err instanceof Error ? err.message : String(err)}`);
-  }
+    console.info('[CHECK_PASSAGE] v5 step=start', { suiNetwork });
 
-  let attestationObject;
-  try {
-    attestationObject = await rpcClient.getObject({
+    step = 'validate';
+    if (BigInt(gatePolicyVersion) <= 0n) {
+      throw new Error('check passage tx: VITE_GATE_POLICY_VERSION must be a positive number');
+    }
+    if (!args.attestationObjectId || args.attestationObjectId.length !== 66) {
+      throw new Error(`Cannot attempt gate passage: invalid attestation object ID "${args.attestationObjectId}"`);
+    }
+    if (!args.sender || !args.sender.startsWith('0x')) {
+      throw new Error(`Cannot attempt gate passage: invalid sender address "${args.sender}"`);
+    }
+
+    step = 'newTransaction';
+    const tx = new Transaction();
+
+    step = 'setSender';
+    tx.setSender(args.sender);
+
+    step = 'selectPaymentCoin';
+    const paymentMist = args.paymentMist ?? 1n;
+    const paymentCoin = await selectPaymentCoin(rpcClient, args.sender, paymentMist);
+    console.info('[CHECK_PASSAGE] v5 step=paymentCoin', {
+      objectId: paymentCoin.objectId,
+      version:  paymentCoin.version,
+      digestLen: paymentCoin.digest?.length,
+    });
+
+    step = 'gateSharedRef';
+    const gateSharedRef = {
+      objectId:             normalizeObjectId(gatePolicyId),
+      initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
+      mutable:              true,
+    };
+
+    step = 'tx.object(gate)';
+    const gateArg = tx.object(Inputs.SharedObjectRef(gateSharedRef));
+    console.info('[CHECK_PASSAGE] v5 step=gateArg ok');
+
+    step = 'fetchAttestation';
+    const attestationObject = await rpcClient.getObject({
       id:      normalizeObjectId(args.attestationObjectId),
       options: { showBcs: false },
     });
-  } catch (err) {
-    throw new Error(`building:fetchAttestation: ${err instanceof Error ? err.message : String(err)}`);
-  }
-  devLog('[gate passage] attestation getObject:', safeJson(attestationObject));
+    if (!attestationObject?.data) {
+      throw new Error(`failed to fetch attestation object ${args.attestationObjectId}`);
+    }
 
-  if (!attestationObject || !attestationObject.data) {
-    throw new Error(`Cannot attempt gate passage: failed to fetch attestation object ${args.attestationObjectId}`);
-  }
-
-  const attestationRef = {
-    objectId: normalizeObjectId(args.attestationObjectId),
-    version:  normalizeObjectVersion(attestationObject.data.version),
-    digest:   String(attestationObject.data.digest),
-  };
-  devLog('[gate passage] attestationRef:', safeJson(attestationRef));
-
-  if (!attestationRef.objectId || !attestationRef.version || !attestationRef.digest) {
-    throw new Error(`Cannot attempt gate passage: attestation object ref is incomplete: ${safeJson(attestationRef)}`);
-  }
-
-  let attestationArg: ReturnType<typeof tx.object>;
-  try {
-    attestationArg = tx.object(Inputs.ObjectRef({
+    step = 'attestationRef';
+    const attestationRef = {
+      objectId: normalizeObjectId(args.attestationObjectId),
+      version:  normalizeObjectVersion(attestationObject.data.version),
+      digest:   String(attestationObject.data.digest),
+    };
+    console.info('[CHECK_PASSAGE] v5 step=attestationRef', {
       objectId: attestationRef.objectId,
       version:  attestationRef.version,
-      digest:   attestationRef.digest,
+      digestLen: attestationRef.digest?.length,
+    });
+
+    step = 'tx.object(attestation)';
+    const attestationArg = tx.object(Inputs.ObjectRef(attestationRef));
+    console.info('[CHECK_PASSAGE] v5 step=attestationArg ok');
+
+    step = 'tx.object(payment)';
+    const paymentArg = tx.object(Inputs.ObjectRef({
+      objectId: paymentCoin.objectId,
+      version:  paymentCoin.version,
+      digest:   paymentCoin.digest,
     }));
-  } catch (err) {
-    throw new Error(`building:attestationArg: ${err instanceof Error ? err.message : String(err)}`);
-  }
+    console.info('[CHECK_PASSAGE] v5 step=paymentArg ok');
 
-  const paymentObjectRef = {
-    objectId: paymentCoin.objectId,
-    version:  paymentCoin.version,
-    digest:   paymentCoin.digest,
-  };
-  devLog('[gate passage] paymentObjectRef:', safeJson(paymentObjectRef));
-
-  let paymentArg: ReturnType<typeof tx.object>;
-  try {
-    paymentArg = tx.object(Inputs.ObjectRef(paymentObjectRef));
-  } catch (err) {
-    throw new Error(`building:paymentArg: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  try {
+    step = 'moveCall';
     tx.moveCall({
       target:    `${pkgId}::reputation_gate::check_passage`,
       arguments: [gateArg, attestationArg, paymentArg],
     });
-  } catch (err) {
-    throw new Error(`building:moveCall: ${err instanceof Error ? err.message : String(err)}`);
-  }
-  devLog('[gate passage] tx.getData after moveCall:', safeJson(tx.getData()));
+    console.info('[CHECK_PASSAGE] v5 step=moveCall ok');
 
-  let kindBytes: Uint8Array;
-  try {
-    kindBytes = await tx.build({ onlyTransactionKind: true, client: rpcClient });
-  } catch (err) {
-    throw new Error(`building:txBuild: ${err instanceof Error ? err.message : String(err)}`);
+    step = 'tx.build';
+    const kindBytes = await tx.build({ onlyTransactionKind: true });
+    console.info('[CHECK_PASSAGE] v5 step=build ok', { len: kindBytes.length });
+    return toBase64(kindBytes);
+  } catch (err: unknown) {
+    const name  = (err as { name?: string })?.name ?? 'Error';
+    const msg   = (err as { message?: string })?.message ?? String(err);
+    const stack = (err as { stack?: string })?.stack ?? '(no stack)';
+    console.error(`[CHECK_PASSAGE] v5 FAILED at step="${step}"`, { name, msg });
+    console.error('[CHECK_PASSAGE] v5 stack:', stack);
+    throw new Error(`${step}: [${name}] ${msg}`);
   }
-  return toBase64(kindBytes);
 }
