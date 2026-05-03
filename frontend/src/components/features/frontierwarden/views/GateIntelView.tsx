@@ -306,9 +306,11 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
                         : 'Submit gate passage attempt'
                   }
                   onClick={() => {
+                    console.log('[BUTTON] RETRY button clicked, step:', passageState.step);
                     if (passageState.step === 'done') {
                       resetPassage();
                     } else {
+                      console.log('[BUTTON] About to call checkPassage()');
                       void checkPassage();
                     }
                   }}
