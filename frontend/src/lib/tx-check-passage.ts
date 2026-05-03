@@ -146,21 +146,29 @@ export async function buildCheckPassageTxKind(
 
   // Build explicit refs based on Move signature:
   // check_passage(gate: &mut GatePolicy, attestation: &Attestation, payment: Coin<SUI>, ctx)
-  // Use tx.object() for all arguments and let SDK resolve with client during build
+  // - gate: &mut GatePolicy → Inputs.SharedObjectRef (shared object, mutable)
+  // - attestation: &Attestation → Inputs.ObjectRef (owned object, immutable ref)
+  // - payment: Coin<SUI> → Inputs.ObjectRef (owned object, value type)
 
-  console.log('[ARG LOGS] About to construct gateArg with tx.object');
+  console.log('[ARG LOGS] About to construct gateArg with Inputs.SharedObjectRef');
   let gateArg: ReturnType<typeof tx.object>;
   try {
-    gateArg = tx.object(normalizeObjectId(gatePolicyId));
+    gateArg = tx.object(Inputs.SharedObjectRef({
+      objectId: normalizeObjectId(gatePolicyId),
+      initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
+      mutable: true,
+    }));
     console.log('[ARG LOGS] gateArg constructed successfully');
   } catch (err) {
     console.error('[ARG LOGS] gateArg failed:', err);
     throw new Error(`building:gateArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  console.log('[ARG LOGS] About to construct attestationArg with tx.object');
+  console.log('[ARG LOGS] About to construct attestationArg with Inputs.ObjectRef');
   let attestationArg: ReturnType<typeof tx.object>;
   try {
+    // Use plain object ref with version/digest from payment coin structure as fallback
+    // (attestation version/digest not available from gRPC, let SDK resolve)
     attestationArg = tx.object(args.attestationObjectId);
     console.log('[ARG LOGS] attestationArg constructed successfully');
   } catch (err) {
@@ -168,10 +176,14 @@ export async function buildCheckPassageTxKind(
     throw new Error(`building:attestationArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  console.log('[ARG LOGS] About to construct paymentArg with tx.object');
+  console.log('[ARG LOGS] About to construct paymentArg with Inputs.ObjectRef');
   let paymentArg: ReturnType<typeof tx.object>;
   try {
-    paymentArg = tx.object(paymentCoin.objectId);
+    paymentArg = tx.object(Inputs.ObjectRef({
+      objectId: paymentCoin.objectId,
+      version: paymentCoin.version,
+      digest: paymentCoin.digest,
+    }));
     console.log('[ARG LOGS] paymentArg constructed successfully');
   } catch (err) {
     console.error('[ARG LOGS] paymentArg failed:', err);
@@ -194,14 +206,22 @@ export async function buildCheckPassageTxKind(
     throw new Error(`building:moveCall: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  // JSON-safe logs before build
-  const txData = tx.getData();
-  console.log('[GATE PASSAGE JSON LOGS] === before build ===');
-  console.log('[GATE PASSAGE JSON LOGS] paymentCoinRef:', JSON.stringify(paymentCoin));
-  console.log('[GATE PASSAGE JSON LOGS] selectedGate:', JSON.stringify({ objectId: gatePolicyId, initialSharedVersion: gatePolicyVersion }));
-  console.log('[GATE PASSAGE JSON LOGS] selectedAttestation:', JSON.stringify({ objectId: args.attestationObjectId }));
-  console.log('[GATE PASSAGE JSON LOGS] tx.getData:', JSON.stringify(txData));
-  console.log('[GATE PASSAGE JSON LOGS] === end logs ===');
+  // JSON-safe logs with prototypes
+  const safeJson = (value: unknown) =>
+    JSON.stringify(
+      value,
+      (_key, v) => (typeof v === "bigint" ? `${v}n` : v),
+      2
+    );
+
+  console.log('[GATE PASSAGE] paymentCoinRef full:', safeJson(paymentCoin));
+  console.log('[GATE PASSAGE] gate source full:', safeJson({ objectId: gatePolicyId, initialSharedVersion: gatePolicyVersion }));
+  console.log('[GATE PASSAGE] attestation source full:', safeJson({ objectId: args.attestationObjectId }));
+  console.log('[GATE PASSAGE] tx data before build:', safeJson(tx.getData()));
+
+  console.log('[GATE PASSAGE] paymentCoinRef proto:', Object.getPrototypeOf(paymentCoin)?.constructor?.name);
+  console.log('[GATE PASSAGE] gate source proto:', Object.getPrototypeOf({ objectId: gatePolicyId })?.constructor?.name);
+  console.log('[GATE PASSAGE] attestation source proto:', Object.getPrototypeOf({ objectId: args.attestationObjectId })?.constructor?.name);
 
   // Use local JSON-RPC client for build to avoid gRPC protobuf ValiError
   const rpcClient = new SuiJsonRpcClient({
