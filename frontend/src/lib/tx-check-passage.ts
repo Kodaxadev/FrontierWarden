@@ -108,6 +108,7 @@ async function selectPaymentCoin(
 export async function buildCheckPassageTxKind(
   args: BuildCheckPassageArgs,
 ): Promise<string> {
+  console.log('[ARG LOGS] buildCheckPassageTxKind called');
   const pkgId            = requiredEnv('VITE_PKG_ID');
   const gatePolicyId     = requiredEnv('VITE_GATE_POLICY_ID');
   const gatePolicyVersion = normalizeObjectVersion(requiredEnv('VITE_GATE_POLICY_VERSION'));
@@ -148,6 +149,7 @@ export async function buildCheckPassageTxKind(
   // - attestation: owned object, immutable reference → tx.object() (let SDK resolve)
   // - payment: value type (Coin) → tx.object() (consumed, SDK resolves)
 
+  console.log('[ARG LOGS] About to construct gateArg with SharedObjectRef');
   let gateArg: ReturnType<typeof tx.object>;
   try {
     gateArg = tx.object(Inputs.SharedObjectRef({
@@ -155,21 +157,29 @@ export async function buildCheckPassageTxKind(
       initialSharedVersion: normalizeObjectVersion(gatePolicyVersion),
       mutable: true,
     }));
+    console.log('[ARG LOGS] gateArg constructed successfully');
   } catch (err) {
+    console.error('[ARG LOGS] gateArg failed:', err);
     throw new Error(`building:gateArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  console.log('[ARG LOGS] About to construct attestationArg with tx.object');
   let attestationArg: ReturnType<typeof tx.object>;
   try {
     attestationArg = tx.object(args.attestationObjectId);
+    console.log('[ARG LOGS] attestationArg constructed successfully');
   } catch (err) {
+    console.error('[ARG LOGS] attestationArg failed:', err);
     throw new Error(`building:attestationArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  console.log('[ARG LOGS] About to construct paymentArg with tx.object');
   let paymentArg: ReturnType<typeof tx.object>;
   try {
     paymentArg = tx.object(paymentCoin.objectId);
+    console.log('[ARG LOGS] paymentArg constructed successfully');
   } catch (err) {
+    console.error('[ARG LOGS] paymentArg failed:', err);
     throw new Error(`building:paymentArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
