@@ -173,6 +173,22 @@ export async function buildCheckPassageTxKind(
     paymentArg,
   ];
 
+  // INSTRUMENTATION: Capture exact values before tx.moveCall
+  console.log('[GATE PASSAGE INSTRUMENTATION] === tx.moveCall ===');
+  console.log('[GATE PASSAGE INSTRUMENTATION] package ID:', pkgId);
+  console.log('[GATE PASSAGE INSTRUMENTATION] move target:', `${pkgId}::reputation_gate::check_passage`);
+  console.log('[GATE PASSAGE INSTRUMENTATION] gate policy ID:', gatePolicyId);
+  console.log('[GATE PASSAGE INSTRUMENTATION] gate policy version:', gatePolicyVersion);
+  console.log('[GATE PASSAGE INSTRUMENTATION] attestation object ID:', args.attestationObjectId);
+  console.log('[GATE PASSAGE INSTRUMENTATION] traveler address (sender):', args.sender);
+  console.log('[GATE PASSAGE INSTRUMENTATION] paymentMist (toll amount):', paymentMist);
+  console.log('[GATE PASSAGE INSTRUMENTATION] payment coin ref:', paymentCoin);
+  console.log('[GATE PASSAGE INSTRUMENTATION] arguments_for_moveCall:', arguments_for_moveCall);
+  console.log('[GATE PASSAGE INSTRUMENTATION] gateArg:', gateArg);
+  console.log('[GATE PASSAGE INSTRUMENTATION] attestationArg:', attestationArg);
+  console.log('[GATE PASSAGE INSTRUMENTATION] paymentArg:', paymentArg);
+  console.log('[GATE PASSAGE INSTRUMENTATION] === end instrumentation ===');
+
   try {
     tx.moveCall({
       target: `${pkgId}::reputation_gate::check_passage`,
