@@ -264,8 +264,12 @@ export async function buildCheckPassageTxKind(
       arguments: arguments_for_moveCall,
     });
   } catch (err) {
+    console.error('[ARG LOGS] tx.moveCall failed:', err);
     throw new Error(`building:moveCall: ${err instanceof Error ? err.message : String(err)}`);
   }
+
+  console.log('[ARG LOGS] tx.moveCall succeeded, logging tx.getData() before build');
+  console.log('[ARG LOGS] tx.getData after moveCall:', safeJson(tx.getData()));
 
   // JSON-safe logs with prototypes
   console.log('[GATE PASSAGE] paymentCoinRef full:', safeJson(paymentCoin));
@@ -283,7 +287,10 @@ export async function buildCheckPassageTxKind(
     kindBytes = await tx.build({ onlyTransactionKind: true, client: rpcClient });
     console.log('[ARG LOGS] build succeeded with JSON-RPC client');
   } catch (err) {
-    console.error('[ARG LOGS] build failed with JSON-RPC client:', err);
+    console.error('[ARG LOGS] build failed with JSON-RPC client - error name:', (err as Error)?.name);
+    console.error('[ARG LOGS] build failed - error message:', (err as Error)?.message);
+    console.error('[ARG LOGS] build failed - error stack:', (err as Error)?.stack);
+    console.error('[ARG LOGS] build failed - full error:', safeJson(err));
     throw new Error(`building:txBuild: ${err instanceof Error ? err.message : String(err)}`);
   }
   return toBase64(kindBytes);
