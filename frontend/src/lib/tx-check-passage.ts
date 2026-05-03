@@ -16,7 +16,8 @@
 
 import { toBase64 } from '@mysten/bcs';
 import type { ClientWithCoreApi } from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
+import { Transaction, Inputs } from '@mysten/sui/transactions';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -142,27 +143,72 @@ export async function buildCheckPassageTxKind(
     throw new Error(`Cannot attempt gate passage: invalid payment coin structure`);
   }
 
+  // Create local JSON-RPC client to fetch object details (avoid gRPC protobuf issues)
+  const rpcClient = new SuiJsonRpcClient({
+    url: getJsonRpcFullnodeUrl('testnet'),
+    network: 'testnet',
+  });
+
+  // Fetch gate policy object to get its digest (we already have ID and version from env)
+  let gateObject;
+  try {
+    gateObject = await rpcClient.getObject({
+      id: normalizeObjectId(gatePolicyId),
+      options: { showBcs: false },
+    });
+  } catch (err) {
+    throw new Error(`building:fetchGate: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  if (!gateObject || gateObject.error || !gateObject.data) {
+    throw new Error(`Cannot attempt gate passage: failed to fetch gate object ${gatePolicyId}`);
+  }
+
+  // Fetch attestation object to get its version and digest
+  let attestationObject;
+  try {
+    attestationObject = await rpcClient.getObject({
+      id: normalizeObjectId(args.attestationObjectId),
+      options: { showBcs: false },
+    });
+  } catch (err) {
+    throw new Error(`building:fetchAttestation: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  if (!attestationObject || attestationObject.error || !attestationObject.data) {
+    throw new Error(`Cannot attempt gate passage: failed to fetch attestation object ${args.attestationObjectId}`);
+  }
+
+  // Build explicit ObjectRefs using Inputs module to avoid gRPC object resolution
   let gateArg: ReturnType<typeof tx.object>;
   try {
-    gateArg = tx.object(normalizeObjectId(gatePolicyId));
+    gateArg = tx.object(Inputs.ObjectRef({
+      objectId: normalizeObjectId(gatePolicyId),
+      version: normalizeObjectVersion(gatePolicyVersion),
+      digest: String(gateObject.data.digest),
+    }));
   } catch (err) {
     throw new Error(`building:gateArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   let attestationArg: ReturnType<typeof tx.object>;
   try {
-    attestationArg = tx.object(args.attestationObjectId);
+    attestationArg = tx.object(Inputs.ObjectRef({
+      objectId: normalizeObjectId(args.attestationObjectId),
+      version: normalizeObjectVersion(attestationObject.data.version),
+      digest: String(attestationObject.data.digest),
+    }));
   } catch (err) {
     throw new Error(`building:attestationArg: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  let paymentArg: ReturnType<typeof tx.objectRef>;
+  let paymentArg: ReturnType<typeof tx.object>;
   try {
-    paymentArg = tx.objectRef({
+    paymentArg = tx.object(Inputs.ObjectRef({
       objectId: paymentCoin.objectId,
       version: paymentCoin.version,
       digest: paymentCoin.digest,
-    });
+    }));
   } catch (err) {
     throw new Error(`building:paymentArg: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -200,7 +246,7 @@ export async function buildCheckPassageTxKind(
 
   let kindBytes: Uint8Array;
   try {
-    kindBytes = await tx.build({ onlyTransactionKind: true, client: args.client });
+    kindBytes = await tx.build({ onlyTransactionKind: true });
   } catch (err) {
     throw new Error(`building:txBuild: ${err instanceof Error ? err.message : String(err)}`);
   }
