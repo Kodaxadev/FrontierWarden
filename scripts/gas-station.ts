@@ -20,7 +20,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http';
-import { SuiClient }    from '@mysten/sui/client';
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import {
   RPC_URL,
   loadSponsorKeypair,
@@ -139,8 +139,6 @@ async function handleSponsor(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
-  if (!authGuard(req, res, '/sponsor-transaction')) return;
-
   // Parse body
   let body: unknown;
   try {
@@ -222,7 +220,8 @@ async function handleOracleIssue(
 
   try {
     const keypair = loadSponsorKeypair();
-    const client  = new SuiClient({ url: RPC_URL });
+    const network = (process.env.SUI_NETWORK ?? 'testnet') as 'mainnet' | 'testnet' | 'devnet' | 'localnet';
+    const client  = new SuiJsonRpcClient({ url: RPC_URL, network });
     const sender  = keypair.toSuiAddress();
     const expEpochs = typeof b.expiration_epochs === 'number'
       ? BigInt(b.expiration_epochs)

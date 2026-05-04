@@ -27,3 +27,5 @@ frontend/.env.local
 *.key
 *.pem
 *.seed
+Dockerfile*
+/package-lock.json

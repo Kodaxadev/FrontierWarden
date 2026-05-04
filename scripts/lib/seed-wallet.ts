@@ -1,5 +1,5 @@
 /**
- * seed-wallet.ts — Keypair loading, SuiClient factory, TX execution wrapper.
+ * seed-wallet.ts — Keypair loading, SuiJsonRpcClient factory, TX execution wrapper.
  *
  * Key loading priority:
  *   1. DEPLOYER_KEY env var (suiprivkey1... format)
@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir }      from 'node:os';
 import { resolve }      from 'node:path';
-import { SuiClient }    from '@mysten/sui/client';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Ed25519Keypair }         from '@mysten/sui/keypairs/ed25519';
 import { Transaction }            from '@mysten/sui/transactions';
 import { decodeSuiPrivateKey }    from '@mysten/sui/cryptography';
@@ -41,9 +41,9 @@ export function loadKeypair(): Ed25519Keypair {
   const raw = process.env.DEPLOYER_KEY ?? process.env.SUI_PRIVATE_KEY;
 
   if (raw) {
-    const { schema, secretKey } = decodeSuiPrivateKey(raw);
-    if (schema !== 'ED25519') {
-      throw new Error(`Key schema must be ED25519, got: ${schema}`);
+    const { scheme, secretKey } = decodeSuiPrivateKey(raw);
+    if (scheme !== 'ED25519') {
+      throw new Error(`Key schema must be ED25519, got: ${scheme}`);
     }
     return Ed25519Keypair.fromSecretKey(secretKey);
   }
@@ -106,8 +106,9 @@ function readActiveAddress(clientConfigPath: string): string | null {
 // Client
 // ---------------------------------------------------------------------------
 
-export function makeClient(): SuiClient {
-  return new SuiClient({ url: RPC_URL });
+export function makeClient(): SuiJsonRpcClient {
+  const network = (process.env.SUI_NETWORK ?? 'testnet') as 'mainnet' | 'testnet' | 'devnet' | 'localnet';
+  return new SuiJsonRpcClient({ url: RPC_URL, network });
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +116,7 @@ export function makeClient(): SuiClient {
 // ---------------------------------------------------------------------------
 
 export async function execute(
-  client: SuiClient,
+  client: SuiJsonRpcClient,
   keypair: Ed25519Keypair,
   tx: Transaction,
   label: string,

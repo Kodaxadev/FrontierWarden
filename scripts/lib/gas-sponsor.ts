@@ -14,7 +14,7 @@
  *
  * Single responsibility: Sui gas sponsorship. No HTTP here.
  */
-import { SuiClient }            from '@mysten/sui/client';
+import { SuiJsonRpcClient }     from '@mysten/sui/jsonRpc';
 import { Ed25519Keypair }        from '@mysten/sui/keypairs/ed25519';
 import { Transaction }           from '@mysten/sui/transactions';
 import { decodeSuiPrivateKey }   from '@mysten/sui/cryptography';
@@ -46,9 +46,9 @@ export function loadSponsorKeypair(): Ed25519Keypair {
   const raw = process.env.SPONSOR_PRIVATE_KEY ?? process.env.SPONSOR_KEYPAIR;
   if (!raw) return loadKeypair();
 
-  const { schema, secretKey } = decodeSuiPrivateKey(raw);
-  if (schema !== 'ED25519') {
-    throw new Error(`Sponsor key must be an Ed25519 key, got: ${schema}`);
+  const { scheme, secretKey } = decodeSuiPrivateKey(raw);
+  if (scheme !== 'ED25519') {
+    throw new Error(`Sponsor key must be an Ed25519 key, got: ${scheme}`);
   }
   return Ed25519Keypair.fromSecretKey(secretKey);
 }
@@ -81,7 +81,8 @@ export async function sponsorTransaction(
   req: SponsorRequest,
 ): Promise<SponsorResponse> {
   const keypair = loadSponsorKeypair();
-  const client  = new SuiClient({ url: RPC_URL });
+  const network = (process.env.SUI_NETWORK ?? 'testnet') as 'mainnet' | 'testnet' | 'devnet' | 'localnet';
+  const client  = new SuiJsonRpcClient({ url: RPC_URL, network });
   const sponsor = keypair.toSuiAddress();
 
   // Clamp gas budget to safety cap
