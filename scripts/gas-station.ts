@@ -139,8 +139,6 @@ async function handleSponsor(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
-  if (!authGuard(req, res, '/sponsor-transaction')) return;
-
   // Parse body
   let body: unknown;
   try {
