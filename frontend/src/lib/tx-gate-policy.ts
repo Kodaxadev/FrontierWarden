@@ -1,8 +1,12 @@
 // tx-gate-policy.ts -- Build Smart Gate policy update PTB kind bytes.
+//
+// IMPORTANT: tx.build must be called WITHOUT a client (same restriction as
+// tx-check-passage). All object refs are pre-resolved via SuiJsonRpcClient
+// and passed as Inputs.ObjectRef / Inputs.SharedObjectRef.
 
 import { toBase64 } from '@mysten/bcs';
-import type { ClientWithCoreApi } from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { Transaction, Inputs } from '@mysten/sui/transactions';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -13,19 +17,10 @@ const CONFIG_KEYS = [
 
 type ConfigKey = typeof CONFIG_KEYS[number];
 
-export interface GatePolicyTxConfig {
-  pkgId: string;
-  gatePolicyId: string;
-  gatePolicyVersion: number;
-  gateAdminCapId: string;
-}
-
 export interface BuildGatePolicyUpdateArgs {
   sender: string;
   allyThreshold: bigint;
   baseTollMist: bigint;
-  // Required: tx.object() resolves owned-object version/digest from chain.
-  client: ClientWithCoreApi;
 }
 
 function env(key: ConfigKey): string | undefined {
@@ -46,40 +41,55 @@ function requiredEnv(key: ConfigKey): string {
   return value;
 }
 
-export function gatePolicyTxConfig(): GatePolicyTxConfig {
-  return {
-    pkgId: requiredEnv('VITE_PKG_ID'),
-    gatePolicyId: requiredEnv('VITE_GATE_POLICY_ID'),
-    gatePolicyVersion: Number(requiredEnv('VITE_GATE_POLICY_VERSION')),
-    gateAdminCapId: requiredEnv('VITE_GATE_ADMIN_CAP_ID'),
-  };
-}
-
 export async function buildGatePolicyUpdateTxKind(
   args: BuildGatePolicyUpdateArgs,
 ): Promise<string> {
-  const config = gatePolicyTxConfig();
-  if (!Number.isFinite(config.gatePolicyVersion) || config.gatePolicyVersion <= 0) {
+  const pkgId             = requiredEnv('VITE_PKG_ID');
+  const gatePolicyId      = requiredEnv('VITE_GATE_POLICY_ID');
+  const gatePolicyVersion = Number(requiredEnv('VITE_GATE_POLICY_VERSION'));
+  const gateAdminCapId    = requiredEnv('VITE_GATE_ADMIN_CAP_ID');
+
+  if (!Number.isFinite(gatePolicyVersion) || gatePolicyVersion <= 0) {
     throw new Error('gate policy tx: VITE_GATE_POLICY_VERSION must be a positive number');
+  }
+
+  const suiNetwork = (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
+    'mainnet' | 'testnet' | 'devnet' | 'localnet';
+  const rpcClient = new SuiJsonRpcClient({
+    url:     getJsonRpcFullnodeUrl(suiNetwork),
+    network: suiNetwork,
+  });
+
+  // Resolve AdminCap version/digest from chain.
+  const adminCapObject = await rpcClient.getObject({
+    id:      gateAdminCapId,
+    options: { showBcs: false },
+  });
+  if (!adminCapObject?.data) {
+    throw new Error(`gate policy tx: failed to fetch AdminCap object ${gateAdminCapId}`);
   }
 
   const tx = new Transaction();
   tx.setSender(args.sender);
 
   tx.moveCall({
-    target: `${config.pkgId}::reputation_gate::update_thresholds`,
+    target: `${pkgId}::reputation_gate::update_thresholds`,
     arguments: [
-      tx.object(config.gateAdminCapId),
-      tx.sharedObjectRef({
-        objectId: config.gatePolicyId,
-        initialSharedVersion: config.gatePolicyVersion,
-        mutable: true,
-      }),
+      tx.object(Inputs.ObjectRef({
+        objectId: gateAdminCapId,
+        version:  String(adminCapObject.data.version),
+        digest:   String(adminCapObject.data.digest),
+      })),
+      tx.object(Inputs.SharedObjectRef({
+        objectId:             gatePolicyId,
+        initialSharedVersion: gatePolicyVersion,
+        mutable:              true,
+      })),
       tx.pure.u64(args.allyThreshold),
       tx.pure.u64(args.baseTollMist),
     ],
   });
 
-  const kindBytes = await tx.build({ onlyTransactionKind: true, client: args.client });
+  const kindBytes = await tx.build({ onlyTransactionKind: true });
   return toBase64(kindBytes);
 }

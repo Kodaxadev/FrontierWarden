@@ -1,3 +1,4 @@
+import { toBase64 } from '@mysten/bcs';
 import { Transaction } from '@mysten/sui/transactions';
 
 const CONFIG_KEYS = [
@@ -45,8 +46,13 @@ export function walletAttestationConfigReady(): boolean {
   return missingWalletAttestationConfig().length === 0;
 }
 
-export function buildWalletAttestationTx(args: BuildWalletAttestationArgs): Transaction {
+// Only sharedObjectRefs and pure values — no owned-object resolution needed.
+// tx.build({ onlyTransactionKind: true }) works without a client.
+export async function buildWalletAttestationTxKind(
+  args: BuildWalletAttestationArgs & { sender: string },
+): Promise<string> {
   const tx = new Transaction();
+  tx.setSender(args.sender);
 
   const attestation = tx.moveCall({
     target: `${req('VITE_PKG_ID')}::attestation::issue`,
@@ -69,5 +75,7 @@ export function buildWalletAttestationTx(args: BuildWalletAttestationArgs): Tran
   });
 
   tx.transferObjects([attestation], args.subject);
-  return tx;
+
+  const kindBytes = await tx.build({ onlyTransactionKind: true });
+  return toBase64(kindBytes);
 }

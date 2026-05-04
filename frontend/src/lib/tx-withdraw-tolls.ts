@@ -1,21 +1,12 @@
 // tx-withdraw-tolls.ts -- Build toll withdrawal PTB kind bytes.
 //
-// reputation_gate::withdraw_tolls signature:
-//   (cap: &GateAdminCap, gate: &mut GatePolicy, ctx: &mut TxContext)
-//
-// Behaviour:
-//   - Asserts cap.gate_id == gate.id (ENotAdmin if mismatched)
-//   - If treasury balance > 0: splits full balance into a Coin<SUI>,
-//     transfers it to gate.owner (the address that created the gate)
-//   - If treasury balance == 0: silent no-op (no abort, no event)
-//
-// The admin keeps their GateAdminCap (borrowed immutably, not consumed).
-// No events are emitted by withdraw_tolls — the payout shows up as an
-// object transfer in the transaction effects.
+// IMPORTANT: tx.build must be called WITHOUT a client (same restriction as
+// tx-gate-policy). All object refs are pre-resolved via SuiJsonRpcClient
+// and passed as Inputs.ObjectRef / Inputs.SharedObjectRef.
 
 import { toBase64 } from '@mysten/bcs';
-import type { ClientWithCoreApi } from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { Transaction, Inputs } from '@mysten/sui/transactions';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -28,7 +19,6 @@ type ConfigKey = typeof CONFIG_KEYS[number];
 
 export interface BuildWithdrawTollsArgs {
   sender: string;
-  client: ClientWithCoreApi;
 }
 
 function env(key: ConfigKey): string | undefined {
@@ -61,23 +51,41 @@ export async function buildWithdrawTollsTxKind(
     throw new Error('withdraw tolls tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
+  const suiNetwork = (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
+    'mainnet' | 'testnet' | 'devnet' | 'localnet';
+  const rpcClient = new SuiJsonRpcClient({
+    url:     getJsonRpcFullnodeUrl(suiNetwork),
+    network: suiNetwork,
+  });
+
+  // Resolve AdminCap version/digest from chain.
+  const adminCapObject = await rpcClient.getObject({
+    id:      gateAdminCapId,
+    options: { showBcs: false },
+  });
+  if (!adminCapObject?.data) {
+    throw new Error(`withdraw tolls tx: failed to fetch AdminCap object ${gateAdminCapId}`);
+  }
+
   const tx = new Transaction();
   tx.setSender(args.sender);
 
   tx.moveCall({
     target: `${pkgId}::reputation_gate::withdraw_tolls`,
     arguments: [
-      // GateAdminCap -- owned by admin, borrowed immutably (&GateAdminCap)
-      tx.object(gateAdminCapId),
-      // GatePolicy -- shared, mutable (treasury balance is split out)
-      tx.sharedObjectRef({
+      tx.object(Inputs.ObjectRef({
+        objectId: gateAdminCapId,
+        version:  String(adminCapObject.data.version),
+        digest:   String(adminCapObject.data.digest),
+      })),
+      tx.object(Inputs.SharedObjectRef({
         objectId:             gatePolicyId,
         initialSharedVersion: gatePolicyVersion,
         mutable:              true,
-      }),
+      })),
     ],
   });
 
-  const kindBytes = await tx.build({ onlyTransactionKind: true, client: args.client });
+  const kindBytes = await tx.build({ onlyTransactionKind: true });
   return toBase64(kindBytes);
 }

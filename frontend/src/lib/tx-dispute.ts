@@ -74,7 +74,7 @@ export function buildCreateChallengeTx(args: CreateChallengeArgs): Transaction {
     target: `${requiredEnv('VITE_PKG_ID')}::fraud_challenge::create_fraud_challenge`,
     arguments: [
       oracleRegistryRef(tx, false),
-      tx.object(args.attestationId),
+      tx.pure.address(args.attestationId),  // ID is a pure address-sized value, not an owned object
       tx.pure.address(args.oracleAddress),
       tx.pure.vector('u8', bytes(args.evidence)),
       stakeBalance,
