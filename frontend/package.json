@@ -27,7 +27,7 @@
   },
   "_notes": {
     "react19": "Upgraded from React 18 to 19 -- all dapp-kit versions require react ^19.",
-    "mysten-sui": "Removed @mysten/sui -- frontend has no direct imports, dapp-kit brings its own ^2.x.",
+    "mysten-sui": "Frontend transaction builders import @mysten/sui modules directly; they are currently resolved through the dapp-kit dependency tree. Add an explicit dependency if package resolution changes.",
     "dapp-kit-version": "0.1.9 is current. No React 18 compatible version exists."
   }
 }

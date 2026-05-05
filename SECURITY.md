@@ -1,106 +1,173 @@
-# EVE Frontier Reputation System — Security Model
+# FrontierWarden Security Model
 
-> **Audience**: Auditors, security researchers, and integrators.  
-> **Status**: Pre-mainnet draft. Do not deploy to mainnet without full audit.  
-> **Version**: 0.0.1-draft
+> Audience: auditors, security researchers, and integrators.  
+> Status: pre-mainnet testnet software. Do not deploy to mainnet without audit.  
+> Version: 0.0.2-testnet
 
----
+## Scope
 
-## 1. Architecture Overview
+FrontierWarden currently runs as a Stillness/testnet demo:
 
-The system is composed of multiple Move modules grouped into trust zones:
+- Sui Move protocol package on testnet.
+- Rust indexer/API on Railway.
+- Gas station service on Railway.
+- Supabase/Postgres as the indexed state store.
+- Vercel-hosted React/Vite frontend.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Zone A: Schema Registry (shared object)               │
-│  Admin or DAO-gated schema registration + deprecation  │
-├─────────────────────────────────────────────────────────┤
-│  Zone B: Oracle Registry (shared object)                │
-│  Oracle registration, stake, council voting             │
-├───────────────────────────┬─────────────────────────────┤
-│  Zone C: Profile          │  Zone C: Vouch              │
-│  Per-player SBT +         │  Voucher stakes for         │
-│  score cache (owned)      │  borrower loans (owned)      │
-├───────────────────────────┼─────────────────────────────┤
-│  Zone D: Attestation      │  Zone D: Lending             │
-│  Oracle-issued player     │  Vouch-backed loans          │
-│  attestations (owned)     │  (shared)                    │
-├───────────────────────────┴─────────────────────────────┤
-│  Zone E: System SDK (in-game contracts only)             │
-└─────────────────────────────────────────────────────────┘
-```
+No mainnet deployment has occurred.
 
----
+## Trust Boundaries
 
-## 2. Trust Model by Module
+| Boundary | Trust assumption |
+|---|---|
+| Move protocol | Enforces object ownership, capabilities, and shared object rules. |
+| Rust API/indexer | Reads Sui events, projects state, and serves Trust API decisions. |
+| Supabase/Postgres | Stores indexed state; public table access should remain locked down. |
+| Vercel frontend | Public client. It must not contain secrets. |
+| Railway gas station | Server-side sponsor and oracle service. It holds private secrets. |
+| Browser wallet | Signs operator session messages and transactions. |
 
-### 2.1 Schema Registry
-- **Critical invariant**: Only authorized addresses can register or deprecate schemas.
-- **Key risk**: Admin key compromise before governance transfer.
+## API Boundary
 
-### 2.2 Oracle Registry
-- **Critical invariant**: Only registered oracles with sufficient stake can issue attestations.
-- **Schema scoping**: Capabilities only authorize the schemas listed at issuance.
-
-### 2.3 Profile (ReputationProfile + ScoreCache)
-- **Soulbound**: Players cannot transfer their profiles.
-- **Oracle-only writes**: Score writes require valid OracleCapability matching sender.
-
-### 2.4 Vouch
-- **Stake-backed**: Voucher must have sufficient score to back a borrower.
-- **Slash trigger**: Slashes are only triggered by defaulted loans.
-
-### 2.5 Lending
-- **Collateralized**: Loans require vouch coverage.
-- **State machine**: Repaid and defaulted states are mutually exclusive.
-
----
-
-## 3. Governance and Lifecycle
-
-### API Boundary
-
-`EFREP_API_KEY` is intended as a partner access gate and rate-limit aid for the
-Rust API; it is not user authentication, wallet authentication, or per-tenant
+`EFREP_API_KEY` is a server-only partner access gate and rate-limit aid for the
+Rust API. It is not user authentication, wallet authentication, or per-tenant
 authorization.
+
+Public GET/read routes and Trust API evaluation routes may be unauthenticated
+for the demo, but they should be rate-limited. Public read access is not a
+license to expose database credentials or service-role keys.
+
+Protected operations remain protected by the appropriate server-side controls:
+
+- Operator browser access uses short-lived wallet-signed session bearer tokens.
+- API partner access can use server-only `EFREP_API_KEY`.
+- Oracle issue routes require server-side authorization.
+- Sponsored transaction routes must be constrained by origin controls,
+  transaction validation, budget caps, and server-side sponsor keys.
+- No protected route should rely on a browser-exposed static secret.
+
+## Browser Secrets
+
+No secret belongs in a `VITE_*` variable.
+
+Vite exposes variables prefixed with `VITE_` to browser client code after
+bundling. Only public configuration belongs there: API base URLs, network names,
+package IDs, object IDs, and feature flags. See the official Vite documentation:
+[vite.dev/guide/env-and-mode](https://vite.dev/guide/env-and-mode).
+
+Never put these in frontend variables:
+
+- `EFREP_API_KEY`
+- Supabase database URLs
+- Supabase service-role keys
+- sponsor private keys
+- oracle API keys
+- wallet private keys
+- partner tokens
+
+If a secret was exposed in a frontend bundle, rotate it.
+
+## Operator Sessions
 
 Browser operators authenticate through short-lived wallet-signed sessions:
 
 1. `POST /auth/nonce` returns a one-use FrontierWarden session message.
-2. The connected wallet signs that message with Sui personal-message signing.
+2. The connected wallet signs that message using Sui personal-message signing.
 3. `POST /auth/session` verifies the signature and returns a bearer token.
 
-Ed25519 signatures are verified natively in Rust. EVE Vault is a zkLogin wallet,
-so non-Ed25519 wallet-standard signatures are verified through Mysten's official
-JavaScript verifier in `scripts/verify-personal-message.mjs`. Production
-deployments should pin dependency versions, set `SUI_GRAPHQL_URL`, and monitor
-verifier failures.
+Current backend verification is native Rust Ed25519 verification only:
 
-`api_request` logs should be treated as operational telemetry. Do not log API
-keys, wallet signatures, request bodies, or full client IPs in long-term logs;
-prefer short retention and aggregated counters for public deployments.
+- Sui signature flag byte `0x00`.
+- Verification is implemented in Rust with `ed25519_dalek` and `Blake2bVar`.
+- There is no JavaScript verifier process in the active backend session path.
+- zkLogin, passkey, secp256k1, and secp256r1 session signatures are not accepted
+  unless backend support is explicitly implemented later.
 
-### Mainnet Readiness Requirements
-1. **Full Smart Contract Audit**: MUST be completed before mainnet deployment.
-2. **Governance Transfer**: Admin rights must be transferred to a multisig or DAO.
-3. **Disclosure Process**: Security researchers should follow the disclosure policy below.
+Some EVE-compatible wallets may use zkLogin for transaction signing. zkLogin
+proof fetching can fail before a wallet signs a sponsored transaction. That is a
+wallet/prover availability issue and should not be documented as proof of final
+transaction execution.
 
----
+## Data and Logging
 
-## 4. Security Disclosure Policy
+`api_request` logs are operational telemetry.
 
-We welcome reports from security researchers and the community. If you find a potential vulnerability:
+Do not log:
 
-1. **Do not disclose publicly** until it is resolved.
-2. **Submit details** to `Justin.DavisWE@icloud.com`.
-3. **Include**: A clear description, reproduction steps, and potential impact.
+- API keys
+- wallet signatures
+- private keys
+- full request bodies for sensitive routes
+- full client IPs in long-term logs
 
-We aim to acknowledge reports within 48 hours and provide regular updates on the resolution.
+Prefer short retention, aggregated counters, and redacted request metadata for
+public deployments.
 
----
+## Module-Level Security Notes
 
-## 5. Known Limitations
+### Schema Registry
 
-FrontierWarden is currently in pre-mainnet development. Known pre-mainnet limitations and unresolved exploit scenarios are tracked privately. Do not use for high-value transactions until a full audit is performed and governance is decentralized.
+- Critical invariant: only authorized addresses can register or deprecate
+  schemas.
+- Key risk: admin key compromise before governance transfer.
 
-*Last updated: April 2026.*
+### Oracle Registry
+
+- Critical invariant: only registered oracles with sufficient stake can issue
+  attestations.
+- Schema scoping: capabilities only authorize the schemas listed at issuance.
+
+### Profile
+
+- Player profiles are intended to represent player reputation state.
+- Oracle-only score writes require a valid `OracleCapability`.
+
+### Vouch
+
+- Vouches are stake-backed social collateral.
+- Callers must not be able to cite another wallet's profile to inflate their own
+  credibility.
+
+### Lending
+
+- Loan state transitions must keep repaid and defaulted states mutually
+  exclusive.
+- Vouch-backed lending remains pre-mainnet and should not be used for high-value
+  assets without audit.
+
+### Reputation Gate
+
+- Gate policy decisions depend on standing attestations and threshold/toll
+  configuration.
+- Sponsored gate-passage flow currently reaches wallet signing, but final
+  execution can still depend on wallet signing and zkLogin proof availability.
+
+## Mainnet Readiness Requirements
+
+Before mainnet:
+
+1. Complete a Move security audit.
+2. Complete backend/API security review.
+3. Transfer admin rights to a multisig, DAO, or other governance mechanism.
+4. Verify EVE/EVT payment coin behavior before replacing SUI test flows.
+5. Add deployment-level rate limits, monitoring, and alerting.
+6. Re-review all public routes, RLS posture, and secret handling.
+
+## Disclosure Policy
+
+We welcome reports from security researchers and the community.
+
+If you find a potential vulnerability:
+
+1. Do not disclose publicly until it is resolved.
+2. Submit details to `Justin.DavisWE@icloud.com`.
+3. Include a clear description, reproduction steps, and potential impact.
+
+We aim to acknowledge reports within 48 hours and provide regular updates on
+resolution.
+
+## Known Limitations
+
+FrontierWarden is pre-mainnet software. Known pre-mainnet limitations and
+unresolved exploit scenarios are tracked privately. Do not use for high-value
+transactions until a full audit is completed and governance is decentralized.

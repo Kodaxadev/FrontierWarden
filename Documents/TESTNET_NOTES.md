@@ -1,6 +1,6 @@
 # FrontierWarden Testnet Operations Notes
 
-Last updated: 2026-04-29
+Last updated: 2026-05-05
 
 This is the active network source of truth for FrontierWarden.
 
@@ -9,19 +9,41 @@ This is the active network source of truth for FrontierWarden.
 | Field | Value |
 |---|---|
 | Active Sui environment | `testnet` |
+| EVE environment | Stillness/testnet |
 | Move build environment | `testnet` |
 | Address manifest | `scripts/testnet-addresses.json` |
 | Chain ID | `4c78adac` |
 | Current package | `0xe41ddd1a2126af8b4bae52ea0526959f76b4e4f445c1054a53cbecfb15ac0ea2` |
 | Original package / type origin | `0xfd1b1315f9002b65ac2a214d2b7d312db75836c8e67f8f00a747206b5a61876c` |
 | RPC | `https://fullnode.testnet.sui.io:443` |
+| Frontend | `https://frontierwarden.kodaxa.dev` |
+| Indexer/API | `https://ef-indexer-production.up.railway.app` |
+| Gas station | `https://gas-station-production-3b45.up.railway.app` |
 
 Evidence:
 
 - `Published.toml` records the active `published.testnet` package and chain.
-- `scripts/testnet-addresses.json` records live object IDs and proof transactions.
+- `scripts/testnet-addresses.json` records live object IDs and proof
+  transactions.
 - `indexer/config.toml` points the indexer at Sui testnet.
 - `frontend/.env.example` sets `VITE_SUI_NETWORK=testnet`.
+- Live health checks return success for the Vercel frontend, Railway API, and
+  Railway gas station.
+
+## Live API Status
+
+Trust API v1 is live for:
+
+- `gate_access`
+- `counterparty_risk`
+- `bounty_trust`
+
+Gate Intel loads live testnet gates from indexed state.
+
+Sponsored gate-passage transactions build in the browser and reach wallet
+signing through the gas station handoff. Do not document this as universal final
+gate-passage execution: zkLogin wallet sessions may still fail while fetching a
+zkLogin proof before signing.
 
 ## Standard Commands
 
@@ -48,30 +70,25 @@ Run the indexer/API on Windows PowerShell:
 ```powershell
 cd indexer
 $env:EFREP_DATABASE_URL = "<postgres-url>"
-$env:EFREP_API_KEY = "<local-api-key>"
 $env:EFREP_RATE_LIMIT_PER_MINUTE = "120"
-$env:SUI_GRAPHQL_URL = "https://graphql.testnet.sui.io/graphql"
 cargo run --release
 ```
 
-`EFREP_API_KEY` is optional for local development, but required before exposing
-the Rust API beyond localhost. When set, all API routes except `GET /health`
-require `x-api-key` or `Authorization: Bearer`. Browser operators should use
-the wallet-signed session flow exposed by `/auth/nonce` and `/auth/session`,
-not a browser-bundled API key.
+`EFREP_API_KEY` is optional for local development and server-only when used. Do
+not put it in a browser `VITE_*` variable. Browser operators should use the
+wallet-signed session flow exposed by `/auth/nonce` and `/auth/session`.
 
-EVE Vault uses zkLogin. Keep Node.js dependencies installed so the Rust API can
-call `scripts/verify-personal-message.mjs` for wallet-standard signature
-verification. The helper prefers the frontend's `@mysten/sui` v2 package so it
-matches the wallet stack. `SUI_GRAPHQL_URL` is optional, but setting it to the
-active network removes ambiguity for zkLogin verification.
+Current operator-session verification is native Rust Ed25519 only. There is no
+JavaScript verifier process in the active backend session path. zkLogin, passkey,
+secp256k1, and secp256r1 session signatures are not accepted unless backend
+support is explicitly implemented later.
 
 `EFREP_RATE_LIMIT_PER_MINUTE` is optional. When set to a positive integer, it
 adds an in-process per-minute request limit for non-health API routes,
-including the session nonce endpoints. Treat it as a testnet guardrail; public
+including session nonce endpoints. Treat it as a testnet guardrail; public
 deployments should still use gateway or reverse proxy rate limits.
 
-Run the frontend:
+Run the frontend locally:
 
 ```bash
 cd frontend
@@ -98,9 +115,9 @@ npm run dev
 | EVE Vault SEAL & COMMIT | `G4fGxvgpdhbjy4yRu474S9S4vTYpYJqAVcEbSzhrTvsC` | `331437414` | Indexed in `gate_config_updates`. |
 | EVE Vault WITHDRAW TOLLS | `CAJWpnWSrqGLqtQqvKQ1NQ829C1QJ6qzcEHGf8U5voud` | `331437435` | Indexed in `toll_withdrawals`. |
 
-## Archived Devnet Material
+## Archived Legacy Network Material
 
-Devnet-era notes and package metadata live under `Documents/Obsolete/`.
+Legacy network notes and package metadata live under `Documents/Obsolete/`.
 They are retained only as historical context. Do not use them for current
 deployment, scripting, or integration decisions.
 
@@ -108,7 +125,8 @@ deployment, scripting, or integration decisions.
 
 - Testnet is the current operational network because the deployed package,
   frontend environment, indexer config, and address manifest all point there.
-- The old `devnet-addresses.json` name was replaced with
+- Stillness/testnet is the active EVE environment for identity/world data.
+- The old legacy-network address manifest name was replaced with
   `testnet-addresses.json` to remove a misleading active-file name.
-- Old devnet reports were archived instead of deleted so chain-reset history
+- Old legacy-network reports were archived instead of deleted so chain-reset history
   remains auditable without polluting the active docs.

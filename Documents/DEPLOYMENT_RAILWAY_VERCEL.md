@@ -1,149 +1,276 @@
-# FrontierWarden Backend — Railway + Vercel Deployment
+# FrontierWarden Live Ops Runbook
 
-## Architecture
+Last updated: 2026-05-05
 
+This is the current deployment runbook for the live FrontierWarden testnet demo.
+It is not a first-deploy placeholder guide.
+
+## Live Topology
+
+```text
+Vercel frontend
+  https://frontierwarden.kodaxa.dev
+      |
+      | HTTPS
+      v
+Railway indexer/API
+  https://ef-indexer-production.up.railway.app
+      |
+      | Postgres
+      v
+Supabase database
+
+Vercel frontend
+      |
+      | sponsored transaction handoff
+      v
+Railway gas station
+  https://gas-station-production-3b45.up.railway.app
+      |
+      | Sui testnet RPC
+      v
+Sui Stillness/testnet
 ```
-Vercel (static frontend) ──HTTPS──> Railway (Rust indexer + API) ──TCP──> Supabase (PostgreSQL)
-                                              │
-                                              └─polls─> Sui testnet RPC
-                                              └─polls─> EVE World API (Stillness)
+
+## Services
+
+| Service | Host | Role |
+|---|---|---|
+| Frontend | Vercel | React/Vite operator console and Trust Decision Console |
+| Indexer/API | Railway | Rust event indexer plus Axum REST API |
+| Gas station | Railway | Sponsored transaction assembly/execution support |
+| Database | Supabase Postgres | Indexed protocol state |
+| Chain | Sui testnet | Active FrontierWarden package and shared objects |
+| EVE environment | Stillness/testnet | EVE Frontier identity/world context |
+
+## Health Checks
+
+Frontend:
+
+```bash
+curl -I https://frontierwarden.kodaxa.dev
 ```
 
-## Railway Service Setup
+Expected: HTTP `200`.
 
-### 1. Connect Repository
-- Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo
-- Select `Kodaxadev/FrontierWarden`
-- Set **Root Directory** to `indexer`
+Indexer/API:
 
-### 2. Build Configuration
-Railway auto-detects the `indexer/Dockerfile` and builds a container image.
+```bash
+curl https://ef-indexer-production.up.railway.app/health
+```
 
-| Setting | Value |
+Expected shape:
+
+```json
+{"status":"ok"}
+```
+
+Gas station:
+
+```bash
+curl https://gas-station-production-3b45.up.railway.app/health
+```
+
+Expected shape:
+
+```json
+{"ok":true,"ready":true}
+```
+
+## Public Vercel Variables
+
+These variables are public browser configuration. They are safe only because
+they are not secrets.
+
+| Variable | Purpose |
 |---|---|
-| Build Method | Dockerfile |
-| Root Directory | `indexer` |
-| Start Command | *(leave blank — Docker CMD runs `/app/efrep-indexer`)* |
+| `VITE_API_BASE` | Railway API base URL |
+| `VITE_GAS_STATION_URL` | Railway gas station base URL, if write/sponsor UI is enabled |
+| `VITE_SUI_NETWORK` | `testnet` |
+| `VITE_PKG_ID` | Current FrontierWarden testnet package ID |
+| `VITE_SCHEMA_REGISTRY_ID` | Shared schema registry object ID |
+| `VITE_SCHEMA_REGISTRY_VERSION` | Schema registry initial shared version |
+| `VITE_ORACLE_REGISTRY_ID` | Shared oracle registry object ID |
+| `VITE_ORACLE_REGISTRY_VERSION` | Oracle registry initial shared version |
+| `VITE_GATE_POLICY_ID` | Shared gate policy object ID |
+| `VITE_GATE_POLICY_VERSION` | Gate policy initial shared version |
+| `VITE_GATE_ADMIN_CAP_ID` | Gate admin capability object ID |
+| `VITE_GATE_ADMIN_OWNER` | Expected gate admin owner wallet |
+| `VITE_ORACLE_ADDRESS` | Expected oracle/operator wallet address |
 
-The Dockerfile uses a multi-stage build:
-1. **Builder** (`rust:1.88-bookworm`): `cargo build --release --bin efrep-indexer`
-2. **Runtime** (`debian:bookworm-slim`): copies binary + migrations to `/app/`, runs `/app/efrep-indexer`
+Do not put API keys, database URLs, private keys, sponsor secrets, or partner
+tokens in `VITE_*`. Vite exposes `VITE_*` values to client code after bundling:
+[vite.dev/guide/env-and-mode](https://vite.dev/guide/env-and-mode).
 
-> **Important**: Do NOT set `cargo run` as the start command. The Docker CMD handles startup.
+## Private Railway Variables
 
-### 3. Database (Supabase)
-The indexer needs a PostgreSQL database. Supabase is recommended:
+Indexer/API service:
 
-1. Create a Supabase project (or use existing)
-2. Get the **Connection String** (Settings → Database → Connection string → URI)
-3. Run all migrations from `indexer/migrations/` in order:
-   ```
-   0001_efrep.sql
-   0002_efrep_indexes.sql
-   0003_efrep_partitions.sql
-   0004_gate_challenge_projections.sql
-   0005_fix_view_security.sql
-   0006_revoke_public_data_api.sql
-   0007_toll_withdrawals.sql
-   0008_lock_public_data_api.sql
-   0009_raw_event_dedup.sql
-   0010_eve_world_data.sql
-   0011_eve_identity_status.sql
-   0012_eve_identity_character_fields.sql
-   ```
-   Use Supabase SQL Editor or `psql`.
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` or `EFREP_DATABASE_URL` | Supabase Postgres connection string |
+| `RUST_LOG` | Rust log level |
+| `EFREP_PACKAGE_ID` | Active testnet package ID |
+| `EFREP_START_CHECKPOINT` | Indexer start checkpoint |
+| `EFREP_EVE_WORLD_API_BASE` | EVE Stillness world API base URL |
+| `EFREP_EVE_GRAPHQL_URL` | Sui testnet GraphQL URL for EVE identity lookup |
+| `EFREP_EVE_WORLD_PACKAGE_ID` | EVE world package ID |
+| `EFREP_EVE_PLAYER_PROFILE_TYPE` | EVE player profile type |
+| `EFREP_TRUST_GATE_SCHEMA` | Gate trust schema, currently `TRIBE_STANDING` |
+| `EFREP_TRUST_COUNTERPARTY_SCHEMA` | Counterparty schema, currently `TRIBE_STANDING` |
+| `EFREP_API_KEY` | Optional server-only partner/API gate |
+| `EFREP_RATE_LIMIT_PER_MINUTE` | Optional in-process request limit |
+| `EFREP_ALLOWED_ORIGINS` | Allowed browser origins for CORS |
+| `EFREP_MAX_CONNECTIONS` | Database pool size |
 
-4. The `config.toml` `database.url = "env:SUPABASE_DATABASE_URL"` pattern works,
-   but Railway also sets `DATABASE_URL` automatically when you provision a database.
-   The code checks both.
+Gas station service:
 
-## Required Railway Environment Variables
+| Variable | Purpose |
+|---|---|
+| Sponsor private key / key material | Pays sponsored transaction gas |
+| `ORACLE_API_KEY` | Protects oracle issue route |
+| RPC/network variables | Sui testnet RPC configuration |
+| Gas/budget caps | Abuse boundary for sponsored transactions |
+| Allowed origins | Browser origin control |
 
-| Variable | Value | Purpose |
-|---|---|---|
-| `DATABASE_URL` | `postgresql://...` | Supabase connection string (URI format) |
-| `RUST_LOG` | `efrep_indexer=info` | Log level |
-| `EFREP_PACKAGE_ID` | `0xe41ddd1a2126af8b4bae52ea0526959f76b4e4f445c1054a53cbecfb15ac0ea2` | Sui testnet package ID |
-| `EFREP_START_CHECKPOINT` | `0` | Indexer start checkpoint (informational) |
-| `EFREP_EVE_WORLD_API_BASE` | `https://world-api-stillness.live.tech.evefrontier.com` | EVE Stillness world API |
-| `EFREP_EVE_GRAPHQL_URL` | `https://graphql.testnet.sui.io/graphql` | Sui testnet GraphQL for identity |
-| `EFREP_EVE_WORLD_PACKAGE_ID` | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | EVE world package |
-| `EFREP_EVE_PLAYER_PROFILE_TYPE` | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c::character::PlayerProfile` | Player profile type |
-| `EFREP_TRUST_GATE_SCHEMA` | `TRIBE_STANDING` | Trust eval gate schema |
-| `EFREP_TRUST_COUNTERPARTY_SCHEMA` | `TRIBE_STANDING` | Trust eval counterparty schema |
-| `EFREP_MAX_CONNECTIONS` | `5` (default) | Database connection pool size (default 5 in production, clamped to max 10) |
-| `EFREP_MAX_CONNECTIONS_OVERRIDE` | (set to enable >10) | Set any value to allow max_connections >10 |
+Keep all private variables in Railway or another server-side secret store. Never
+mirror them into Vercel `VITE_*` variables.
 
-**Not required on Railway** — `config.toml` is still needed for non-overridden defaults
-(network.rpc_url, indexer batch_size, poll_interval, etc.). Commit `config.toml`
-to the repo or add it as a Railway file mount.
+## Active Migrations
 
-## config.toml on Railway
+Supabase should have the migrations from `indexer/migrations/` applied in order:
 
-Railway supports **File Mounts** to inject files at runtime:
+```text
+0001_efrep.sql
+0002_efrep_indexes.sql
+0002_trust_api_indexes.sql
+0003_efrep_partitions.sql
+0004_gate_challenge_projections.sql
+0005_fix_view_security.sql
+0006_revoke_public_access.sql
+0007_toll_withdrawals.sql
+0008_lock_public_data_api.sql
+0009_raw_event_dedup.sql
+0010_eve_world_data.sql
+0011_eve_identity_status.sql
+0012_eve_identity_character_fields.sql
+```
 
-1. Railway Dashboard → Environment → File Mounts
-2. Create a file at `config.toml` with the content from `indexer/config.example.toml`
-3. Fill in real values (package IDs, etc.)
-4. Env vars override TOML values when both are set
+Supabase security posture:
 
-Alternatively, commit a production `config.toml` to the repo (no secrets in it —
-database URL uses `env:` prefix).
+- Public table access is locked down.
+- Reads are served through the Rust API.
+- Do not expose service-role credentials to the frontend.
+- Keep connection pool sizing conservative unless Railway/Supabase capacity is
+  confirmed.
 
-## Vercel Frontend Environment Variables
+## Deploy and Redeploy Notes
 
-Update these on Vercel (`vercel env add` or dashboard):
+Frontend:
 
-| Variable | Value | Target |
-|---|---|---|
-| `VITE_API_BASE` | `https://<railway-app>.railway.app` | Production |
-| `VITE_SUI_NETWORK` | `testnet` | Production |
-| `VITE_PKG_ID` | `0xe41ddd1a2126af8b4bae52ea0526959f76b4e4f445c1054a53cbecfb15ac0ea2` | Production |
-| (other Sui vars) | (unchanged) | Production |
+- Vercel project root directory should be `frontend`.
+- `frontend/vercel.json` is the active Vercel config.
+- Rebuild after changing any `VITE_*` variable because Vite bakes these values
+  into the browser bundle.
+- Clear browser cache or force refresh after deployment if the UI appears to
+  call old API or gas station URLs.
 
-**Do NOT set** for production demo:
-- `VITE_GAS_STATION_URL` — sponsor/write flows disabled
+Indexer/API:
 
-## Custom Domain on Railway
+- Railway builds from `indexer/Dockerfile`.
+- Do not use `cargo run` as the Railway start command; the Docker image should
+  run the compiled binary.
+- Confirm `/health` after every redeploy.
+- Confirm Trust API actions after deploy:
+  - `gate_access`
+  - `counterparty_risk`
+  - `bounty_trust`
 
-1. Railway Dashboard → Settings → Networking → Domains
-2. Add `api.frontierwarden.kodaxa.dev` (or similar)
-3. Railway gives you a CNAME target
-4. Since `kodaxa.dev` uses Vercel DNS, add the CNAME record:
-   - In Vercel Dashboard → `kodaxa.dev` domain → DNS Records
-   - Add CNAME: `api.frontierwarden` → Railway's target
-5. Update `VITE_API_BASE` on Vercel to use the custom domain
+Gas station:
 
-## First Deployment Steps
+- Confirm `/health` returns `ready: true`.
+- Sponsor handoff should reach wallet signing.
+- Final execution can still be blocked by wallet-side zkLogin proof fetch
+  failures for zkLogin sessions.
 
-1. **Supabase**: Run all 12 migrations
-2. **Railway**: Deploy with env vars + config.toml
-3. **Verify API**: `curl https://<railway-url>/health` → `{"status":"ok"}`
-4. **Vercel**: Update `VITE_API_BASE` to Railway URL, redeploy
-5. **Verify Frontend**: Load `https://frontierwarden.kodaxa.dev`, check panels don't crash
+## Common Failure Modes
 
-## Safety Notes for First Demo
+### Wrong `VITE_API_BASE`
 
-- **No write flows**: Gas station / sponsor endpoints are NOT exposed
-- **Read-only API**: All `/api/*` endpoints are public reads (attestations, scores, gates, intel)
-- **Trust eval**: Runs server-side, no sensitive data exposed
-- **EVE identity**: Stillness environment only — no Utopia or mainnet
-- **Rate limiting**: Configured via `EFREP_RATE_LIMIT_*` env vars (optional)
-- **API key auth**: Optional — set `EFREP_API_KEY` to protect write endpoints
+Symptoms:
 
-## Operator Notes
+- Frontend loads but panels show stale fallback data or API errors.
+- Browser network tab points at localhost or an old Railway URL.
 
-### Freshness Warnings
+Fix:
 
-The Trust API returns freshness warnings in the proof bundle when no recent FrontierWarden protocol events have been indexed. These warnings are expected and correct:
+- Update `VITE_API_BASE` in Vercel.
+- Redeploy the frontend.
+- Hard refresh the browser.
 
-- `INDEXER_CHECKPOINT_UNKNOWN` — no events exist in `raw_events` yet
-- `INDEXER_LAST_EVENT_STALE_SECONDS:N` — last indexed event was over 5 minutes ago
-- `PROOF_CHECKPOINT_BEHIND_LATEST_INDEX:N` — proof checkpoint lags behind the latest indexed checkpoint
+### Secret Exposed Through `VITE_*`
 
-These warnings **clear automatically** when new protocol events are emitted on-chain and indexed. No action is required. The indexer polls the Sui RPC every 1 second and processes events as they appear.
+Symptoms:
 
-If warnings persist for an extended period, verify:
-1. The `EFREP_PACKAGE_ID` matches the deployed Move package on testnet
-2. The Sui RPC endpoint (`https://fullnode.testnet.sui.io:443`) is reachable
-3. Protocol activity is actually occurring (users registering schemas, creating profiles, issuing attestations, etc.)
+- API key or token appears in built JavaScript.
+- Vercel warns about a public-looking key.
+
+Fix:
+
+- Remove the secret from Vercel frontend variables.
+- Rotate the exposed secret.
+- Move protection to server-side session auth, `EFREP_API_KEY`, or Railway-only
+  variables.
+
+### Supabase Connection Pool Exhaustion
+
+Symptoms:
+
+- API health becomes slow or intermittent.
+- Railway logs show database connection acquisition errors.
+- Supabase shows too many active connections.
+
+Fix:
+
+- Lower `EFREP_MAX_CONNECTIONS`.
+- Avoid running multiple indexer replicas against the same cursor set unless
+  explicitly designed for it.
+- Check for long-running SQL queries before raising pool limits.
+
+### zkLogin Proof Fetch Failure
+
+Symptoms:
+
+- Sponsored transaction builds and sponsor step succeeds.
+- Wallet signing fails with a zkLogin proof fetch error.
+
+Fix:
+
+- Treat as wallet/prover availability, not proof that FrontierWarden transaction
+  construction failed.
+- Retry later or test with a direct-key Ed25519 wallet session where supported.
+- Keep docs clear that sponsored flow reaches wallet signing, while final
+  execution may be wallet-session dependent.
+
+### Stale Browser Cache
+
+Symptoms:
+
+- UI still calls old endpoints after deployment.
+- Wallet modal or session behavior does not match current code.
+
+Fix:
+
+- Hard refresh.
+- Clear site data for `frontierwarden.kodaxa.dev`.
+- Confirm the deployed Vercel build is the expected commit.
+
+## Decision Log
+
+- Stillness/testnet is the active environment because the frontend, indexer
+  config, address manifest, and live API all target testnet.
+- Vercel hosts only the static frontend. Long-running indexer/API and gas
+  station services run on Railway.
+- Public browser config uses `VITE_*`; secrets stay server-side.
+- The Trust API is the public integration surface. The UI is an operator/demo
+  console on top of that surface.

@@ -8,46 +8,66 @@ It answers one high-consequence question:
 Should this pilot pass this gate, and what proof supports that decision?
 ```
 
-FrontierWarden is designed to be a trust backend that other EVE Frontier tools can call for reputation-backed decisions.
+FrontierWarden is designed to be a trust backend that other EVE Frontier tools
+can call for reputation-backed decisions.
 
-## Current Status
+## Live Status
 
-Status as of 2026-04-30:
+Status as of 2026-05-05:
 
-- Sui testnet protocol package is deployed and upgraded.
-- Rust indexer projects protocol events into Supabase/Postgres.
-- Public Supabase table access is locked down; reads go through the Rust API.
-- Rust API supports opt-in `EFREP_API_KEY` authentication for non-health routes.
-- Rust API supports opt-in in-process rate limiting with `EFREP_RATE_LIMIT_PER_MINUTE`.
-- Trust Decision API v1 is frozen, stress-tested, and backed by indexed Sui testnet state.
-- The Trust Decision Console supports `gate_access` and `counterparty_risk` evaluation.
-- The API response contract is versioned as `apiVersion: "trust.v1"`.
-- React operator dashboard builds cleanly with provenance-aware live/demo states.
-- Sponsored gate policy update, gate passage, and toll withdrawal flows have been proven on testnet.
-- Address normalization is applied across frontend, indexer, and API layers.
-- Duplicate profile prevention with `ON CONFLICT (owner) DO UPDATE` is in place.
+- Frontend demo is live at [frontierwarden.kodaxa.dev](https://frontierwarden.kodaxa.dev).
+- Rust indexer/API is live on Railway and serves indexed Sui testnet state.
+- Gas station service is live on Railway and reports `ready`.
+- Supabase/Postgres is the backing database for indexed protocol state.
+- Active environment is Stillness/testnet.
+- Trust Decision API v1 is live for:
+  - `gate_access`
+  - `counterparty_risk`
+  - `bounty_trust`
+- Gate Intel loads live testnet gates from the Railway API.
+- Sponsored gate-passage transactions build in the browser and reach wallet
+  signing through the gas station handoff.
+- Some wallet sessions can still fail at wallet signing when zkLogin proof
+  fetching fails. That is a live caveat, not a claim of final gate-passage
+  execution for every wallet session.
+- Browser operator sessions use wallet-signed session tokens.
+- No public frontend API secrets are allowed. Values prefixed with `VITE_` are
+  public build-time configuration only.
 
 ## Operational Proofs
 
-Key protocol flows are verified on Sui Testnet and tracked in the [Operational Proof Log](./PROOF_LOG.md).
+Key protocol flows are verified on Sui testnet and tracked in the
+[Operational Proof Log](./PROOF_LOG.md).
 
 | Flow | Transaction Digest | Status |
 |---|---|---|
-| **Gate Policy Update** | `G4fGxvg...hrTvsC` | ✅ Indexed |
-| **Toll Withdrawal** | `CAJWpnW...5voud` | ✅ Indexed |
+| Gate Policy Update | `G4fGxvg...hrTvsC` | Indexed |
+| Toll Withdrawal | `CAJWpnW...5voud` | Indexed |
+
+The proof log does not by itself prove that every wallet type can complete final
+gate-passage execution. zkLogin wallet sessions may still fail if the wallet
+cannot fetch a zkLogin proof during signing.
 
 Key docs:
 
 - [Trust API](./Documents/TRUST_API.md)
 - [Security Model](./SECURITY.md)
+- [Railway/Vercel Runbook](./Documents/DEPLOYMENT_RAILWAY_VERCEL.md)
+- [Testnet Notes](./Documents/TESTNET_NOTES.md)
 
 ## For EVE Tool Builders
 
-If you are building EVE Frontier tools (CradleOS-style tribe consoles, gate control, route planners, or bounty/cargo boards), treat FrontierWarden as a remote trust engine:
+If you are building EVE Frontier tools such as tribe consoles, gate control,
+route planners, bounty boards, or cargo/counterparty tools, treat FrontierWarden
+as a remote trust engine:
 
-- **Evaluate Trust**: Call `POST /v1/cradleos/gate/evaluate` (or `POST /v1/trust/evaluate`) with a pilot address and gate ID to receive `ALLOW_FREE` / `ALLOW_TAXED` / `DENY` decisions plus a proof bundle you can surface in your own UI.
-- **Verify Live State**: Use the [Operational Proof Log](./PROOF_LOG.md) to verify that gate policy updates and toll withdrawals are actually live on Sui testnet and indexed by the Rust API before wiring into production-like flows.
-- **Complementary Design**: FrontierWarden is designed to complement existing tribe/structure dashboards: you keep your UX and controls; it answers the high-consequence trust questions with verifiable evidence.
+- Evaluate gate access with `POST /v1/cradleos/gate/evaluate` or
+  `POST /v1/trust/evaluate`.
+- Evaluate counterparty and bounty trust with `POST /v1/trust/evaluate`.
+- Display the returned proof bundle instead of asking users to trust a black-box
+  score.
+- Keep your own UX and controls; FrontierWarden answers high-consequence trust
+  questions with indexed protocol evidence.
 
 ## Trust Decision API
 
@@ -90,34 +110,55 @@ Example response shape:
 }
 ```
 
-Current live smoke proof:
+Current live smoke behavior:
 
-- Pilot A with `TRIBE_STANDING` score `750` against threshold `500` returns `ALLOW_FREE`.
-- Pilot B (no standing) returns `DENY_NO_STANDING_ATTESTATION` until it receives standing proof.
+- A pilot with `TRIBE_STANDING` score `750` against threshold `500` returns
+  `ALLOW_FREE`.
+- A pilot with no standing proof returns `DENY_NO_STANDING_ATTESTATION` until it
+  receives valid standing proof.
 
 Full API contract: [Documents/TRUST_API.md](./Documents/TRUST_API.md).
 
-## Testnet Demo Safety
+## Demo Safety
 
-This is a Sui testnet demo. No mainnet deployment has occurred. The public demo mode exposes read/evaluate paths only (Trust API v1, indexed state queries). Write paths — including sponsored transactions, policy updates, oracle registration, and gas station endpoints — are not required for the read-only demo and should remain protected behind auth, rate limits, and origin controls before any public exposure.
+This is a Sui testnet demo. No mainnet deployment has occurred.
+
+The public frontend contains only public configuration such as URLs, package
+IDs, object IDs, and network labels. Do not put API keys, database URLs, private
+keys, sponsor secrets, or partner tokens in `VITE_*` variables. Vite exposes
+`VITE_*` variables to client-side code after bundling; see the official Vite
+environment variable docs:
+[vite.dev/guide/env-and-mode](https://vite.dev/guide/env-and-mode).
+
+Protected operations must stay behind the appropriate server-side controls:
+
+- Operator browser access uses short-lived wallet session tokens.
+- Rust API partner gates use server-only `EFREP_API_KEY` where enabled.
+- Gas station sponsorship is constrained by origin controls, transaction
+  validation, budget caps, and server-side secrets.
+- Oracle issuing routes require server-side authorization.
+- Public read/evaluate routes are unauthenticated but should be rate-limited.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  Move["Sui Move Protocol"] --> Indexer["Rust Indexer"]
+  Move["Sui Move Protocol"] --> Indexer["Railway Rust Indexer/API"]
   Indexer --> DB["Supabase / Postgres"]
-  DB --> API["Rust Trust API"]
-  API --> UI["FrontierWarden Console"]
+  DB --> API["Trust API v1"]
+  API --> UI["Vercel FrontierWarden Console"]
   API --> Tools["EVE Frontier Tools"]
+  UI --> Gas["Railway Gas Station"]
+  Gas --> Move
 ```
 
 Main layers:
 
-- `sources/`: Sui Move modules for profiles, schemas, oracles, attestations, vouches, lending, fraud challenges, and reputation gates.
+- `sources/`: Sui Move modules for profiles, schemas, oracles, attestations,
+  vouches, lending, fraud challenges, and reputation gates.
 - `indexer/`: Rust event ingester and Axum REST API.
 - `frontend/`: React/Vite operator console.
-- `sdk/trustkit/`: local TypeScript client for external integrations (file dependency, not yet published to npm).
+- `sdk/trustkit/`: local TypeScript client for external integrations.
 - `Documents/`: operational notes and API docs.
 
 ## Protocol Modules
@@ -160,11 +201,14 @@ sui move test --build-env testnet
 
 ## Security
 
-This is pre-mainnet software. Known pre-mainnet limitations are tracked privately. Do not deploy to mainnet without audit.
+This is pre-mainnet software. Known pre-mainnet limitations are tracked
+privately. Do not deploy to mainnet without an audit.
 
 Before production:
+
 - Complete a Move security review.
-- Enable `EFREP_API_KEY` on the Rust API.
+- Keep secrets out of all `VITE_*` frontend variables.
+- Enable server-side API gates where needed.
 - Enable `EFREP_RATE_LIMIT_PER_MINUTE` and deployment-level rate limits.
 - Use wallet-signed operator sessions for browser access.
 - Expand observability and deploy behind gateway-level rate limits.
@@ -175,16 +219,23 @@ See [SECURITY.md](./SECURITY.md) for the security model and disclosure policy.
 
 ## License
 
-FrontierWarden / Sui TrustKit is licensed under the **Business Source License 1.1** (BSL).
+FrontierWarden / Sui TrustKit is licensed under the Business Source License 1.1
+(BSL).
 
-- **Non-Commercial Use**: You are free to use, modify, and redistribute the software for non-commercial purposes.
-- **Commercial Use**: Any production use for commercial purposes requires a separate commercial license from Kodaxadev.
-- **Data Protection**: This license does not grant rights to the proprietary data or datasets processed by the system. Unauthorized scraping or extraction of reputation data is prohibited.
+- Non-commercial use: you may use, modify, and redistribute the software for
+  non-commercial purposes.
+- Commercial use: production commercial use requires a separate commercial
+  license from Kodaxadev.
+- Data protection: this license does not grant rights to proprietary data or
+  datasets processed by the system. Unauthorized scraping or extraction of
+  reputation data is prohibited.
 
-The software will automatically convert to the **Apache License, Version 2.0** on April 29, 2030.
+The software will automatically convert to the Apache License, Version 2.0 on
+April 29, 2030.
 
 See [LICENSE](./LICENSE) for the full text.
 
 ## Contact
 
-For inquiries regarding commercial licensing, security disclosures, or integration support, please contact **Kodaxadev** at **Justin.DavisWE@icloud.com**.
+For commercial licensing, security disclosures, or integration support, contact
+Kodaxadev at Justin.DavisWE@icloud.com.

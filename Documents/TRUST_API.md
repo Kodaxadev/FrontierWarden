@@ -22,9 +22,12 @@ stable integration alias for gate-access decisions.
 
 ## Authentication
 
-Local development can run without API authentication. Set `EFREP_API_KEY` in the
-indexer environment to require authentication on every API route except
-`GET /health`.
+Local development can run without API authentication. Public demo read/evaluate
+routes may also be unauthenticated when rate limits and deployment-level logging
+are enabled.
+
+Set `EFREP_API_KEY` in the indexer environment when a deployment needs a
+server-side partner access gate. Keep this key server-side only.
 
 Accepted headers:
 
@@ -54,14 +57,14 @@ contains a short-lived bearer token for the operator console:
 ```
 
 The Rust API verifies Ed25519 Sui personal-message signatures natively using
-`ed25519_dalek` and `Blake2bVar`. Only Ed25519 wallets (Sui flag byte `0x00`,
-e.g. EVE Vault) are accepted for operator sessions. Other Sui signature schemes
-(secp256k1, secp256r1, zkLogin, passkey) are not currently supported.
+`ed25519_dalek` and `Blake2bVar`. Operator session acceptance is based on the
+signature scheme, not the wallet brand: only signatures with Sui flag byte
+`0x00` are accepted. Other Sui signature schemes (secp256k1, secp256r1,
+zkLogin, passkey) are not currently supported for backend session auth.
 
-Use `GET /health` for unauthenticated uptime checks. Do not expose the API
-publicly without `EFREP_API_KEY`, rate limits, and deployment-level logging.
-Do not put this key in browser code; use it from server-side integrations,
-workers, or trusted backend services.
+Use `GET /health` for unauthenticated uptime checks. Do not put API keys in
+browser code; use them only from server-side integrations, workers, or trusted
+backend services.
 
 ## Rate Limits And Logs
 
