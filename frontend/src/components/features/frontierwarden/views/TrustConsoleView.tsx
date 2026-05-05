@@ -16,6 +16,7 @@ const shortId = (value: string) =>
 const ACTION_LABELS: Record<TrustAction, string> = {
   gate_access: 'Gate Access',
   counterparty_risk: 'Counterparty Risk',
+  bounty_trust: 'Bounty Trust',
 };
 
 function humanReadableWarning(raw: string): { label: string; critical: boolean } {
@@ -96,6 +97,13 @@ const PRESETS: Preset[] = [
     schemaId: 'TRIBE_STANDING',
     minimumScore: 500,
   },
+  {
+    label: 'Fixture: Bounty Trust',
+    action: 'bounty_trust',
+    subject: DEFAULT_SUBJECT,
+    schemaId: 'TRIBE_STANDING',
+    minimumScore: 500,
+  },
 ];
 
 interface Props {
@@ -156,7 +164,7 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
         context: {
           gateId: action === 'gate_access' ? gateId.trim() : undefined,
           schemaId: schemaId.trim() || undefined,
-          minimumScore: action === 'counterparty_risk' ? minimumScore : undefined,
+          minimumScore: (action === 'counterparty_risk' || action === 'bounty_trust') ? minimumScore : undefined,
         },
       });
       setResult(next);
@@ -193,7 +201,7 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
     <>
       <div className="c-view__title">Trust Decision Console</div>
       <div className="c-sub" style={{ marginTop: -16, marginBottom: 24 }}>
-        Evaluate gate access or counterparty risk from indexed Sui testnet proof.
+        Evaluate gate access, counterparty risk, or bounty trust from indexed Sui testnet proof.
       </div>
       <LiveStatus
         loading={loading}
@@ -268,6 +276,7 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
           >
             <option value="gate_access">Gate Access — gate_access</option>
             <option value="counterparty_risk">Counterparty Risk — counterparty_risk</option>
+            <option value="bounty_trust">Bounty Trust — bounty_trust</option>
           </select>
 
           {action === 'gate_access' && (
@@ -282,7 +291,7 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
             </>
           )}
 
-          {action === 'counterparty_risk' && (
+          {(action === 'counterparty_risk' || action === 'bounty_trust') && (
             <>
               <div className="c-stat__label" style={{ marginTop: 18 }}>Minimum Score</div>
               <input

@@ -12,6 +12,11 @@ pub const REASON_COUNTERPARTY_REQUIREMENTS_MET: &str = "COUNTERPARTY_REQUIREMENT
 pub const REASON_DENY_COUNTERPARTY_NO_SCORE: &str = "DENY_COUNTERPARTY_NO_SCORE";
 pub const REASON_DENY_COUNTERPARTY_SCORE_TOO_LOW: &str = "DENY_COUNTERPARTY_SCORE_TOO_LOW";
 
+// Bounty trust reason codes
+pub const REASON_BOUNTY_TRUST_REQUIREMENTS_MET: &str = "BOUNTY_TRUST_REQUIREMENTS_MET";
+pub const REASON_BOUNTY_TRUST_SCORE_BELOW_THRESHOLD: &str = "BOUNTY_TRUST_SCORE_BELOW_THRESHOLD";
+pub const REASON_BOUNTY_TRUST_INSUFFICIENT_DATA: &str = "BOUNTY_TRUST_INSUFFICIENT_DATA";
+
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustEvaluationRequest {
@@ -28,6 +33,9 @@ pub struct TrustEvaluationContext {
     pub gate_id: Option<String>,
     pub schema_id: Option<String>,
     pub minimum_score: Option<i64>,
+    /// Accepted for v1 request compatibility/provenance — not yet used as active score filters.
+    pub bounty_id: Option<String>,
+    pub target: Option<String>,
 }
 
 #[derive(Serialize)]

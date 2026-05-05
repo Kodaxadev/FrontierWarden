@@ -16,6 +16,7 @@ use crate::{
 pub struct TrustConfig {
     pub default_gate_schema: String,
     pub default_counterparty_schema: String,
+    pub default_bounty_schema: String,
 }
 
 impl Default for TrustConfig {
@@ -23,6 +24,7 @@ impl Default for TrustConfig {
         Self {
             default_gate_schema: "TRIBE_STANDING".into(),
             default_counterparty_schema: "TRIBE_STANDING".into(),
+            default_bounty_schema: "TRIBE_STANDING".into(),
         }
     }
 }
@@ -31,6 +33,7 @@ impl Default for TrustConfig {
 struct TrustConfigResponse {
     default_gate_schema: String,
     default_counterparty_schema: String,
+    default_bounty_schema: String,
 }
 
 pub fn router_with_config(cfg: TrustConfig) -> Router<PgPool> {
@@ -46,6 +49,7 @@ async fn show_config(Extension(cfg): Extension<TrustConfig>) -> Json<TrustConfig
     Json(TrustConfigResponse {
         default_gate_schema: cfg.default_gate_schema.clone(),
         default_counterparty_schema: cfg.default_counterparty_schema.clone(),
+        default_bounty_schema: cfg.default_bounty_schema.clone(),
     })
 }
 
@@ -59,6 +63,7 @@ async fn evaluate(
         req,
         &cfg.default_gate_schema,
         &cfg.default_counterparty_schema,
+        &cfg.default_bounty_schema,
     )
     .await?;
     Ok(Json(response))

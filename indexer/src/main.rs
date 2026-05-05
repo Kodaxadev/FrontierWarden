@@ -65,6 +65,7 @@ async fn main() -> Result<()> {
     let trust_cfg = TrustConfig {
         default_gate_schema: cfg.trust.default_gate_schema.clone(),
         default_counterparty_schema: cfg.trust.default_counterparty_schema.clone(),
+        default_bounty_schema: cfg.trust.default_bounty_schema.clone(),
     };
     let app = api::router(pool.clone(), trust_cfg, cfg.eve.clone());
     tokio::spawn(async move {

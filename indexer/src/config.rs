@@ -42,6 +42,8 @@ pub struct IndexerConfig {
 pub struct TrustConfig {
     pub default_gate_schema: String,
     pub default_counterparty_schema: String,
+    #[serde(default = "TrustConfig::default_bounty_schema_str")]
+    pub default_bounty_schema: String,
 }
 
 impl Default for TrustConfig {
@@ -49,7 +51,14 @@ impl Default for TrustConfig {
         Self {
             default_gate_schema: "TRIBE_STANDING".into(),
             default_counterparty_schema: "TRIBE_STANDING".into(),
+            default_bounty_schema: "TRIBE_STANDING".into(),
         }
+    }
+}
+
+impl TrustConfig {
+    fn default_bounty_schema_str() -> String {
+        "TRIBE_STANDING".into()
     }
 }
 
@@ -81,6 +90,9 @@ impl Config {
         }
         if let Ok(s) = std::env::var("EFREP_TRUST_COUNTERPARTY_SCHEMA") {
             cfg.trust.default_counterparty_schema = s;
+        }
+        if let Ok(s) = std::env::var("EFREP_TRUST_BOUNTY_SCHEMA") {
+            cfg.trust.default_bounty_schema = s;
         }
         // Env var overrides for EVE config
         if let Some(eve) = &mut cfg.eve {

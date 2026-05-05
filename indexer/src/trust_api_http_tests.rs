@@ -96,6 +96,39 @@ async fn trust_http_routes_return_stable_reason_codes() -> anyhow::Result<()> {
         "COUNTERPARTY_REQUIREMENTS_MET",
     )
     .await?;
+    // bounty_trust — ALLOW when score meets threshold
+    assert_reason(
+        &pool,
+        "/v1/trust/evaluate",
+        SUBJECT_FREE,
+        "",
+        "bounty_trust",
+        "ALLOW",
+        "BOUNTY_TRUST_REQUIREMENTS_MET",
+    )
+    .await?;
+    // bounty_trust — DENY when score is below default threshold (500)
+    assert_reason(
+        &pool,
+        "/v1/trust/evaluate",
+        SUBJECT_TAXED,
+        "",
+        "bounty_trust",
+        "DENY",
+        "BOUNTY_TRUST_SCORE_BELOW_THRESHOLD",
+    )
+    .await?;
+    // bounty_trust — INSUFFICIENT_DATA when no attestation exists
+    assert_reason(
+        &pool,
+        "/v1/trust/evaluate",
+        SUBJECT_NONE,
+        "",
+        "bounty_trust",
+        "INSUFFICIENT_DATA",
+        "BOUNTY_TRUST_INSUFFICIENT_DATA",
+    )
+    .await?;
     // Unsupported action should return ERROR_UNSUPPORTED_ACTION
     assert_reason(
         &pool,

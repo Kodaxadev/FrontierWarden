@@ -197,7 +197,8 @@ export type TrustApiVersion = 'trust.v1';
 
 export type TrustAction =
   | 'gate_access'
-  | 'counterparty_risk';
+  | 'counterparty_risk'
+  | 'bounty_trust';
 
 export type TrustDecision =
   | 'ALLOW'
@@ -215,6 +216,9 @@ export type TrustReason =
   | 'DENY_NO_STANDING_ATTESTATION'
   | 'DENY_COUNTERPARTY_NO_SCORE'
   | 'DENY_COUNTERPARTY_SCORE_TOO_LOW'
+  | 'BOUNTY_TRUST_REQUIREMENTS_MET'
+  | 'BOUNTY_TRUST_SCORE_BELOW_THRESHOLD'
+  | 'BOUNTY_TRUST_INSUFFICIENT_DATA'
   | 'ERROR_GATE_NOT_FOUND'
   | 'ERROR_UNSUPPORTED_ACTION';
 
@@ -225,6 +229,8 @@ export interface TrustEvaluateRequest {
     gateId?: string;
     schemaId?: string;
     minimumScore?: number;
+    bountyId?: string;
+    target?: string;
   };
 }
 

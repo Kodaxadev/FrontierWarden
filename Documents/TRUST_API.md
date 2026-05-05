@@ -99,10 +99,10 @@ Fields:
 | Field | Required | Meaning |
 |---|---:|---|
 | `entity` | yes | Pilot wallet address being evaluated. Alias: `subject`. |
-| `action` | yes | Action to evaluate: `gate_access` or `counterparty_risk`. |
+| `action` | yes | Action to evaluate: `gate_access`, `counterparty_risk`, or `bounty_trust`. |
 | `context.gateId` | for gates | Indexed `GatePolicy` object ID. Required for `gate_access`. Alias: `gate`. |
 | `context.schemaId` | no | Standing schema to use. Defaults to `TRIBE_STANDING`. |
-| `context.minimumScore` | no | Minimum required score for `counterparty_risk`. Defaults to 500. |
+| `context.minimumScore` | no | Minimum required score for `counterparty_risk` / `bounty_trust`. Defaults to 500. |
 
 ## Response
 
@@ -198,9 +198,9 @@ metadata for operators and external tools.
 |---|---|
 | `ALLOW_FREE` | (Gate Access) Subject has an active standing attestation with score at or above the gate's ally threshold. |
 | `ALLOW_TAXED` | (Gate Access) Subject has positive standing below the ally threshold. Passage is allowed with the gate's base toll. |
-| `ALLOW` | (Counterparty) Subject meets or exceeds the minimum score requirement. |
+| `ALLOW` | (Counterparty / Bounty Trust) Subject meets or exceeds the minimum score requirement. |
 | `DENY` | Subject cannot pass/proceed under current indexed state. |
-| `INSUFFICIENT_DATA` | FrontierWarden cannot produce a protocol-backed decision for the request. |
+| `INSUFFICIENT_DATA` | FrontierWarden cannot produce a protocol-backed decision for the request. For `bounty_trust`, also returned when no attestation exists (inability to evaluate is distinct from denial). |
 
 ## Reason Codes
 
@@ -232,6 +232,9 @@ Currently emitted in v1:
 - `COUNTERPARTY_REQUIREMENTS_MET`
 - `DENY_COUNTERPARTY_NO_SCORE`
 - `DENY_COUNTERPARTY_SCORE_TOO_LOW`
+- `BOUNTY_TRUST_REQUIREMENTS_MET`
+- `BOUNTY_TRUST_SCORE_BELOW_THRESHOLD`
+- `BOUNTY_TRUST_INSUFFICIENT_DATA`
 
 Reserved for protocol/indexer expansion:
 
@@ -331,6 +334,46 @@ Expected core result if the seller has a score of 850:
   "reason": "COUNTERPARTY_REQUIREMENTS_MET",
   "score": 850,
   "threshold": 800
+}
+```
+
+### Example: Bounty Trust Check
+
+```bash
+curl -s http://localhost:3000/v1/trust/evaluate \
+  -H "content-type: application/json" \
+  -H "x-api-key: $EFREP_API_KEY" \
+  -d '{
+    "entity": "0xBOUNTY_HUNTER_EXAMPLE",
+    "action": "bounty_trust",
+    "context": {
+      "schemaId": "TRIBE_STANDING",
+      "minimumScore": 600
+    }
+  }'
+```
+
+Expected core result if the hunter has a score of 750:
+
+```json
+{
+  "decision": "ALLOW",
+  "allow": true,
+  "reason": "BOUNTY_TRUST_REQUIREMENTS_MET",
+  "score": 750,
+  "threshold": 600
+}
+```
+
+Expected core result when no attestation exists (not a denial — bounty eligibility is indeterminate):
+
+```json
+{
+  "decision": "INSUFFICIENT_DATA",
+  "allow": false,
+  "reason": "BOUNTY_TRUST_INSUFFICIENT_DATA",
+  "score": null,
+  "threshold": 600
 }
 ```
 
