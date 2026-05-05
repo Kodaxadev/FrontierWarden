@@ -69,7 +69,7 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
         let path = entry.path();
         let filename = entry.file_name();
         let filename_str = filename.to_string_lossy();
-        let state_key = format!("migration:{}", filename_str);
+        let state_key = format!("migration:{filename_str}");
 
         // Check if this migration was already applied
         let row: Option<(String,)> = sqlx::query_as(
@@ -85,7 +85,7 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
         }
 
         let sql = std::fs::read_to_string(&path)
-            .with_context(|| format!("failed to read migration {}", filename_str))?;
+            .with_context(|| format!("failed to read migration {filename_str}"))?;
 
         // Strip SQL comments (-- line comments and /* */ block comments)
         // before splitting on semicolons, since comments can contain

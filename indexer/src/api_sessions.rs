@@ -39,6 +39,7 @@ struct PendingNonce {
     expires_at: Instant,
 }
 
+#[allow(dead_code)] // fields used via validate_token; method not yet wired to a route
 struct OperatorSession {
     address: String,
     expires_at: Instant,
@@ -77,6 +78,7 @@ impl SessionState {
         Self::default()
     }
 
+    #[allow(dead_code)] // reserved for future session-protected route middleware
     pub fn validate_token(&self, token: &str) -> Option<String> {
         let now = Instant::now();
         let Ok(mut store) = self.inner.lock() else {

@@ -1,10 +1,11 @@
 use anyhow::Result;
 
-pub(crate) fn parse_graphql_response(
-    body: &serde_json::Value,
-) -> Result<(Option<String>, Option<String>, Option<String>, serde_json::Value)> {
+/// (player_profile_object, character_id, tribe_id, raw_body)
+type GraphqlResult = (Option<String>, Option<String>, Option<String>, serde_json::Value);
+
+pub(crate) fn parse_graphql_response(body: &serde_json::Value) -> Result<GraphqlResult> {
     if let Some(errors) = body.get("errors") {
-        return Err(anyhow::anyhow!("GraphQL errors: {}", errors));
+        return Err(anyhow::anyhow!("GraphQL errors: {errors}"));
     }
 
     let data = body

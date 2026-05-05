@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_opt_addr, field_str, field_u64, SuiEvent};
+use crate::rpc::{event_name, field_addr, field_opt_addr, field_str, field_u64, normalize_sui_address, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
@@ -17,7 +17,7 @@ async fn schema_registered(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
     let schema_id = field_str(p, "schema_id")?;
     let version = field_u64(p, "version")?;
-    let resolver = field_opt_addr(p, "resolver");
+    let resolver = field_opt_addr(p, "resolver").map(|s| normalize_sui_address(&s));
 
     sqlx::query(
         "INSERT INTO schemas (schema_id, version, resolver, registered_tx)
@@ -59,8 +59,8 @@ async fn schema_deprecated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // GovernanceTransferred → INSERT INTO governance_history
 async fn governance_transferred(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let old_admin = field_opt_addr(p, "old_admin");
-    let new_governance = field_addr(p, "new_governance")?;
+    let old_admin = field_opt_addr(p, "old_admin").map(|s| normalize_sui_address(&s));
+    let new_governance = normalize_sui_address(&field_addr(p, "new_governance")?);
 
     sqlx::query(
         "INSERT INTO governance_history (old_admin, new_governance, tx_digest)

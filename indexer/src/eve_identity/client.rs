@@ -215,7 +215,7 @@ async fn graphql_compatibility_probe(
     tracing::info!(http_status = status.as_u16(), content_type = ct, body = %body_text, "GraphQL probe A response");
 
     if !status.is_success() {
-        return Err(anyhow::anyhow!("Probe A failed: HTTP {} — {}", status, body_text));
+        return Err(anyhow::anyhow!("Probe A failed: HTTP {status} — {body_text}"));
     }
 
     let test_b = serde_json::json!({
@@ -241,7 +241,7 @@ async fn graphql_compatibility_probe(
     tracing::info!(http_status = status.as_u16(), content_type = ct, body_preview = %body_text.chars().take(1024).collect::<String>(), "GraphQL probe B response");
 
     if !status.is_success() {
-        return Err(anyhow::anyhow!("Probe B failed: HTTP {} — {}", status, body_text));
+        return Err(anyhow::anyhow!("Probe B failed: HTTP {status} — {body_text}"));
     }
 
     let body: serde_json::Value = serde_json::from_str(&body_text)?;
@@ -340,10 +340,7 @@ pub(crate) async fn fetch_player_profile(
                 "GraphQL response is not valid JSON"
             );
             return Err(anyhow::anyhow!(
-                "GraphQL response not JSON: HTTP {} (Content-Type: {}) — {}",
-                status,
-                content_type,
-                e
+                "GraphQL response not JSON: HTTP {status} (Content-Type: {content_type}) — {e}"
             ));
         }
     };
@@ -361,9 +358,7 @@ pub(crate) async fn fetch_player_profile(
         tracing::debug!(wallet = wallet, top_level_keys = ?keys, "GraphQL error response shape");
 
         return Err(anyhow::anyhow!(
-            "GraphQL request failed: HTTP {} — {}",
-            status,
-            body
+            "GraphQL request failed: HTTP {status} — {body}"
         ));
     }
 

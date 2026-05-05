@@ -1,3 +1,7 @@
+// Auth middleware scaffolding — wired in when EFREP_API_KEY protection is enabled.
+// Functions and constants defined here are reserved for future route-level auth.
+#![allow(dead_code)]
+
 use axum::{
     body::Body,
     extract::Request,

@@ -105,8 +105,7 @@ pub(crate) async fn evaluate_counterparty_risk(
             false,
             REASON_DENY_COUNTERPARTY_SCORE_TOO_LOW,
             format!(
-                "{schema} score {} is below the required minimum of {}.",
-                score, minimum_score
+                "{schema} score {score} is below the required minimum of {minimum_score}."
             ),
             subject,
             schema,
@@ -145,8 +144,7 @@ pub(crate) async fn evaluate_counterparty_risk(
         true,
         REASON_COUNTERPARTY_REQUIREMENTS_MET,
         format!(
-            "{schema} score {} meets or exceeds the minimum threshold of {}.",
-            score, minimum_score
+            "{schema} score {score} meets or exceeds the minimum threshold of {minimum_score}."
         ),
         subject,
         schema,
@@ -253,8 +251,7 @@ pub(crate) async fn evaluate_bounty_trust(
             false,
             REASON_BOUNTY_TRUST_SCORE_BELOW_THRESHOLD,
             format!(
-                "{schema} score {} is below the bounty trust threshold of {}.",
-                score, minimum_score
+                "{schema} score {score} is below the bounty trust threshold of {minimum_score}."
             ),
             subject,
             schema,
@@ -293,8 +290,7 @@ pub(crate) async fn evaluate_bounty_trust(
         true,
         REASON_BOUNTY_TRUST_REQUIREMENTS_MET,
         format!(
-            "{schema} score {} meets or exceeds the bounty trust threshold of {}.",
-            score, minimum_score
+            "{schema} score {score} meets or exceeds the bounty trust threshold of {minimum_score}."
         ),
         subject,
         schema,

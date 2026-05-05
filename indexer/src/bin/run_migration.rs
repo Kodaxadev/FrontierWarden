@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
     let mut conn = pool.acquire().await?;
     for stmt in sql.split(';').map(|s| s.trim()).filter(|s| !s.is_empty()) {
         let preview: String = stmt.chars().take(60).collect();
-        println!("Executing: {}...", preview);
+        println!("Executing: {preview}...");
         sqlx::query(stmt).execute(&mut *conn).await?;
     }
 

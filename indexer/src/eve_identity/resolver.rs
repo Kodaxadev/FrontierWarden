@@ -42,9 +42,7 @@ pub async fn resolve_identity_via_graphql(
         Ok(profile_result) => {
             let (player_profile_object, character_id, _tribe_id_from_profile, player_profile_raw) = profile_result;
 
-            let identity_status = if character_id.is_some() {
-                "resolved"
-            } else if player_profile_object.is_some() {
+            let identity_status = if character_id.is_some() || player_profile_object.is_some() {
                 "resolved"
             } else {
                 "not_found"

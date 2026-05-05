@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_u64, SuiEvent};
+use crate::rpc::{event_name, field_addr, field_u64, normalize_sui_address, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
@@ -15,9 +15,10 @@ pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // LoanIssued → INSERT INTO loans
 async fn loan_issued(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let loan_id = field_addr(p, "loan_id")?;
-    let borrower = field_addr(p, "borrower")?;
-    let lender = field_addr(p, "lender")?;
+    let loan_id = normalize_sui_address(&field_addr(p, "loan_id")?);
+    let borrower = normalize_sui_address(&field_addr(p, "borrower")?);
+    let lender = normalize_sui_address(&field_addr(p, "lender")?);
+
     let amount = field_u64(p, "amount")?;
 
     sqlx::query(
@@ -39,7 +40,7 @@ async fn loan_issued(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // LoanRepaid → UPDATE loans SET repaid fields
 async fn loan_repaid(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let loan_id = field_addr(p, "loan_id")?;
+    let loan_id = normalize_sui_address(&field_addr(p, "loan_id")?);
 
     sqlx::query(
         "UPDATE loans
@@ -59,7 +60,7 @@ async fn loan_repaid(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // LoanDefaulted → UPDATE loans SET defaulted fields + vouch_slashed
 async fn loan_defaulted(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let loan_id = field_addr(p, "loan_id")?;
+    let loan_id = normalize_sui_address(&field_addr(p, "loan_id")?);
     let vouch_slashed = field_u64(p, "vouch_slashed")?;
 
     sqlx::query(

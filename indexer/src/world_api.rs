@@ -1,3 +1,7 @@
+// EVE World API client — called from eve_identity pipeline; struct/method
+// definitions here are scaffolded for future direct call sites.
+#![allow(dead_code)]
+
 use anyhow::{Context, Result};
 use reqwest::StatusCode;
 use serde::Deserialize;

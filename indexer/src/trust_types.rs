@@ -34,7 +34,9 @@ pub struct TrustEvaluationContext {
     pub schema_id: Option<String>,
     pub minimum_score: Option<i64>,
     /// Accepted for v1 request compatibility/provenance — not yet used as active score filters.
+    #[allow(dead_code)]
     pub bounty_id: Option<String>,
+    #[allow(dead_code)]
     pub target: Option<String>,
 }
 

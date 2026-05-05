@@ -257,5 +257,5 @@ pub fn normalize_sui_address(input: &str) -> String {
         .trim_start_matches("0x")
         .trim_start_matches("0X")
         .to_ascii_lowercase();
-    format!("0x{:0>64}", stripped)
+    format!("0x{stripped:0>64}")
 }

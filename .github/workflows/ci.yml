@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Rust: clippy + tests ────────────────────────────────────────────────────
+  indexer:
+    name: Indexer (clippy + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: indexer
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (from rust-toolchain.toml)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.88.0"
+          components: clippy
+
+      - name: Cache cargo registry + build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            indexer/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('indexer/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: cargo clippy (deny warnings)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        run: cargo test
+
+  # ── Frontend: typecheck + build ────────────────────────────────────────────
+  frontend:
+    name: Frontend (typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm ci
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Vite build
+        run: npm run build
+        env:
+          # Provide stub values so Vite bakes in something defined.
+          # Real values live in Railway / Vercel environment variables.
+          VITE_API_BASE: /api
+          VITE_GAS_STATION_URL: /gas
+          VITE_SUI_NETWORK: testnet
+          VITE_PKG_ID: "0x0000000000000000000000000000000000000000000000000000000000000001"
+          VITE_SCHEMA_REGISTRY_ID: "0x0000000000000000000000000000000000000000000000000000000000000002"
+          VITE_SCHEMA_REGISTRY_VERSION: "1"
+          VITE_ORACLE_REGISTRY_ID: "0x0000000000000000000000000000000000000000000000000000000000000003"
+          VITE_ORACLE_REGISTRY_VERSION: "1"
+          VITE_GATE_POLICY_ID: "0x0000000000000000000000000000000000000000000000000000000000000004"
+          VITE_GATE_POLICY_VERSION: "1"
+          VITE_GATE_ADMIN_CAP_ID: "0x0000000000000000000000000000000000000000000000000000000000000005"
+          VITE_GATE_ADMIN_OWNER: "0x0000000000000000000000000000000000000000000000000000000000000000"
+          VITE_ORACLE_ADDRESS: "0x0000000000000000000000000000000000000000000000000000000000000000"

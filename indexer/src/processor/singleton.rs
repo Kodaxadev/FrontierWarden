@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_str, field_u64, SuiEvent};
+use crate::rpc::{event_name, field_addr, field_str, field_u64, normalize_sui_address, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
@@ -14,10 +14,11 @@ pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // SingletonAttestationIssued → INSERT INTO singleton_attestations
 async fn singleton_issued(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let attestation_id = field_addr(p, "attestation_id")?;
+    let attestation_id = normalize_sui_address(&field_addr(p, "attestation_id")?);
     let schema_id = field_str(p, "schema_id")?;
-    let item_id = field_addr(p, "item_id")?;
-    let issuer = field_addr(p, "issuer")?;
+    let item_id = normalize_sui_address(&field_addr(p, "item_id")?);
+    let issuer = normalize_sui_address(&field_addr(p, "issuer")?);
+
     let value = field_u64(p, "value")?;
 
     sqlx::query(
@@ -41,8 +42,9 @@ async fn singleton_issued(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 // SingletonAttestationRevoked → UPDATE singleton_attestations SET revoked = TRUE
 async fn singleton_revoked(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let attestation_id = field_addr(p, "attestation_id")?;
-    let revoker = field_addr(p, "revoker")?;
+    let attestation_id = normalize_sui_address(&field_addr(p, "attestation_id")?);
+    let revoker = normalize_sui_address(&field_addr(p, "revoker")?);
+
 
     sqlx::query(
         "UPDATE singleton_attestations

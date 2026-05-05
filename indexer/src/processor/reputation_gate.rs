@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_u64, SuiEvent};
+use crate::rpc::{event_name, field_addr, field_u64, normalize_sui_address, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
@@ -22,8 +22,8 @@ pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 
 async fn passage_granted(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let gate_id = field_addr(p, "gate_id")?;
-    let traveler = field_addr(p, "traveler")?;
+    let gate_id = normalize_sui_address(&field_addr(p, "gate_id")?);
+    let traveler = normalize_sui_address(&field_addr(p, "traveler")?);
     let score = field_u64(p, "score")?;
     let toll_paid = field_u64(p, "toll_paid")?;
     let tier = field_u64(p, "tier")?;
@@ -55,8 +55,8 @@ async fn passage_granted(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 
 async fn passage_denied(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let gate_id = field_addr(p, "gate_id")?;
-    let traveler = field_addr(p, "traveler")?;
+    let gate_id = normalize_sui_address(&field_addr(p, "gate_id")?);
+    let traveler = normalize_sui_address(&field_addr(p, "traveler")?);
     let reason = field_u64(p, "reason")?;
     let epoch = field_u64(p, "epoch")?;
     let event_seq = event_seq(ev);
@@ -84,7 +84,7 @@ async fn passage_denied(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 
 async fn gate_config_updated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let gate_id = field_addr(p, "gate_id")?;
+    let gate_id = normalize_sui_address(&field_addr(p, "gate_id")?);
     let ally_threshold = field_u64(p, "ally_threshold")?;
     let base_toll_mist = field_u64(p, "base_toll_mist")?;
     let event_seq = event_seq(ev);
@@ -110,8 +110,9 @@ async fn gate_config_updated(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 
 async fn tolls_withdrawn(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
-    let gate_id = field_addr(p, "gate_id")?;
-    let owner = field_addr(p, "owner")?;
+    let gate_id = normalize_sui_address(&field_addr(p, "gate_id")?);
+    let owner = normalize_sui_address(&field_addr(p, "owner")?);
+
     let amount = field_u64(p, "amount")?;
     let event_seq = event_seq(ev);
     let checkpoint_seq = checkpoint_seq(ev);

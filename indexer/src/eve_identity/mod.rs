@@ -4,7 +4,7 @@ mod parser;
 mod resolver;
 mod types;
 
-pub use db::{resolve_cached_identity, resolve_fw_profile_id, upsert_identity};
+pub use db::resolve_cached_identity;
 pub use resolver::{resolve_identity_via_graphql, unresolved_identity};
 pub use types::EveIdentity;
 

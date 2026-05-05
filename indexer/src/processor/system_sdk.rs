@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_str, field_u64, SuiEvent};
+use crate::rpc::{event_name, field_addr, field_str, field_u64, normalize_sui_address, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     if event_name(&ev.type_) == "SystemAttestationEvent" {
@@ -17,9 +17,10 @@ pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
 async fn system_attestation(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
     let schema_id = field_str(p, "schema_id")?;
-    let subject = field_addr(p, "subject")?;
+    let subject = normalize_sui_address(&field_addr(p, "subject")?);
     let value = field_u64(p, "value")?;
-    let system_oracle = field_addr(p, "system_oracle")?;
+    let system_oracle = normalize_sui_address(&field_addr(p, "system_oracle")?);
+
     let sui_timestamp = field_u64(p, "timestamp")?;
 
     sqlx::query(

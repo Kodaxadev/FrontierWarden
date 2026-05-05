@@ -145,6 +145,8 @@ pub(crate) fn response_counterparty(
     }
 }
 
+// TODO: group into a ResponseParams struct when stabilised
+#[allow(clippy::too_many_arguments)]
 fn response_raw(
     decision: &'static str,
     allow: bool,
