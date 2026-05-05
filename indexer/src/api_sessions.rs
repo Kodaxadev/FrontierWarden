@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::{
     collections::HashMap,
-    io::Write,
-    process::{Command, Stdio},
     sync::{Arc, Mutex},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -229,55 +227,10 @@ fn verify_personal_message_ed25519(
     Ok(())
 }
 
+/// Only Ed25519 (Sui flag byte 0x00) is supported for operator sessions.
+/// secp256k1, secp256r1, zkLogin, and passkey schemes are not accepted.
 fn verify_personal_message(message: &str, signature: &str, address: &str) -> anyhow::Result<()> {
-    if verify_personal_message_ed25519(message, signature, address).is_ok() {
-        return Ok(());
-    }
-    verify_personal_message_with_mysten(message, signature, address)
-}
-
-fn verify_personal_message_with_mysten(
-    message: &str,
-    signature: &str,
-    address: &str,
-) -> anyhow::Result<()> {
-    let script = verifier_script_path();
-    let mut child = Command::new("node")
-        .arg(script)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()?;
-
-    let payload = serde_json::json!({
-        "address": address,
-        "message": message,
-        "signature": signature,
-    });
-    child
-        .stdin
-        .as_mut()
-        .ok_or_else(|| anyhow::anyhow!("missing verifier stdin"))?
-        .write_all(payload.to_string().as_bytes())?;
-
-    let output = child.wait_with_output()?;
-    anyhow::ensure!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr).trim()
-    );
-    Ok(())
-}
-
-fn verifier_script_path() -> std::path::PathBuf {
-    if let Ok(path) = std::env::var("EFREP_SIGNATURE_VERIFIER") {
-        return path.into();
-    }
-    let root_relative = std::path::PathBuf::from("scripts/verify-personal-message.mjs");
-    if root_relative.exists() {
-        return root_relative;
-    }
-    std::path::PathBuf::from("../scripts/verify-personal-message.mjs")
+    verify_personal_message_ed25519(message, signature, address)
 }
 
 fn personal_message_digest(message: &[u8]) -> anyhow::Result<[u8; 32]> {
@@ -382,6 +335,69 @@ mod tests {
         let signature = general_purpose::STANDARD.encode(serialized);
 
         verify_personal_message_ed25519(message, &signature, &address)
+    }
+
+    #[test]
+    fn rejects_invalid_ed25519_signature() -> anyhow::Result<()> {
+        let signing_key = SigningKey::generate(&mut rand::rngs::OsRng);
+        let pubkey = signing_key.verifying_key().to_bytes();
+        let address = sui_address(0, &pubkey);
+        let message = "FrontierWarden operator session";
+
+        // All-zero signature bytes — not a valid signature for this key
+        let mut serialized = vec![0u8];
+        serialized.extend_from_slice(&[0u8; 64]);
+        serialized.extend_from_slice(&pubkey);
+        let bad_sig = general_purpose::STANDARD.encode(serialized);
+
+        assert!(verify_personal_message_ed25519(message, &bad_sig, &address).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_wrong_address() -> anyhow::Result<()> {
+        let signing_key = SigningKey::generate(&mut rand::rngs::OsRng);
+        let pubkey = signing_key.verifying_key().to_bytes();
+        let message = "FrontierWarden operator session";
+        let digest = personal_message_digest(message.as_bytes())?;
+        let signature = signing_key.sign(&digest);
+
+        let mut serialized = vec![0u8];
+        serialized.extend_from_slice(&signature.to_bytes());
+        serialized.extend_from_slice(&pubkey);
+        let sig_b64 = general_purpose::STANDARD.encode(serialized);
+
+        let wrong_address = format!("0x{}", "0".repeat(64));
+        assert!(verify_personal_message_ed25519(message, &sig_b64, &wrong_address).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn expired_nonce_is_rejected() {
+        let state = SessionState::new();
+        let nonce = "test_nonce_expired".to_string();
+        let address = format!("0x{}", "a".repeat(64));
+        let message = "test message".to_string();
+
+        {
+            let mut store = state.inner.lock().unwrap();
+            store.nonces.insert(
+                nonce.clone(),
+                PendingNonce {
+                    address: address.clone(),
+                    message: message.clone(),
+                    expires_at: Instant::now() - Duration::from_secs(1),
+                },
+            );
+        }
+
+        let req = SessionRequest {
+            address,
+            nonce,
+            message,
+            signature: String::new(),
+        };
+        assert!(state.consume_nonce(&req).is_err());
     }
 
     #[test]
