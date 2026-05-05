@@ -68,7 +68,25 @@ pub struct EveConfig {
     pub world_api_base: String,
     pub graphql_url: String,
     pub world_package_id: String,
+    #[serde(default)]
+    pub world_pkg_original_id: String,
+    #[serde(default)]
+    pub world_pkg_published_at: String,
+    #[serde(default = "EveConfig::default_world_tenant")]
+    pub world_tenant: String,
     pub player_profile_type: String,
+    #[serde(default = "EveConfig::default_fw_gate_auth_witness")]
+    pub fw_gate_auth_witness: String,
+}
+
+impl EveConfig {
+    fn default_world_tenant() -> String {
+        "stillness".into()
+    }
+
+    fn default_fw_gate_auth_witness() -> String {
+        "FrontierWardenAuth".into()
+    }
 }
 
 impl Config {
@@ -105,8 +123,26 @@ impl Config {
             if let Ok(s) = std::env::var("EFREP_EVE_WORLD_PACKAGE_ID") {
                 eve.world_package_id = s;
             }
+            if let Ok(s) = std::env::var("EFREP_WORLD_PKG_ORIGINAL_ID") {
+                eve.world_pkg_original_id = s;
+            }
+            if let Ok(s) = std::env::var("EFREP_WORLD_PKG_PUBLISHED_AT") {
+                eve.world_pkg_published_at = s;
+            }
+            if let Ok(s) = std::env::var("EFREP_WORLD_TENANT") {
+                eve.world_tenant = s;
+            }
+            if let Ok(s) = std::env::var("EFREP_FW_GATE_AUTH_WITNESS") {
+                eve.fw_gate_auth_witness = s;
+            }
             if let Ok(s) = std::env::var("EFREP_EVE_PLAYER_PROFILE_TYPE") {
                 eve.player_profile_type = s;
+            }
+            if eve.world_pkg_original_id.is_empty() {
+                eve.world_pkg_original_id = eve.world_package_id.clone();
+            }
+            if eve.world_pkg_published_at.is_empty() {
+                eve.world_pkg_published_at = eve.world_package_id.clone();
             }
         }
         // Env var override for database max connections
@@ -114,7 +150,11 @@ impl Config {
         // Clamp to 10 unless explicitly set higher via EFREP_MAX_CONNECTIONS_OVERRIDE
         let is_production = std::env::var("RAILWAY_ENVIRONMENT").as_deref() == Ok("production")
             || std::env::var("RUST_LOG").as_deref().is_ok();
-        let default_max = if is_production { 5 } else { cfg.database.max_connections };
+        let default_max = if is_production {
+            5
+        } else {
+            cfg.database.max_connections
+        };
         let override_allowed = std::env::var("EFREP_MAX_CONNECTIONS_OVERRIDE").is_ok();
         let max_limit = if override_allowed { u32::MAX } else { 10 };
         cfg.database.max_connections = std::env::var("EFREP_MAX_CONNECTIONS")

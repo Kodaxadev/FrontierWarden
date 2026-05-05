@@ -39,6 +39,7 @@ frontend/.env.local
 # Database dumps
 *.db
 *.sql
+!indexer/migrations/*.sql
 *.dump
 
 .vercel

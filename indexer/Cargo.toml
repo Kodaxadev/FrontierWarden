@@ -14,6 +14,10 @@ name = "sync_eve_world"
 path = "src/bin/sync_eve_world.rs"
 
 [[bin]]
+name = "sync_world_gates"
+path = "src/bin/sync_world_gates.rs"
+
+[[bin]]
 name = "run_migration"
 path = "src/bin/run_migration.rs"
 
