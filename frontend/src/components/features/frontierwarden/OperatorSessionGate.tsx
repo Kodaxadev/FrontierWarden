@@ -49,6 +49,8 @@ export function OperatorSessionGate({ children }: Props) {
         textTransform: 'uppercase',
         flexWrap: 'wrap',
         alignItems: 'center',
+        position: 'relative',
+        zIndex: 200,
       }}>
         {isAuthenticated ? (
           <>
