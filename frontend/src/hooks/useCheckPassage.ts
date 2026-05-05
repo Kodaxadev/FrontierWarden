@@ -84,6 +84,7 @@ export function useCheckPassage() {
         paymentMist:         args.paymentMist,
       }),
       gasBudget: 100_000_000,
+      flow: 'check_passage',
     });
   }, [
     account,
