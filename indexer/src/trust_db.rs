@@ -26,6 +26,12 @@ pub(crate) struct CachedScore {
     pub(crate) value: i64,
 }
 
+#[derive(sqlx::FromRow)]
+pub(crate) struct WorldGateProjection {
+    pub(crate) status: String,
+    pub(crate) linked_gate_id: Option<String>,
+}
+
 pub(crate) async fn latest_gate_policy(
     pool: &PgPool,
     gate_id: &str,
@@ -97,6 +103,43 @@ pub(crate) async fn score_from_cache(
     .fetch_optional(pool)
     .await
     .map_err(Into::into)
+}
+
+pub(crate) async fn world_gate_for_policy(
+    pool: &PgPool,
+    gate_id: &str,
+) -> Result<Option<WorldGateProjection>> {
+    sqlx::query_as::<_, WorldGateProjection>(
+        "SELECT status, linked_gate_id
+         FROM world_gates
+         WHERE fw_gate_policy_id = $1 OR gate_id = $1
+         ORDER BY fw_extension_active DESC, updated_at DESC
+         LIMIT 1",
+    )
+    .bind(gate_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(Into::into)
+}
+
+pub(crate) fn apply_world_gate_warnings(
+    world_gate: Option<&WorldGateProjection>,
+    proof: &mut TrustProof,
+) {
+    let Some(world_gate) = world_gate else {
+        return;
+    };
+
+    if world_gate.status != "online" {
+        proof
+            .warnings
+            .push(format!("WARN_WORLD_GATE_OFFLINE:World gate status is {}.", world_gate.status));
+    }
+    if world_gate.linked_gate_id.is_none() {
+        proof
+            .warnings
+            .push("WARN_WORLD_GATE_NOT_LINKED:World gate has no linked gate.".to_owned());
+    }
 }
 
 pub(crate) async fn add_freshness_warnings(pool: &PgPool, proof: &mut TrustProof) -> Result<()> {

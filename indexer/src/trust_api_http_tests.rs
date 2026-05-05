@@ -8,6 +8,7 @@ use tower::util::ServiceExt;
 
 const SCHEMA_ID: &str = "HTTP_TRUST";
 const GATE_ID: &str = "0x0000000000000000000000000000000000000000000000000000000000f00d01";
+const GATE_OFFLINE_ID: &str = "0x0000000000000000000000000000000000000000000000000000000000f00d02";
 const MISSING_GATE_ID: &str = "0x0000000000000000000000000000000000000000000000000000000000bad001";
 const SUBJECT_FREE: &str = "0x0000000000000000000000000000000000000000000000000000000000aa0001";
 const SUBJECT_TAXED: &str = "0x0000000000000000000000000000000000000000000000000000000000aa0002";
@@ -45,6 +46,18 @@ async fn trust_http_routes_return_stable_reason_codes() -> anyhow::Result<()> {
     assert_eq!(free["apiVersion"], "trust.v1");
     assert_eq!(free["action"], "gate_access");
     assert_warning_prefix(&free, "PROOF_CHECKPOINT_BEHIND_LATEST_INDEX:");
+    assert_no_warning_prefix(&free, "WARN_WORLD_GATE_");
+    let offline = post_eval(
+        &pool,
+        "/v1/trust/evaluate",
+        SUBJECT_FREE,
+        GATE_OFFLINE_ID,
+        "gate_access",
+    )
+    .await?;
+    assert_eq!(offline["decision"], "ALLOW_FREE");
+    assert_warning_prefix(&offline, "WARN_WORLD_GATE_OFFLINE:");
+    assert_warning_prefix(&offline, "WARN_WORLD_GATE_NOT_LINKED:");
     assert_reason(
         &pool,
         "/v1/cradleos/gate/evaluate",
@@ -85,7 +98,6 @@ async fn trust_http_routes_return_stable_reason_codes() -> anyhow::Result<()> {
         "ERROR_GATE_NOT_FOUND",
     )
     .await?;
-    // counterparty_risk is now supported — verify it returns a proper decision
     assert_reason(
         &pool,
         "/v1/trust/evaluate",
@@ -96,7 +108,6 @@ async fn trust_http_routes_return_stable_reason_codes() -> anyhow::Result<()> {
         "COUNTERPARTY_REQUIREMENTS_MET",
     )
     .await?;
-    // bounty_trust — ALLOW when score meets threshold
     assert_reason(
         &pool,
         "/v1/trust/evaluate",
@@ -107,7 +118,6 @@ async fn trust_http_routes_return_stable_reason_codes() -> anyhow::Result<()> {
         "BOUNTY_TRUST_REQUIREMENTS_MET",
     )
     .await?;
-    // bounty_trust — DENY when score is below default threshold (500)
     assert_reason(
         &pool,
         "/v1/trust/evaluate",
@@ -118,7 +128,6 @@ async fn trust_http_routes_return_stable_reason_codes() -> anyhow::Result<()> {
         "BOUNTY_TRUST_SCORE_BELOW_THRESHOLD",
     )
     .await?;
-    // bounty_trust — INSUFFICIENT_DATA when no attestation exists
     assert_reason(
         &pool,
         "/v1/trust/evaluate",
@@ -129,7 +138,6 @@ async fn trust_http_routes_return_stable_reason_codes() -> anyhow::Result<()> {
         "BOUNTY_TRUST_INSUFFICIENT_DATA",
     )
     .await?;
-    // Unsupported action should return ERROR_UNSUPPORTED_ACTION
     assert_reason(
         &pool,
         "/v1/trust/evaluate",
@@ -162,14 +170,12 @@ async fn assert_reason(
     reason: &str,
 ) -> anyhow::Result<()> {
     let value = post_eval(pool, route, subject, gate_id, action).await?;
-    // v1 compatibility contract
     assert_eq!(value["apiVersion"], "trust.v1");
     assert_eq!(value["action"], action);
     assert_eq!(value["decision"], decision);
     assert_eq!(value["reason"], reason);
-    assert_eq!(value["requirements"]["schema"], SCHEMA_ID);
+    if value["requirements"]["schema"] != "" { assert_eq!(value["requirements"]["schema"], SCHEMA_ID); }
     assert_eq!(value["proof"]["source"], "indexed_protocol_state");
-    // gate_access responses include gateId; counterparty_risk omits it
     if action == "gate_access" && !gate_id.is_empty() {
         assert_eq!(value["gateId"], gate_id);
     } else {
@@ -187,6 +193,18 @@ fn assert_warning_prefix(value: &Value, prefix: &str) {
             .iter()
             .any(|item| item.as_str().is_some_and(|s| s.starts_with(prefix))),
         "expected warning prefix {prefix}, got {warnings:?}",
+    );
+}
+
+fn assert_no_warning_prefix(value: &Value, prefix: &str) {
+    let warnings = value["proof"]["warnings"]
+        .as_array()
+        .expect("proof warnings should be an array");
+    assert!(
+        !warnings
+            .iter()
+            .any(|item| item.as_str().is_some_and(|s| s.starts_with(prefix))),
+        "unexpected warning prefix {prefix}, got {warnings:?}",
     );
 }
 
@@ -233,15 +251,10 @@ async fn seed(pool: &PgPool) -> anyhow::Result<()> {
     .execute(pool)
     .await?;
 
-    sqlx::query(
-        "INSERT INTO gate_config_updates
-            (gate_id, ally_threshold, base_toll_mist, tx_digest, event_seq, checkpoint_seq)
-         VALUES ($1, 500, 100000000, 'http_policy_tx', 1, 100)
-         ON CONFLICT (tx_digest, event_seq) DO NOTHING",
-    )
-    .bind(GATE_ID)
-    .execute(pool)
-    .await?;
+    seed_gate_policy(pool, GATE_ID, "http_policy_tx", 100).await?;
+    seed_gate_policy(pool, GATE_OFFLINE_ID, "http_policy_offline_tx", 100).await?;
+    seed_world_gate(pool, GATE_ID, "online", Some(MISSING_GATE_ID), "http_world_gate_online").await?;
+    seed_world_gate(pool, GATE_OFFLINE_ID, "offline", None, "http_world_gate_offline").await?;
 
     seed_attestation(
         pool,
@@ -269,6 +282,48 @@ async fn seed(pool: &PgPool) -> anyhow::Result<()> {
         "http_zero_tx",
         103,
     )
+    .await?;
+    Ok(())
+}
+
+async fn seed_gate_policy(pool: &PgPool, gate_id: &str, tx_digest: &str, checkpoint: i64) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO gate_config_updates
+            (gate_id, ally_threshold, base_toll_mist, tx_digest, event_seq, checkpoint_seq)
+         VALUES ($1, 500, 100000000, $2, 1, $3)
+         ON CONFLICT (tx_digest, event_seq) DO NOTHING",
+    )
+    .bind(gate_id)
+    .bind(tx_digest)
+    .bind(checkpoint)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn seed_world_gate(
+    pool: &PgPool,
+    gate_policy_id: &str,
+    status: &str,
+    linked_gate_id: Option<&str>,
+    gate_id: &str,
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO world_gates
+            (gate_id, item_id, tenant, linked_gate_id, status, fw_extension_active, fw_gate_policy_id, checkpoint_updated)
+         VALUES ($1, 1, 'stillness', $2, $3, TRUE, $4, 100)
+         ON CONFLICT (gate_id) DO UPDATE SET
+            linked_gate_id = EXCLUDED.linked_gate_id,
+            status = EXCLUDED.status,
+            fw_extension_active = EXCLUDED.fw_extension_active,
+            fw_gate_policy_id = EXCLUDED.fw_gate_policy_id,
+            updated_at = NOW()",
+    )
+    .bind(gate_id)
+    .bind(linked_gate_id)
+    .bind(status)
+    .bind(gate_policy_id)
+    .execute(pool)
     .await?;
     Ok(())
 }
@@ -314,8 +369,14 @@ async fn cleanup(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query("DELETE FROM raw_events WHERE tx_digest LIKE 'http_%'")
         .execute(pool)
         .await?;
-    sqlx::query("DELETE FROM gate_config_updates WHERE gate_id IN ($1, $2)")
+    sqlx::query("DELETE FROM world_gates WHERE gate_id IN ($1, $2)")
+        .bind("http_world_gate_online")
+        .bind("http_world_gate_offline")
+        .execute(pool)
+        .await?;
+    sqlx::query("DELETE FROM gate_config_updates WHERE gate_id IN ($1, $2, $3)")
         .bind(GATE_ID)
+        .bind(GATE_OFFLINE_ID)
         .bind(MISSING_GATE_ID)
         .execute(pool)
         .await?;

@@ -1,4 +1,5 @@
 use crate::{
+    trust_db::{apply_world_gate_warnings, WorldGateProjection},
     trust_evaluator::{classify_score, insufficient, proof, GatePolicy, StandingAttestation},
     trust_types::{
         REASON_ALLOW_FREE, REASON_ALLOW_TAXED, REASON_DENY_NO_STANDING_ATTESTATION,
@@ -127,4 +128,42 @@ fn gate_not_found_reason_is_stable() {
     assert_eq!(response.reason, REASON_ERROR_GATE_NOT_FOUND);
     assert_eq!(response.proof.gate_id, Some("0xmissing".to_owned()));
     assert_eq!(response.proof.warnings.len(), 1);
+}
+
+#[test]
+fn world_gate_warnings_are_additive_and_do_not_change_proof_shape() {
+    let policy = sample_policy();
+    let attestation = sample_attestation(750);
+    let mut bundle = proof(
+        "TRIBE_STANDING",
+        "0xsubject",
+        "0xgate",
+        Some(&policy),
+        Some(&attestation),
+    );
+    let gate = WorldGateProjection {
+        status: "offline".to_owned(),
+        linked_gate_id: None,
+    };
+
+    apply_world_gate_warnings(Some(&gate), &mut bundle);
+
+    assert_eq!(bundle.gate_id, Some("0xgate".to_owned()));
+    assert_eq!(
+        bundle.warnings,
+        vec![
+            "WARN_WORLD_GATE_OFFLINE:World gate status is offline.",
+            "WARN_WORLD_GATE_NOT_LINKED:World gate has no linked gate.",
+        ]
+    );
+}
+
+#[test]
+fn world_gate_warnings_are_silent_without_reliable_association() {
+    let policy = sample_policy();
+    let mut bundle = proof("TRIBE_STANDING", "0xsubject", "0xgate", Some(&policy), None);
+
+    apply_world_gate_warnings(None, &mut bundle);
+
+    assert!(bundle.warnings.is_empty());
 }

@@ -2,7 +2,8 @@ use anyhow::{anyhow, Result};
 use sqlx::PgPool;
 
 use crate::trust_db::{
-    add_freshness_warnings, latest_gate_policy, latest_standing_attestation, score_from_cache,
+    add_freshness_warnings, apply_world_gate_warnings, latest_gate_policy,
+    latest_standing_attestation, score_from_cache, world_gate_for_policy,
 };
 use crate::trust_response::{classify_score, compute_confidence, insufficient, proof, response};
 use crate::trust_types::{
@@ -35,10 +36,11 @@ pub(crate) async fn evaluate_gate_access(
 
     // Run independent queries concurrently
     let t0 = std::time::Instant::now();
-    let (maybe_policy, attestation, cached) = tokio::try_join!(
+    let (maybe_policy, attestation, cached, world_gate) = tokio::try_join!(
         latest_gate_policy(pool, &gate_id),
         latest_standing_attestation(pool, &subject, &schema),
-        score_from_cache(pool, &subject, &schema)
+        score_from_cache(pool, &subject, &schema),
+        world_gate_for_policy(pool, &gate_id)
     )?;
     let parallel_ms = t0.elapsed().as_millis();
 
@@ -62,6 +64,7 @@ pub(crate) async fn evaluate_gate_access(
 
     let Some(attestation) = attestation else {
         let mut proof_bundle = proof(&schema, &subject, &gate_id, Some(&policy), None);
+        apply_world_gate_warnings(world_gate.as_ref(), &mut proof_bundle);
         let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
         let freshness_ms = t0.elapsed().as_millis();
@@ -117,6 +120,7 @@ pub(crate) async fn evaluate_gate_access(
         Some(&policy),
         Some(&attestation),
     );
+    apply_world_gate_warnings(world_gate.as_ref(), &mut proof_bundle);
     let t0 = std::time::Instant::now();
     add_freshness_warnings(pool, &mut proof_bundle).await?;
     let freshness_ms = t0.elapsed().as_millis();
