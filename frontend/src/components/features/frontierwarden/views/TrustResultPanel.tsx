@@ -1,30 +1,27 @@
 import { useMemo } from 'react';
-import type { EveIdentity, TrustEvaluateResponse } from '../../../../types/api.types';
+import type { TrustEvaluateResponse } from '../../../../types/api.types';
 import { badgeClass, formatMist, shortId } from './trust-console-format';
-import { TrustIdentityStrip } from './TrustIdentityStrip';
 import { TrustWarnings } from './TrustWarnings';
 
 interface TrustResultPanelProps {
   result: TrustEvaluateResponse | null;
-  eveIdentity: EveIdentity | null;
   copied: boolean;
   onCopyJson: () => void;
 }
 
 export function TrustResultPanel({
   result,
-  eveIdentity,
   copied,
   onCopyJson,
 }: TrustResultPanelProps) {
   const proofRows = useMemo(() => {
     if (!result) return [];
     return [
-      ['Source', result.proof?.source ?? '-'],
-      ['Checkpoint', result.proof?.checkpoint?.toString() ?? '-'],
-      ['Schemas', result.proof?.schemas?.join(', ') || '-'],
-      ['Attestations', result.proof?.attestationIds?.map(shortId).join(', ') || '-'],
-      ['Tx Digests', result.proof?.txDigests?.map(shortId).join(', ') || '-'],
+      ['Indexed Source', result.proof?.source ?? '-'],
+      ['Proof Checkpoint', result.proof?.checkpoint?.toString() ?? '-'],
+      ['Schema Evidence', result.proof?.schemas?.join(', ') || '-'],
+      ['Attestation Objects', result.proof?.attestationIds?.map(shortId).join(', ') || '-'],
+      ['Source Transactions', result.proof?.txDigests?.map(shortId).join(', ') || '-'],
     ];
   }, [result]);
 
@@ -40,6 +37,7 @@ export function TrustResultPanel({
       {result ? (
         <>
           <div style={{ marginBottom: 24 }}>
+            <div className="c-stat__label" style={{ marginBottom: 8 }}>Live Proof Decision</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <span className={`c-badge ${badgeClass(result)}`} style={{ fontSize: 11, padding: '5px 12px' }}>
                 {result.decision}
@@ -78,8 +76,6 @@ export function TrustResultPanel({
           <div style={{ color: 'var(--c-hi)', fontSize: 12, lineHeight: 1.7, marginBottom: 24, padding: '12px 16px', border: '1px solid var(--c-border)', background: 'rgba(8,13,20,0.5)' }}>
             {result.explanation}
           </div>
-
-          <TrustIdentityStrip eveIdentity={eveIdentity} variant="detail" />
 
           <div style={{
             display: 'grid',
@@ -133,8 +129,11 @@ export function TrustResultPanel({
           </details>
         </>
       ) : (
-        <div className="c-sub" style={{ marginTop: 40 }}>
-          Submit a pilot and gate to receive a live indexed trust decision.
+        <div style={{ marginTop: 40 }}>
+          <div className="c-stat__label" style={{ marginBottom: 10 }}>Awaiting Evaluation</div>
+          <div className="c-sub" style={{ lineHeight: 1.7 }}>
+            Choose a demo preset or enter a subject wallet and policy context to receive a live indexed trust decision.
+          </div>
         </div>
       )}
     </section>

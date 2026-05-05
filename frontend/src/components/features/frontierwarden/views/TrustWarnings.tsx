@@ -23,7 +23,7 @@ export function TrustWarnings({ warnings }: TrustWarningsProps) {
           color: warnings.some(w => humanReadableWarning(w).critical) ? 'var(--c-crimson)' : 'var(--c-amber)',
           marginBottom: 8,
         }}>
-          INDEXER / PROOF WARNINGS
+          PROOF FRESHNESS WARNINGS
         </div>
         {warnings.map((w, i) => {
           const { label, critical } = humanReadableWarning(w);
@@ -35,7 +35,7 @@ export function TrustWarnings({ warnings }: TrustWarningsProps) {
               lineHeight: 1.8,
               fontWeight: critical ? 700 : 400,
             }}>
-              â–¸ {label}
+              &gt; {label}
             </div>
           );
         })}

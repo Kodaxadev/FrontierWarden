@@ -132,7 +132,6 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
         </div>
         <TrustResultPanel
           result={result}
-          eveIdentity={eveIdentity}
           copied={copied}
           onCopyJson={copyJson}
         />
