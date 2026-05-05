@@ -139,10 +139,7 @@ impl SessionState {
                 error = %err,
                 "operator session signature verification failed"
             );
-            (
-                StatusCode::UNAUTHORIZED,
-                "wallet signature verification failed",
-                )
+            (StatusCode::UNAUTHORIZED, "wallet signature verification failed")
         })?;
 
         let token = random_token(32);
@@ -309,10 +306,7 @@ fn signature_scheme_label(signature: &str) -> &'static str {
 }
 
 fn unix_now() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 }
 
 #[cfg(test)]
@@ -391,12 +385,7 @@ mod tests {
             );
         }
 
-        let req = SessionRequest {
-            address,
-            nonce,
-            message,
-            signature: String::new(),
-        };
+        let req = SessionRequest { address, nonce, message, signature: String::new() };
         assert!(state.consume_nonce(&req).is_err());
     }
 
