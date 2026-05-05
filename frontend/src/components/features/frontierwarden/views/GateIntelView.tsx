@@ -10,6 +10,7 @@ import { useCheckPassage } from '../../../../hooks/useCheckPassage';
 import { LiveStatus } from '../LiveStatus';
 import type { FwData, FwGate } from '../fw-data';
 import type { Provenance } from '../LiveStatus';
+import { SponsoredPassageStatus } from './SponsoredPassageStatus';
 
 type GateFilter = 'ALL' | 'open' | 'camped' | 'toll' | 'closed';
 const FILTERS: GateFilter[] = ['ALL', 'open', 'camped', 'toll', 'closed'];
@@ -55,6 +56,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
   const [passageError, setPassageError] = useState<string | null>(null);
   const [passageLoading, setPassageLoading] = useState(false);
   const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
+  const [lastSponsoredAt, setLastSponsoredAt] = useState<string | null>(null);
 
   const {
     account,
@@ -70,14 +72,17 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
     ? data.gates
     : data.gates.filter(g => g.status === filter);
   const selectedGate = gates.find(g => g.id === selectedGateId) ?? gates[0] ?? null;
-  const passageTrace = passageState.trace;
 
   async function copyDiagnostics() {
-    if (!passageTrace) return;
-    await navigator.clipboard.writeText(JSON.stringify(passageTrace, null, 2));
+    if (!passageState.trace) return;
+    await navigator.clipboard.writeText(JSON.stringify(passageState.trace, null, 2));
     setDiagnosticsCopied(true);
     window.setTimeout(() => setDiagnosticsCopied(false), 1600);
   }
+
+  useEffect(() => {
+    if (passageState.step === 'done') setLastSponsoredAt(new Date().toLocaleTimeString());
+  }, [passageState.step, passageState.digest]);
 
   useEffect(() => {
     if (!selectedGateId && gates[0]) setSelectedGateId(gates[0].id);
@@ -351,40 +356,13 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
                 </span>
               </div>
 
-              {passageState.step === 'error' && passageTrace && (
-                <div style={{
-                  marginTop: 14,
-                  paddingTop: 12,
-                  borderTop: '1px solid var(--c-border)',
-                  display: 'grid',
-                  gap: 8,
-                }}>
-                  <div className="c-kv">
-                    <span className="c-kv__k">Error Class</span>
-                    <span className="c-kv__v" style={{ color: 'var(--c-amber)' }}>
-                      {passageTrace.errorClass ?? 'unknown_wallet_failure'}
-                    </span>
-                  </div>
-                  <div className="c-kv">
-                    <span className="c-kv__k">Trace ID</span>
-                    <span className="c-kv__v">{passageTrace.traceId}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <button
-                      className="c-filter"
-                      type="button"
-                      onClick={() => void copyDiagnostics()}
-                    >
-                      COPY DIAGNOSTICS
-                    </button>
-                    <span className="c-sub">
-                      {diagnosticsCopied
-                        ? 'SANITIZED TRACE COPIED'
-                        : 'No tx bytes, signatures, keys, or session tokens included.'}
-                    </span>
-                  </div>
-                </div>
-              )}
+              <SponsoredPassageStatus
+                state={passageState}
+                copied={diagnosticsCopied}
+                successAt={lastSponsoredAt}
+                onCopyDiagnostics={() => void copyDiagnostics()}
+                shortAddr={shortAddr}
+              />
             </div>
           )}
         </div>

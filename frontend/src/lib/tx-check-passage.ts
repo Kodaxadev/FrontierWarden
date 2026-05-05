@@ -124,7 +124,7 @@ export async function buildCheckPassageTxKind(
       network: suiNetwork,
     });
 
-    console.info('[CHECK_PASSAGE] v5 step=start', { suiNetwork });
+    devLog('[CHECK_PASSAGE] v5 step=start', { suiNetwork });
 
     step = 'validate';
     if (BigInt(gatePolicyVersion) <= 0n) {
@@ -146,7 +146,7 @@ export async function buildCheckPassageTxKind(
     step = 'selectPaymentCoin';
     const paymentMist = args.paymentMist ?? 1n;
     const paymentCoin = await selectPaymentCoin(rpcClient, args.sender, paymentMist);
-    console.info('[CHECK_PASSAGE] v5 step=paymentCoin', {
+    devLog('[CHECK_PASSAGE] v5 step=paymentCoin', {
       objectId: paymentCoin.objectId,
       version:  paymentCoin.version,
       digestLen: paymentCoin.digest?.length,
@@ -161,7 +161,7 @@ export async function buildCheckPassageTxKind(
 
     step = 'tx.object(gate)';
     const gateArg = tx.object(Inputs.SharedObjectRef(gateSharedRef));
-    console.info('[CHECK_PASSAGE] v5 step=gateArg ok');
+    devLog('[CHECK_PASSAGE] v5 step=gateArg ok');
 
     step = 'fetchAttestation';
     const attestationObject = await rpcClient.getObject({
@@ -178,7 +178,7 @@ export async function buildCheckPassageTxKind(
       version:  normalizeObjectVersion(attestationObject.data.version),
       digest:   String(attestationObject.data.digest),
     };
-    console.info('[CHECK_PASSAGE] v5 step=attestationRef', {
+    devLog('[CHECK_PASSAGE] v5 step=attestationRef', {
       objectId: attestationRef.objectId,
       version:  attestationRef.version,
       digestLen: attestationRef.digest?.length,
@@ -186,7 +186,7 @@ export async function buildCheckPassageTxKind(
 
     step = 'tx.object(attestation)';
     const attestationArg = tx.object(Inputs.ObjectRef(attestationRef));
-    console.info('[CHECK_PASSAGE] v5 step=attestationArg ok');
+    devLog('[CHECK_PASSAGE] v5 step=attestationArg ok');
 
     step = 'tx.object(payment)';
     const paymentArg = tx.object(Inputs.ObjectRef({
@@ -194,25 +194,25 @@ export async function buildCheckPassageTxKind(
       version:  paymentCoin.version,
       digest:   paymentCoin.digest,
     }));
-    console.info('[CHECK_PASSAGE] v5 step=paymentArg ok');
+    devLog('[CHECK_PASSAGE] v5 step=paymentArg ok');
 
     step = 'moveCall';
     tx.moveCall({
       target:    `${pkgId}::reputation_gate::check_passage`,
       arguments: [gateArg, attestationArg, paymentArg],
     });
-    console.info('[CHECK_PASSAGE] v5 step=moveCall ok');
+    devLog('[CHECK_PASSAGE] v5 step=moveCall ok');
 
     step = 'tx.build';
     const kindBytes = await tx.build({ onlyTransactionKind: true });
-    console.info('[CHECK_PASSAGE] v5 step=build ok', { len: kindBytes.length });
+    devLog('[CHECK_PASSAGE] v5 step=build ok', { len: kindBytes.length });
     return toBase64(kindBytes);
   } catch (err: unknown) {
     const name  = (err as { name?: string })?.name ?? 'Error';
     const msg   = (err as { message?: string })?.message ?? String(err);
     const stack = (err as { stack?: string })?.stack ?? '(no stack)';
-    console.error(`[CHECK_PASSAGE] v5 FAILED at step="${step}"`, { name, msg });
-    console.error('[CHECK_PASSAGE] v5 stack:', stack);
+    devLog(`[CHECK_PASSAGE] v5 FAILED at step="${step}"`, { name, msg });
+    devLog('[CHECK_PASSAGE] v5 stack:', stack);
     throw new Error(`${step}: [${name}] ${msg}`);
   }
 }

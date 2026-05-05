@@ -51,6 +51,7 @@ export function SocialView({ provenance }: SocialViewProps = {}) {
   const [feedLoading, setFeedLoading] = useState(false);
 
   const accountConnected = !!account;
+  const accountAddress = account?.address ?? null;
   const canRegisterSystem = account?.address.toLowerCase() === ORACLE_REGISTRY_ADMIN;
   const requestedSystemOracle = canRegisterSystem && isSystemOracle;
   const minStake = requestedSystemOracle ? SYSTEM_MIN_STAKE_MIST : ORACLE_MIN_STAKE_MIST;
@@ -67,21 +68,24 @@ export function SocialView({ provenance }: SocialViewProps = {}) {
   }, [account]);
 
   const lookupProfile = useCallback(async () => {
-    if (!account) return;
+    if (!accountAddress) {
+      setMyProfile(null);
+      setProfileId('');
+      return;
+    }
     setProfileLookup(true);
-    const normalized = normalizeSuiAddress(account.address);
-    console.log('[SocialView] profile lookup - wallet:', account.address, 'normalized:', normalized);
+    const normalized = normalizeSuiAddress(accountAddress);
     try {
       const p = await fetchProfileByOwner(normalized);
-      console.log('[SocialView] profile lookup result:', p);
       setMyProfile(p);
-      if (p) setProfileId(p.profile_id);
-    } catch (err) {
-      console.warn('[SocialView] profile lookup failed:', err);
+      setProfileId(p?.profile_id ?? '');
+    } catch {
+      setMyProfile(null);
+      setProfileId('');
     } finally {
       setProfileLookup(false);
     }
-  }, [account]);
+  }, [accountAddress]);
 
   useEffect(() => { void lookupProfile(); }, [lookupProfile]);
 

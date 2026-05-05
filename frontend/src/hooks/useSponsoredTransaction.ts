@@ -45,6 +45,9 @@ export interface ExecuteSponsoredArgs {
 }
 
 const IDLE: SponsoredState = { step: 'idle', digest: null, error: null, trace: null };
+const debugLog = import.meta.env.VITE_DEBUG_TX === 'true'
+  ? (...args: unknown[]) => console.info(...args)
+  : () => {};
 
 function humaniseError(err: unknown): string {
   const msg = String(err);
@@ -106,14 +109,14 @@ export function useSponsoredTransaction() {
         txKindBytesType: classifyBytes(txKindBytes),
         txKindBytesLength: byteLength(txKindBytes),
       });
-      console.info('[SPONSORED_TX] step=building done', {
+      debugLog('[SPONSORED_TX] step=building done', {
         kindBytesType: trace.txKindBytesType,
         kindBytesLength: trace.txKindBytesLength,
       });
 
       phase = 'sponsoring';
       setTracedState('sponsoring', { step: 'sponsor.request.sent' });
-      console.info('[SPONSORED_TX] step=sponsoring calling sponsor API', {
+      debugLog('[SPONSORED_TX] step=sponsoring calling sponsor API', {
         traceId: trace.traceId,
         walletName: trace.walletName,
       });
@@ -137,7 +140,7 @@ export function useSponsoredTransaction() {
         if (!validateSponsorResponse(sponsorResp)) {
           throw new Error('sponsor_response_invalid: missing txBytes or sponsorSignature');
         }
-        console.info('[SPONSORED_TX] step=sponsor_api_response', {
+        debugLog('[SPONSORED_TX] step=sponsor_api_response', {
           keysPresent: trace.sponsorResponseKeys,
           txBytesType: trace.txBytesType,
           sponsorSigType: trace.sponsorSignatureType,
@@ -156,13 +159,13 @@ export function useSponsoredTransaction() {
 
       phase = 'signing';
       setTracedState('signing');
-      console.info('[SPONSORED_TX] step=transaction_from input type', trace.txBytesType);
+      debugLog('[SPONSORED_TX] step=transaction_from input type', trace.txBytesType);
 
       let tx: Transaction;
       try {
         tx = Transaction.from(txBytes);
         trace = sanitizeTrace({ ...trace, step: 'transaction.from.ok' });
-        console.info('[SPONSORED_TX] step=transaction_from done', {
+        debugLog('[SPONSORED_TX] step=transaction_from done', {
           txDataKeys: Object.keys(tx.getData()),
         });
       } catch (err) {
@@ -187,7 +190,7 @@ export function useSponsoredTransaction() {
             : null,
         },
       });
-      console.info('[SPONSORED_TX] step=dappkit_sign calling dAppKit.signTransaction', {
+      debugLog('[SPONSORED_TX] step=dappkit_sign calling dAppKit.signTransaction', {
         traceId: trace.traceId,
         signTransactionInput: trace.signTransactionInput,
       });
@@ -196,7 +199,7 @@ export function useSponsoredTransaction() {
       try {
         signed = await dAppKit.signTransaction({ transaction: tx });
         trace = sanitizeTrace({ ...trace, step: 'wallet.sign.ok' });
-        console.info('[SPONSORED_TX] step=dappkit_sign done', {
+        debugLog('[SPONSORED_TX] step=dappkit_sign done', {
           signedKeys: signed ? Object.keys(signed) : 'null',
           hasSignature: !!signed?.signature,
         });
@@ -217,7 +220,7 @@ export function useSponsoredTransaction() {
 
       phase = 'executing';
       setTracedState('executing', { step: 'execute.requested' });
-      console.info('[SPONSORED_TX] step=execute calling client.core.executeTransaction', {
+      debugLog('[SPONSORED_TX] step=execute calling client.core.executeTransaction', {
         clientType: (client as unknown as { constructor: { name: string } }).constructor.name,
         txBytesType: trace.txBytesType,
         sigsCount: 2,
@@ -234,7 +237,7 @@ export function useSponsoredTransaction() {
           step: 'execute.ok',
           executeResultKind: result.$kind,
         });
-        console.info('[SPONSORED_TX] step=execute done', {
+        debugLog('[SPONSORED_TX] step=execute done', {
           resultKind: result.$kind,
         });
       } catch (err) {

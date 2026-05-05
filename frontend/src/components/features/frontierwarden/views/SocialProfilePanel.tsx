@@ -29,12 +29,18 @@ export function SocialProfilePanel({
   onLookupProfile,
   onReset,
 }: SocialProfilePanelProps) {
+  const profileLoaded = !!myProfile;
+  const waitingForIndexer = profState.step === 'done' && !profileLoaded;
+  const createDisabled = !accountConnected || busy || profileLoaded || waitingForIndexer;
+
   return (
     <div style={{ maxWidth: 760, marginBottom: 24, padding: '16px 20px', border: '1px solid var(--c-border)', background: 'rgba(0,210,255,0.018)' }}>
-      <div className="c-stat__label" style={{ marginBottom: 10 }}>Create Reputation Profile</div>
-      <div className="c-sub" style={{ marginBottom: 12 }}>Creates a SBT-style profile for the connected wallet. One profile per address.</div>
+      <div className="c-stat__label" style={{ marginBottom: 10 }}>Reputation Profile</div>
+      <div className="c-sub" style={{ marginBottom: 12 }}>
+        Looks up the connected wallet first. Create is only needed when no profile exists.
+      </div>
       {!accountConnected && <div style={{ marginBottom: 10 }}><div className="c-wallet-connect"><ConnectButton>CONNECT WALLET</ConnectButton></div></div>}
-      {myProfile && (
+      {profileLoaded && (
         <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(0,210,255,0.04)', border: '1px solid var(--c-border)', fontSize: 11 }}>
           <span className="c-stat__label">Profile found - </span>
           <span style={{ fontFamily: 'monospace', color: 'var(--c-hi)' }}>{myProfile.profile_id}</span>
@@ -49,16 +55,26 @@ export function SocialProfilePanel({
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <button
           className="c-commit"
-          disabled={!accountConnected || busy || (profState.step === 'done' && !myProfile)}
-          title={profState.step === 'done' && !myProfile ? 'Profile indexed - waiting for indexer...' : 'Create reputation profile'}
+          disabled={createDisabled}
+          title={
+            profileLoaded
+              ? 'Profile already exists for this wallet'
+              : waitingForIndexer
+                ? 'Profile indexed - waiting for indexer...'
+                : 'Create reputation profile'
+          }
           onClick={onCreateProfile}
         >
-          {profState.step === 'signing' ? 'SIGNING...' : 'CREATE PROFILE'}
+          {profState.step === 'signing'
+            ? 'SIGNING...'
+            : profileLoaded
+              ? 'PROFILE READY'
+              : 'CREATE PROFILE'}
         </button>
         <button className="c-tab" disabled={!accountConnected || profileLookup} onClick={onLookupProfile}>
           {profileLookup ? 'LOOKING UP...' : 'LOOKUP MY PROFILE'}
         </button>
-        <SocialStatusLine {...profState} />
+        {!profileLoaded && <SocialStatusLine {...profState} />}
         {profState.step !== 'idle' && <button className="c-tab" onClick={onReset}>CLEAR</button>}
       </div>
     </div>
