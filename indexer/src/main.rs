@@ -23,10 +23,14 @@ mod processor;
 mod rpc;
 #[cfg(test)]
 mod trust_api_http_tests;
+mod trust_db;
+mod trust_eval_gate;
+mod trust_eval_score;
 mod trust_evaluator;
 #[cfg(test)]
 mod trust_evaluator_tests;
 mod trust_freshness;
+mod trust_response;
 mod trust_types;
 mod world_api;
 
