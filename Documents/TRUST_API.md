@@ -1,6 +1,6 @@
 # FrontierWarden Trust Decision API
 
-Last updated: 2026-04-29
+Last updated: 2026-05-04
 
 FrontierWarden exposes a small REST surface for EVE Frontier tools that need a
 defensible trust decision backed by indexed Sui protocol state.
@@ -94,6 +94,8 @@ do not coordinate across multiple API instances.
 }
 ```
 
+**All `context` fields use camelCase.** The v1 parser silently ignores unknown keys — sending `schema_id` or `minimum_score` instead of `schemaId` or `minimumScore` will not error, but those fields will be ignored and the evaluator will use its defaults. Always use the documented camelCase keys.
+
 Fields:
 
 | Field | Required | Meaning |
@@ -103,6 +105,8 @@ Fields:
 | `context.gateId` | for gates | Indexed `GatePolicy` object ID. Required for `gate_access`. Alias: `gate`. |
 | `context.schemaId` | no | Standing schema to use. Defaults to `TRIBE_STANDING`. |
 | `context.minimumScore` | no | Minimum required score for `counterparty_risk` / `bounty_trust`. Defaults to 500. |
+| `context.bountyId` | no | Accepted for v1 provenance. Not yet used as an active score filter. |
+| `context.target` | no | Accepted for v1 provenance. Not yet used as an active score filter. |
 
 ## Response
 
