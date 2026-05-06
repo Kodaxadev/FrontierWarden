@@ -94,6 +94,24 @@ It does not prove:
 world_gate_id -> FrontierWarden GatePolicy
 ```
 
+## Link Audit Confirmation - 2026-05-06
+
+The link audit and live upstream checks reinforce the same hybrid model:
+
+- Official Smart Gate build docs and `builder-scaffold` show the practical
+  world-authorization path: build a typed-witness extension, use OwnerCap
+  authority, and authorize that extension on a world Gate.
+- `gate.move` remains the authoritative source for emitted extension TypeName
+  values and event payloads.
+- `efctl` and `builder-scaffold/move-contracts/smart_gate_extension` improve
+  implementation guidance, but they do not create a FrontierWarden-owned
+  `GatePolicy` binding by themselves.
+
+Therefore this ADR is unchanged: world authorization plus FrontierWarden-owned
+GatePolicy binding are both needed. Scaffold/docs reduce deployment ambiguity;
+they do not change the invariant that extension authorization is not GatePolicy
+binding.
+
 ## Option 1: Hybrid Move-Level Binding Plus Events
 
 Add binding at the protocol layer with both current-state storage and event
