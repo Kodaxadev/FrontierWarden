@@ -12,6 +12,7 @@ import type { FwData, FwGate } from '../fw-data';
 import type { Provenance } from '../LiveStatus';
 import { SponsoredPassageStatus } from './SponsoredPassageStatus';
 import { GateBindingStatusBadge } from './GateBindingStatusBadge';
+import { OperatorBindingPanel } from './OperatorBindingPanel';
 
 type GateFilter = 'ALL' | 'open' | 'camped' | 'toll' | 'closed';
 const FILTERS: GateFilter[] = ['ALL', 'open', 'camped', 'toll', 'closed'];
@@ -272,6 +273,10 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
             </table>
           )}
         </div>
+
+        {selectedGate.sourceId && (
+          <OperatorBindingPanel gatePolicyId={selectedGate.sourceId} />
+        )}
 
         {/* ── CHECK PASSAGE panel ───────────────────────────────────────── */}
         <div style={{
