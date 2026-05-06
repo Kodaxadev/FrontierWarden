@@ -121,6 +121,23 @@ export interface GateBindingStatusResponse {
   updatedAt:        string | null;
 }
 
+export interface WorldGateCandidate {
+  worldGateId:       string;
+  itemId:            number;
+  tenant:            string;
+  status:            string;
+  linkedGateId:      string | null;
+  fwExtensionActive: boolean;
+  checkpointUpdated: number;
+  updatedAt:         string;
+}
+
+export interface WorldGatesResponse {
+  tenant: string;
+  count:  number;
+  gates:  WorldGateCandidate[];
+}
+
 export interface GatePassageRow {
   gate_id:        string;
   traveler:       string;

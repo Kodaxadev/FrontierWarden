@@ -14,6 +14,7 @@ import type {
   GatePolicyRow,
   GatePassageRow,
   TollWithdrawalRow,
+  WorldGatesResponse,
   FraudChallengeRow,
   ChallengeStatsRow,
   VouchRow,
@@ -163,6 +164,9 @@ export const fetchGateBindingStatus = (
   gatePolicyId: string,
 ): Promise<GateBindingStatusResponse> =>
   get(`/gates/${encodeURIComponent(gatePolicyId)}/binding-status`);
+
+export const fetchWorldGates = (tenant = 'stillness'): Promise<WorldGatesResponse> =>
+  get(`/world/gates?tenant=${encodeURIComponent(tenant)}`);
 
 export const fetchGatePassages = (
   gateId: string,
