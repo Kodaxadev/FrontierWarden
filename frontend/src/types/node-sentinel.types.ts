@@ -76,6 +76,11 @@ export interface TrustPerimeter {
   nodeId: string;
   knownCharacters: CharacterTrustProfile[];
   knownWallets: WalletTrustProfile[];
+  identityCoverage: {
+    total: number;
+    mapped: number;
+    unmapped: number;
+  };
   riskyCounterparties: RiskFinding[];
   unresolvedChallenges: RiskFinding[];
   staleSignals: RiskFinding[];

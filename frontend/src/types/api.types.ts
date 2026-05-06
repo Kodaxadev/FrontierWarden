@@ -335,3 +335,16 @@ export interface EveIdentity {
   source: string;
   synced_at: string | null;
 }
+
+export interface IdentityEnrichment {
+  wallet: string;
+  character_id: string | null;
+  character_name: string | null;
+  tribe_id: string | null;
+  tribe_name: string | null;
+  frontierwarden_profile_id: string | null;
+  identity_status: string;
+  synced_at: string | null;
+}
+
+export type IdentityEnrichmentMap = Record<string, IdentityEnrichment>;

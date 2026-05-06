@@ -22,7 +22,7 @@ export type FwTab = 'sentinel' | 'gates' | 'trust' | 'killboard' | 'reputation' 
 export function FrontierWardenDashboard() {
   const [tab, setTab] = useState<FwTab>('sentinel');
   const { demoEnabled, toggleDemo } = useDemoFallback();
-  const { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, eveIdentity } = useFrontierWardenData({ demoEnabled });
+  const { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, eveIdentity, eveIdentityMap } = useFrontierWardenData({ demoEnabled });
 
   return (
     <div className="c-shell">
@@ -41,7 +41,7 @@ export function FrontierWardenDashboard() {
           <span className="c-sub">{demoEnabled ? 'Mock data shown when live API returns no rows' : 'Only live indexer data — no fallback'}</span>
         </div>
 
-        {tab === 'sentinel'   && <NodeSentinelView data={data} live={live} loading={loading} error={error} eveIdentity={eveIdentity} />}
+        {tab === 'sentinel'   && <NodeSentinelView data={data} live={live} loading={loading} error={error} eveIdentity={eveIdentity} eveIdentityMap={eveIdentityMap} />}
         {tab === 'gates'      && <GateIntelView  data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
         {tab === 'trust'      && <TrustConsoleView data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
         {tab === 'killboard'  && <KillboardView  data={data} live={killboardLive} loading={loading} error={error} provenance={provenance.killboard} />}

@@ -28,6 +28,7 @@ import type {
   EveShip,
   EveWorldStatus,
   EveIdentity,
+  IdentityEnrichmentMap,
 } from '../types/api.types';
 import { createTrustkit } from './trustkit';
 import type { TrustEvaluateRequest, TrustEvaluateResponse } from '../types/api.types';
@@ -308,3 +309,6 @@ export const fetchEveShips = (limit = 500): Promise<EveShip[]> =>
 
 export const fetchEveIdentity = (wallet: string): Promise<EveIdentity> =>
   get(`/eve/identity/${encodeURIComponent(wallet)}?refresh=true`);
+
+export const fetchBatchIdentities = (wallets: string[]): Promise<IdentityEnrichmentMap> =>
+  post('/eve/identity/batch', { wallets });

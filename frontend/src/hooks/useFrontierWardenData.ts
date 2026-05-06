@@ -3,9 +3,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
-import { fetchAttestationFeed, fetchAttestations, fetchChallenges, fetchEveIdentity, fetchGatePolicy, fetchGates, fetchLeaderboard, fetchScores, fetchVouches } from '../lib/api';
+import { fetchAttestationFeed, fetchAttestations, fetchBatchIdentities, fetchChallenges, fetchEveIdentity, fetchGatePolicy, fetchGates, fetchLeaderboard, fetchScores, fetchVouches } from '../lib/api';
 import { networkTitle, SUI_NETWORK_LABEL } from '../lib/network';
-import type { AttestationFeedRow, AttestationRow, EveIdentity, FraudChallengeRow, GatePolicyRow, GateSummaryRow, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
+import type { AttestationFeedRow, AttestationRow, EveIdentity, FraudChallengeRow, GatePolicyRow, GateSummaryRow, IdentityEnrichmentMap, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
 import { FW_DATA } from '../components/features/frontierwarden/fw-data';
 import type { FwAlert, FwContract, FwData, FwGate, FwKill, FwPilot, FwPolicy, FwProof, FwVouch } from '../components/features/frontierwarden/fw-data';
 import type { Provenance } from '../components/features/frontierwarden/LiveStatus';
@@ -23,6 +23,7 @@ export interface FrontierWardenDataState {
   provenance: Record<string, Provenance>;
   error: string | null;
   eveIdentity: EveIdentity | null;
+  eveIdentityMap: IdentityEnrichmentMap;
   refresh: () => void;
 }
 
@@ -151,6 +152,8 @@ function mapVouches(rows: VouchRow[]): FwVouch[] {
     weight: Math.max(0.05, Math.min(1, row.stake_amount / maxStake)),
     by: `${shortId(row.created_tx)}${row.redeemed ? ' · redeemed' : ' · active'}`,
     ts: row.redeemed_at ?? row.created_at,
+    voucherWallet: row.voucher,
+    voucheeWallet: row.vouchee,
   }));
 }
 
@@ -219,6 +222,29 @@ function mapContracts(rows: AttestationFeedRow[]): FwContract[] {
   }));
 }
 
+function collectIdentityWallets(
+  accountAddress: string | undefined,
+  vouches: VouchRow[],
+  attestations: AttestationRow[],
+  feeds: AttestationFeedRow[],
+): string[] {
+  const wallets = new Set<string>();
+  if (accountAddress) wallets.add(accountAddress);
+  for (const row of vouches) {
+    wallets.add(row.voucher);
+    wallets.add(row.vouchee);
+  }
+  for (const row of attestations) {
+    wallets.add(row.issuer);
+    wallets.add(row.subject);
+  }
+  for (const row of feeds) {
+    wallets.add(row.issuer);
+    wallets.add(row.subject);
+  }
+  return [...wallets];
+}
+
 function mergeLiveData(
   gates: GateSummaryRow[],
   challenges: FraudChallengeRow[],
@@ -282,6 +308,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
   const [error, setError] = useState<string | null>(null);
 
   const [eveIdentity, setEveIdentity] = useState<EveIdentity | null>(null);
+  const [eveIdentityMap, setEveIdentityMap] = useState<IdentityEnrichmentMap>({});
 
   const refresh = useCallback(async () => {
     try {
@@ -308,7 +335,17 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       const identity = account?.address
         ? await fetchEveIdentity(account.address).catch(() => null)
         : null;
+      const identityWallets = collectIdentityWallets(
+        account?.address,
+        vouches,
+        attestations,
+        [...shipKills, ...bountyContracts],
+      );
+      const identityMap = identityWallets.length > 0
+        ? await fetchBatchIdentities(identityWallets).catch(() => ({}))
+        : {};
       setEveIdentity(identity);
+      setEveIdentityMap(identityMap);
 
       const result = mergeLiveData(gates, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts, identity, demoEnabled);
       setData(result.data);
@@ -334,6 +371,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
         policy: 'ERROR',
       });
       setError(err instanceof Error ? err.message : 'fetch failed');
+      setEveIdentityMap({});
     } finally {
       setLoading(false);
     }
@@ -345,5 +383,5 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
     return () => clearInterval(id);
   }, [refresh]);
 
-  return { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, eveIdentity, refresh };
+  return { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, eveIdentity, eveIdentityMap, refresh };
 }

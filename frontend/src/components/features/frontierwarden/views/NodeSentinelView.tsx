@@ -11,7 +11,7 @@ import { SentinelWarnings } from '../sentinel/SentinelWarnings';
 import { SentinelRecommendations } from '../sentinel/SentinelRecommendations';
 import { SentinelChangeFeed } from '../sentinel/SentinelChangeFeed';
 import type { FwData } from '../fw-data';
-import type { EveIdentity } from '../../../../types/api.types';
+import type { EveIdentity, IdentityEnrichmentMap } from '../../../../types/api.types';
 
 interface Props {
   data: FwData;
@@ -19,10 +19,11 @@ interface Props {
   loading: boolean;
   error: string | null;
   eveIdentity?: EveIdentity | null;
+  eveIdentityMap?: IdentityEnrichmentMap;
 }
 
-export function NodeSentinelView({ data, live, loading, error, eveIdentity }: Props) {
-  const sentinel = useNodeSentinel({ data, live, loading, error, eveIdentity });
+export function NodeSentinelView({ data, live, loading, error, eveIdentity, eveIdentityMap }: Props) {
+  const sentinel = useNodeSentinel({ data, live, loading, error, eveIdentity, eveIdentityMap });
 
   if (sentinel.loading) {
     return (

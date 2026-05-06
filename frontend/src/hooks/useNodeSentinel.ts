@@ -1,9 +1,10 @@
-// useNodeSentinel — Derives NodeSentinelState from existing FwData + live signals.
+// useNodeSentinel - Derives NodeSentinelState from existing FwData + live signals.
 // Transforms protocol-module data into a place-based node-centric model.
 
 import { useMemo } from 'react';
 import type { FwData, FwAlert } from '../components/features/frontierwarden/fw-data';
-import type { EveIdentity } from '../types/api.types';
+import type { EveIdentity, IdentityEnrichmentMap } from '../types/api.types';
+import { deriveCharacters, deriveWallets, resolutionCoverage } from './nodeSentinelIdentity';
 import type {
   NodeSentinelState,
   WardenNode,
@@ -13,8 +14,6 @@ import type {
   EnforcementStatus,
   RiskFinding,
   RecentChange,
-  CharacterTrustProfile,
-  WalletTrustProfile,
   AssemblyRef,
   RiskLevel,
   RiskSeverity,
@@ -26,11 +25,12 @@ interface UseNodeSentinelOptions {
   loading: boolean;
   error: string | null;
   eveIdentity?: EveIdentity | null;
+  eveIdentityMap?: IdentityEnrichmentMap;
 }
 
 function shortAddr(addr: string): string {
   if (addr.length <= 14) return addr;
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 // FwGate.sourceId is currently a protocol gate/policy identifier, not a proven
 // EVE world Gate binding. Keep Sentinel advisory until explicit binding exists.
@@ -38,14 +38,14 @@ function hasConfirmedWorldGateBinding(_data: FwData): boolean {
   return false;
 }
 
-// ── Build WardenNode from FwData ────────────────────────────────────────────
+// Build WardenNode from FwData
 
 function deriveNode(data: FwData, identity?: EveIdentity | null): WardenNode {
   const assemblies: AssemblyRef[] = data.gates.map(g => ({
     assemblyId: g.sourceId ?? g.id,
     kind: 'gate' as const,
     status: g.status === 'closed' ? 'offline' as const : 'online' as const,
-    label: `${g.from} → ${g.to}`,
+    label: `${g.from} -> ${g.to}`,
   }));
 
   return {
@@ -62,62 +62,13 @@ function deriveNode(data: FwData, identity?: EveIdentity | null): WardenNode {
   };
 }
 
-// ── Build character/wallet trust profiles ────────────────────────────────────
+// Derive Risk Findings
 
-function deriveCharacters(data: FwData, identity?: EveIdentity | null): CharacterTrustProfile[] {
-  const profiles: CharacterTrustProfile[] = [];
-
-  if (identity) {
-    profiles.push({
-      wallet: identity.wallet,
-      characterId: identity.character_id,
-      characterName: identity.character_name,
-      tribeId: identity.tribe_id,
-      tribeName: identity.tribe_name,
-      profileId: identity.frontierwarden_profile_id,
-      score: data.pilot.score,
-      schemaId: data.pilot.standing,
-      attestationCount: data.proofs.filter(p => !p.revoked).length,
-      hasCharacterMapping: !!identity.character_id,
-      lastSeen: identity.synced_at ?? undefined,
-    });
-  }
-
-  for (const vouch of data.vouches) {
-    profiles.push({
-      wallet: vouch.by,
-      score: vouch.weight * 1000,
-      attestationCount: 0,
-      hasCharacterMapping: false,
-      lastSeen: vouch.ts,
-    });
-  }
-
-  return profiles;
-}
-
-function deriveWallets(data: FwData, identity?: EveIdentity | null): WalletTrustProfile[] {
-  const wallets: WalletTrustProfile[] = [];
-
-  if (identity) {
-    wallets.push({
-      wallet: identity.wallet,
-      identity,
-      score: data.pilot.score,
-      vouchCount: data.vouches.length,
-      attestationCount: data.proofs.filter(p => !p.revoked).length,
-      hasProfile: !!identity.frontierwarden_profile_id,
-      hasCharacterMapping: !!identity.character_id,
-      riskLevel: data.pilot.score > 500 ? 'low' : data.pilot.score > 200 ? 'medium' : 'high',
-    });
-  }
-
-  return wallets;
-}
-
-// ── Derive Risk Findings ────────────────────────────────────────────────────
-
-function deriveRisks(data: FwData, identity?: EveIdentity | null): {
+function deriveRisks(
+  data: FwData,
+  identity?: EveIdentity | null,
+  identityMap: IdentityEnrichmentMap = {},
+): {
   counterparties: RiskFinding[];
   challenges: RiskFinding[];
   stale: RiskFinding[];
@@ -128,7 +79,7 @@ function deriveRisks(data: FwData, identity?: EveIdentity | null): {
   const stale: RiskFinding[] = [];
   const allWarnings: RiskFinding[] = [];
 
-  // Fraud challenges → risk findings
+  // Fraud challenges -> risk findings
   for (const alert of data.alerts) {
     if (alert.lvl === 'CRIT') {
       const finding: RiskFinding = {
@@ -176,14 +127,17 @@ function deriveRisks(data: FwData, identity?: EveIdentity | null): {
       severity: 'medium',
       category: 'attestation',
       title: `${revokedCount} revoked attestation${revokedCount > 1 ? 's' : ''}`,
-      detail: 'Attestations have been revoked — trust evidence may be outdated.',
+      detail: 'Attestations have been revoked - trust evidence may be outdated.',
     };
     stale.push(finding);
     allWarnings.push(finding);
   }
 
   // Profiles lacking character mapping (from vouches)
-  const unmapped = data.vouches.filter(v => !v.from.includes('self')).length;
+  const unmapped = data.vouches.filter(v => {
+    const wallet = v.voucherWallet ?? v.by;
+    return !identityMap[wallet]?.character_id;
+  }).length;
   if (unmapped > 0) {
     const finding: RiskFinding = {
       id: 'unmapped-vouchers',
@@ -216,7 +170,7 @@ function deriveRisks(data: FwData, identity?: EveIdentity | null): {
       severity: 'medium',
       category: 'policy',
       title: 'No world-gate pointer confirmed',
-      detail: 'Gate policy is not linked to a confirmed world object — enforcement unavailable.',
+      detail: 'Gate policy is not linked to a confirmed world object - enforcement unavailable.',
     };
     stale.push(finding);
     allWarnings.push(finding);
@@ -225,7 +179,7 @@ function deriveRisks(data: FwData, identity?: EveIdentity | null): {
   return { counterparties, challenges, stale, allWarnings };
 }
 
-// ── Access Risk Summary ─────────────────────────────────────────────────────
+// Access Risk Summary
 
 function deriveAccessRisk(data: FwData, risks: RiskFinding[]): AccessRiskSummary {
   const critCount = risks.filter(r => r.severity === 'critical').length;
@@ -250,7 +204,7 @@ function deriveAccessRisk(data: FwData, risks: RiskFinding[]): AccessRiskSummary
   };
 }
 
-// ── Policy Recommendations ──────────────────────────────────────────────────
+// Policy Recommendations
 
 function deriveRecommendations(data: FwData, risks: RiskFinding[]): PolicyRecommendation[] {
   const recs: PolicyRecommendation[] = [];
@@ -266,7 +220,7 @@ function deriveRecommendations(data: FwData, risks: RiskFinding[]): PolicyRecomm
       action: 'require_attestation',
       confidence: 0.9,
       reasonCodes: ['MISSING_CHARACTER_MAPPING'],
-      evidence: ['No character ↔ wallet binding confirmed'],
+      evidence: ['No character <-> wallet binding confirmed'],
     });
   }
 
@@ -302,7 +256,7 @@ function deriveRecommendations(data: FwData, risks: RiskFinding[]): PolicyRecomm
   return recs;
 }
 
-// ── Enforcement Status ──────────────────────────────────────────────────────
+// Enforcement Status
 
 function deriveEnforcement(data: FwData, identity?: EveIdentity | null): EnforcementStatus {
   const blockers: EnforcementStatus['blockers'] = [];
@@ -319,7 +273,7 @@ function deriveEnforcement(data: FwData, identity?: EveIdentity | null): Enforce
   };
 }
 
-// ── Recent Changes ──────────────────────────────────────────────────────────
+// Recent Changes
 
 function deriveRecentChanges(data: FwData): RecentChange[] {
   const changes: RecentChange[] = [];
@@ -348,7 +302,7 @@ function deriveRecentChanges(data: FwData): RecentChange[] {
   return changes;
 }
 
-// ── Main Hook ───────────────────────────────────────────────────────────────
+// Main Hook
 
 export function useNodeSentinel({
   data,
@@ -356,15 +310,19 @@ export function useNodeSentinel({
   loading,
   error,
   eveIdentity,
+  eveIdentityMap = {},
 }: UseNodeSentinelOptions): NodeSentinelState {
   return useMemo(() => {
     const node = deriveNode(data, eveIdentity);
-    const { counterparties, challenges, stale, allWarnings } = deriveRisks(data, eveIdentity);
+    const { counterparties, challenges, stale, allWarnings } = deriveRisks(data, eveIdentity, eveIdentityMap);
+    const knownCharacters = deriveCharacters(data, eveIdentity, eveIdentityMap);
+    const knownWallets = deriveWallets(data, eveIdentity, eveIdentityMap);
 
     const perimeter: TrustPerimeter = {
       nodeId: node.nodeId,
-      knownCharacters: deriveCharacters(data, eveIdentity),
-      knownWallets: deriveWallets(data, eveIdentity),
+      knownCharacters,
+      knownWallets,
+      identityCoverage: resolutionCoverage(knownWallets),
       riskyCounterparties: counterparties,
       unresolvedChallenges: challenges,
       staleSignals: stale,
@@ -385,5 +343,5 @@ export function useNodeSentinel({
       loading,
       error,
     };
-  }, [data, live, loading, error, eveIdentity]);
+  }, [data, live, loading, error, eveIdentity, eveIdentityMap]);
 }

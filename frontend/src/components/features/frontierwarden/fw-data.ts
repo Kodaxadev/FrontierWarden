@@ -53,6 +53,8 @@ export interface FwMatrixRow {
 
 export interface FwVouch {
   from: string; weight: number; by: string; ts: string;
+  voucherWallet?: string;
+  voucheeWallet?: string;
 }
 
 export interface FwProof {

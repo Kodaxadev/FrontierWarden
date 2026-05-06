@@ -79,6 +79,12 @@ export function SentinelNodeStatus({ node, perimeter, enforcement }: Props) {
           <span className="ns-kv__k">ASSEMBLIES</span>
           <span className="ns-kv__v ns-mono">{node.connectedAssemblies.length}</span>
         </div>
+        <div className="ns-kv">
+          <span className="ns-kv__k">IDENTITY MAP</span>
+          <span className="ns-kv__v ns-mono">
+            {perimeter.identityCoverage.mapped}/{perimeter.identityCoverage.total}
+          </span>
+        </div>
       </div>
 
       {enforcement.blockers.length > 0 && (
