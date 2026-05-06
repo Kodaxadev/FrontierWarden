@@ -18,6 +18,7 @@ use api_trust::TrustConfig;
 mod config;
 mod db;
 mod eve_identity;
+mod gate_policy_bindings;
 mod ingester;
 mod processor;
 mod rpc;

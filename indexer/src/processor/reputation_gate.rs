@@ -1,6 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::gate_policy_bindings;
 use crate::rpc::{event_name, field_addr, field_u64, normalize_sui_address, SuiEvent};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
@@ -9,6 +10,9 @@ pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
         "PassageDenied" => passage_denied(pool, ev).await,
         "GateConfigUpdated" => gate_config_updated(pool, ev).await,
         "TollsWithdrawn" => tolls_withdrawn(pool, ev).await,
+        "GatePolicyBoundToWorldGate" | "GatePolicyUnboundFromWorldGate" => {
+            gate_policy_bindings::handle(pool, ev).await
+        }
         _ => {
             tracing::debug!(
                 event = event_name(&ev.type_),
