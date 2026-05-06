@@ -1,7 +1,12 @@
 use anyhow::Result;
 
 /// (player_profile_object, character_id, tribe_id, raw_body)
-type GraphqlResult = (Option<String>, Option<String>, Option<String>, serde_json::Value);
+type GraphqlResult = (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    serde_json::Value,
+);
 
 pub(crate) fn parse_graphql_response(body: &serde_json::Value) -> Result<GraphqlResult> {
     if let Some(errors) = body.get("errors") {
@@ -34,7 +39,10 @@ pub(crate) fn parse_graphql_response(body: &serde_json::Value) -> Result<Graphql
             continue;
         }
 
-        let json = inner.get("json").cloned().unwrap_or(serde_json::Value::Null);
+        let json = inner
+            .get("json")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
         let repr = inner
             .get("type")
             .and_then(|t| t.get("repr"))

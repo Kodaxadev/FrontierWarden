@@ -125,7 +125,9 @@ impl SessionState {
         self.consume_nonce(&req)?;
 
         verify_personal_message(&req.message, &req.signature, &req.address).map_err(|err| {
-            let sig_bytes = general_purpose::STANDARD.decode(&req.signature).unwrap_or_default();
+            let sig_bytes = general_purpose::STANDARD
+                .decode(&req.signature)
+                .unwrap_or_default();
             let scheme_byte = sig_bytes.first().copied();
             let derived_addr = if sig_bytes.len() == 97 {
                 sui_address(sig_bytes[0], &sig_bytes[65..97])
@@ -141,7 +143,10 @@ impl SessionState {
                 error = %err,
                 "operator session signature verification failed"
             );
-            (StatusCode::UNAUTHORIZED, "wallet signature verification failed")
+            (
+                StatusCode::UNAUTHORIZED,
+                "wallet signature verification failed",
+            )
         })?;
 
         let token = random_token(32);
@@ -308,7 +313,10 @@ fn signature_scheme_label(signature: &str) -> &'static str {
 }
 
 fn unix_now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 #[cfg(test)]
@@ -387,7 +395,12 @@ mod tests {
             );
         }
 
-        let req = SessionRequest { address, nonce, message, signature: String::new() };
+        let req = SessionRequest {
+            address,
+            nonce,
+            message,
+            signature: String::new(),
+        };
         assert!(state.consume_nonce(&req).is_err());
     }
 

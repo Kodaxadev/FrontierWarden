@@ -35,7 +35,12 @@ async fn attestation_issued(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     .execute(pool)
     .await?;
 
-    tracing::info!(attestation_id, schema_id, subject, "pipeline:attestation_indexed");
+    tracing::info!(
+        attestation_id,
+        schema_id,
+        subject,
+        "pipeline:attestation_indexed"
+    );
     Ok(())
 }
 
@@ -44,7 +49,6 @@ async fn attestation_revoked(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let p = &ev.parsed_json;
     let attestation_id = normalize_sui_address(&field_addr(p, "attestation_id")?);
     let revoker = normalize_sui_address(&field_addr(p, "revoker")?);
-
 
     sqlx::query(
         "UPDATE attestations

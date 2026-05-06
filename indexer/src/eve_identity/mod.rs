@@ -10,8 +10,8 @@ pub use types::EveIdentity;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::parser::parse_graphql_response;
+    use super::*;
 
     #[test]
     fn parse_graphql_response_extracts_character_id() {
@@ -168,24 +168,29 @@ mod tests {
             "owner_cap_id": "0x8479c0279f0197fe29987074d514a54c8881adc1f0557a3b556689ad838c067f"
         });
 
-        let tribe_id = character_json.get("tribe_id")
+        let tribe_id = character_json
+            .get("tribe_id")
             .and_then(|v| v.as_u64())
             .map(|n| n.to_string());
-        let tenant = character_json.get("key")
+        let tenant = character_json
+            .get("key")
             .and_then(|k| k.get("tenant"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
-        let item_id = character_json.get("key")
+        let item_id = character_json
+            .get("key")
             .and_then(|k| k.get("item_id"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .or_else(|| {
-                character_json.get("key")
+                character_json
+                    .get("key")
                     .and_then(|k| k.get("item_id"))
                     .and_then(|v| v.as_u64())
                     .map(|n| n.to_string())
             });
-        let character_name = character_json.get("metadata")
+        let character_name = character_json
+            .get("metadata")
             .and_then(|m| m.get("name"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
@@ -211,12 +216,14 @@ mod tests {
             }
         });
 
-        let item_id = character_json.get("key")
+        let item_id = character_json
+            .get("key")
             .and_then(|k| k.get("item_id"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .or_else(|| {
-                character_json.get("key")
+                character_json
+                    .get("key")
                     .and_then(|k| k.get("item_id"))
                     .and_then(|v| v.as_u64())
                     .map(|n| n.to_string())

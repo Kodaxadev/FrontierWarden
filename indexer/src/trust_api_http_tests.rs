@@ -174,7 +174,9 @@ async fn assert_reason(
     assert_eq!(value["action"], action);
     assert_eq!(value["decision"], decision);
     assert_eq!(value["reason"], reason);
-    if value["requirements"]["schema"] != "" { assert_eq!(value["requirements"]["schema"], SCHEMA_ID); }
+    if value["requirements"]["schema"] != "" {
+        assert_eq!(value["requirements"]["schema"], SCHEMA_ID);
+    }
     assert_eq!(value["proof"]["source"], "indexed_protocol_state");
     if action == "gate_access" && !gate_id.is_empty() {
         assert_eq!(value["gateId"], gate_id);
@@ -253,8 +255,22 @@ async fn seed(pool: &PgPool) -> anyhow::Result<()> {
 
     seed_gate_policy(pool, GATE_ID, "http_policy_tx", 100).await?;
     seed_gate_policy(pool, GATE_OFFLINE_ID, "http_policy_offline_tx", 100).await?;
-    seed_world_gate(pool, GATE_ID, "online", Some(MISSING_GATE_ID), "http_world_gate_online").await?;
-    seed_world_gate(pool, GATE_OFFLINE_ID, "offline", None, "http_world_gate_offline").await?;
+    seed_world_gate(
+        pool,
+        GATE_ID,
+        "online",
+        Some(MISSING_GATE_ID),
+        "http_world_gate_online",
+    )
+    .await?;
+    seed_world_gate(
+        pool,
+        GATE_OFFLINE_ID,
+        "offline",
+        None,
+        "http_world_gate_offline",
+    )
+    .await?;
 
     seed_attestation(
         pool,
@@ -286,7 +302,12 @@ async fn seed(pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn seed_gate_policy(pool: &PgPool, gate_id: &str, tx_digest: &str, checkpoint: i64) -> anyhow::Result<()> {
+async fn seed_gate_policy(
+    pool: &PgPool,
+    gate_id: &str,
+    tx_digest: &str,
+    checkpoint: i64,
+) -> anyhow::Result<()> {
     sqlx::query(
         "INSERT INTO gate_config_updates
             (gate_id, ally_threshold, base_toll_mist, tx_digest, event_seq, checkpoint_seq)

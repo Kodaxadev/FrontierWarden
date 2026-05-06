@@ -32,10 +32,7 @@ pub(crate) struct WorldGateProjection {
     pub(crate) linked_gate_id: Option<String>,
 }
 
-pub(crate) async fn latest_gate_policy(
-    pool: &PgPool,
-    gate_id: &str,
-) -> Result<Option<GatePolicy>> {
+pub(crate) async fn latest_gate_policy(pool: &PgPool, gate_id: &str) -> Result<Option<GatePolicy>> {
     sqlx::query_as::<_, GatePolicy>(
         "SELECT ally_threshold, base_toll_mist, tx_digest, checkpoint_seq
          FROM gate_config_updates
@@ -131,9 +128,10 @@ pub(crate) fn apply_world_gate_warnings(
     };
 
     if world_gate.status != "online" {
-        proof
-            .warnings
-            .push(format!("WARN_WORLD_GATE_OFFLINE:World gate status is {}.", world_gate.status));
+        proof.warnings.push(format!(
+            "WARN_WORLD_GATE_OFFLINE:World gate status is {}.",
+            world_gate.status
+        ));
     }
     if world_gate.linked_gate_id.is_none() {
         proof

@@ -27,10 +27,12 @@ pub fn router(eve_cfg: Option<EveConfig>) -> Router<PgPool> {
         .route("/eve/types/{id}", get(type_by_id))
         .route("/eve/identity/{wallet}", {
             let eve_cfg = eve_cfg.clone();
-            get(move |state: State<PgPool>, path: Path<String>, query: Query<IdentityQuery>| {
-                let eve_cfg = eve_cfg.clone();
-                async move { identity(state, path, query, eve_cfg).await }
-            })
+            get(
+                move |state: State<PgPool>, path: Path<String>, query: Query<IdentityQuery>| {
+                    let eve_cfg = eve_cfg.clone();
+                    async move { identity(state, path, query, eve_cfg).await }
+                },
+            )
         })
         .layer(Extension(cfg_clone))
 }

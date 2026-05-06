@@ -45,7 +45,6 @@ async fn singleton_revoked(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     let attestation_id = normalize_sui_address(&field_addr(p, "attestation_id")?);
     let revoker = normalize_sui_address(&field_addr(p, "revoker")?);
 
-
     sqlx::query(
         "UPDATE singleton_attestations
          SET revoked    = TRUE,

@@ -121,20 +121,25 @@ pub(crate) async fn fetch_character_object(
         return None;
     }
 
-    let contents = body.get("data")
+    let contents = body
+        .get("data")
         .and_then(|d| d.get("object"))
         .and_then(|o| o.get("asMoveObject"))
         .and_then(|m| m.get("contents"));
 
     let Some(inner) = contents else {
-        tracing::warn!(character_id = character_id, "Character object has no contents");
+        tracing::warn!(
+            character_id = character_id,
+            "Character object has no contents"
+        );
         return None;
     };
 
     let json = inner.get("json").cloned()?;
     let raw = body.clone();
 
-    let tribe_id = json.get("tribe_id")
+    let tribe_id = json
+        .get("tribe_id")
         .and_then(|v| v.as_u64())
         .map(|n| n.to_string())
         .or_else(|| {
@@ -143,12 +148,14 @@ pub(crate) async fn fetch_character_object(
                 .map(|s| s.to_string())
         });
 
-    let tenant = json.get("key")
+    let tenant = json
+        .get("key")
         .and_then(|k| k.get("tenant"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    let item_id = json.get("key")
+    let item_id = json
+        .get("key")
         .and_then(|k| k.get("item_id"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
@@ -159,7 +166,8 @@ pub(crate) async fn fetch_character_object(
                 .map(|n| n.to_string())
         });
 
-    let character_name = json.get("metadata")
+    let character_name = json
+        .get("metadata")
         .and_then(|m| m.get("name"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
@@ -208,14 +216,20 @@ async fn graphql_compatibility_probe(
         .await?;
 
     let status = res.status();
-    let ct = res.headers().get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok()).unwrap_or("unknown").to_string();
+    let ct = res
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
     let body_text = res.text().await?;
 
     tracing::info!(http_status = status.as_u16(), content_type = ct, body = %body_text, "GraphQL probe A response");
 
     if !status.is_success() {
-        return Err(anyhow::anyhow!("Probe A failed: HTTP {status} — {body_text}"));
+        return Err(anyhow::anyhow!(
+            "Probe A failed: HTTP {status} — {body_text}"
+        ));
     }
 
     let test_b = serde_json::json!({
@@ -234,27 +248,43 @@ async fn graphql_compatibility_probe(
         .await?;
 
     let status = res.status();
-    let ct = res.headers().get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok()).unwrap_or("unknown").to_string();
+    let ct = res
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
     let body_text = res.text().await?;
 
     tracing::info!(http_status = status.as_u16(), content_type = ct, body_preview = %body_text.chars().take(1024).collect::<String>(), "GraphQL probe B response");
 
     if !status.is_success() {
-        return Err(anyhow::anyhow!("Probe B failed: HTTP {status} — {body_text}"));
+        return Err(anyhow::anyhow!(
+            "Probe B failed: HTTP {status} — {body_text}"
+        ));
     }
 
     let body: serde_json::Value = serde_json::from_str(&body_text)?;
-    if let Some(nodes) = body.get("data").and_then(|d| d.get("address"))
-        .and_then(|a| a.get("objects")).and_then(|o| o.get("nodes")).and_then(|n| n.as_array())
+    if let Some(nodes) = body
+        .get("data")
+        .and_then(|d| d.get("address"))
+        .and_then(|a| a.get("objects"))
+        .and_then(|o| o.get("nodes"))
+        .and_then(|n| n.as_array())
     {
         tracing::info!(node_count = nodes.len(), "GraphQL probe B: found nodes");
         for (i, node) in nodes.iter().enumerate() {
-            if let Some(type_repr) = node.get("contents")
+            if let Some(type_repr) = node
+                .get("contents")
                 .and_then(|c| c.get("type"))
-                .and_then(|t| t.get("repr")).and_then(|r| r.as_str())
+                .and_then(|t| t.get("repr"))
+                .and_then(|r| r.as_str())
             {
-                tracing::info!(node_index = i, type_repr = type_repr, "GraphQL probe B: type.repr");
+                tracing::info!(
+                    node_index = i,
+                    type_repr = type_repr,
+                    "GraphQL probe B: type.repr"
+                );
                 reprs.push(type_repr.to_string());
             }
         }
@@ -267,7 +297,12 @@ pub(crate) async fn fetch_player_profile(
     graphql_url: &str,
     wallet: &str,
     profile_type: &str,
-) -> Result<(Option<String>, Option<String>, Option<String>, serde_json::Value)> {
+) -> Result<(
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    serde_json::Value,
+)> {
     let client = Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()?;
@@ -354,7 +389,10 @@ pub(crate) async fn fetch_player_profile(
                 "GraphQL returned errors"
             );
         }
-        let keys: Vec<&str> = body.as_object().map(|o| o.keys().map(|k| k.as_str()).collect()).unwrap_or_default();
+        let keys: Vec<&str> = body
+            .as_object()
+            .map(|o| o.keys().map(|k| k.as_str()).collect())
+            .unwrap_or_default();
         tracing::debug!(wallet = wallet, top_level_keys = ?keys, "GraphQL error response shape");
 
         return Err(anyhow::anyhow!(
@@ -362,7 +400,10 @@ pub(crate) async fn fetch_player_profile(
         ));
     }
 
-    let keys: Vec<&str> = body.as_object().map(|o| o.keys().map(|k| k.as_str()).collect()).unwrap_or_default();
+    let keys: Vec<&str> = body
+        .as_object()
+        .map(|o| o.keys().map(|k| k.as_str()).collect())
+        .unwrap_or_default();
     tracing::debug!(wallet = wallet, top_level_keys = ?keys, "GraphQL response parsed");
 
     super::parser::parse_graphql_response(&body)

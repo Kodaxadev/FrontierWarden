@@ -1,9 +1,9 @@
-use axum::{middleware, routing::get, Json, Router};
 use axum::http::{HeaderValue, Method};
-use tower_http::cors::{CorsLayer, Any};
+use axum::{middleware, routing::get, Json, Router};
 use serde::Serialize;
 use sqlx::PgPool;
 use std::time::Instant;
+use tower_http::cors::{Any, CorsLayer};
 
 use crate::api_trust::TrustConfig;
 use crate::config::EveConfig;

@@ -138,11 +138,7 @@ impl WorldApiClient {
     /// Fetch pages one at a time, calling `on_page` for each batch of rows.
     /// This enables incremental DB writes instead of buffering everything.
     /// The callback is async so it can perform database writes.
-    pub async fn stream_pages<F, Fut>(
-        &self,
-        path: &str,
-        mut on_page: F,
-    ) -> Result<StreamResult>
+    pub async fn stream_pages<F, Fut>(&self, path: &str, mut on_page: F) -> Result<StreamResult>
     where
         F: FnMut(Vec<(String, serde_json::Value)>, u32, u64) -> Fut,
         Fut: std::future::Future<Output = Result<()>>,
@@ -234,8 +230,7 @@ impl WorldApiClient {
             .await
             .with_context(|| format!("World API request failed: {url}"))?;
         let status = resp.status();
-        let body: serde_json::Value =
-            handle_world_api_response(resp, url.clone(), status).await?;
+        let body: serde_json::Value = handle_world_api_response(resp, url.clone(), status).await?;
         serde_json::from_value(body)
             .with_context(|| format!("World API response parse failed: {url}"))
     }

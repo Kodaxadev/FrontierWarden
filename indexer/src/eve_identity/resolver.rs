@@ -40,7 +40,8 @@ pub async fn resolve_identity_via_graphql(
 
     match fetch_player_profile(&eve_cfg.graphql_url, &wallet, &eve_cfg.player_profile_type).await {
         Ok(profile_result) => {
-            let (player_profile_object, character_id, _tribe_id_from_profile, player_profile_raw) = profile_result;
+            let (player_profile_object, character_id, _tribe_id_from_profile, player_profile_raw) =
+                profile_result;
 
             let identity_status = if character_id.is_some() || player_profile_object.is_some() {
                 "resolved"

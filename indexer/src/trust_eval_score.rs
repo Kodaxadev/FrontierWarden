@@ -104,9 +104,7 @@ pub(crate) async fn evaluate_counterparty_risk(
             "DENY",
             false,
             REASON_DENY_COUNTERPARTY_SCORE_TOO_LOW,
-            format!(
-                "{schema} score {score} is below the required minimum of {minimum_score}."
-            ),
+            format!("{schema} score {score} is below the required minimum of {minimum_score}."),
             subject,
             schema,
             Some(score),

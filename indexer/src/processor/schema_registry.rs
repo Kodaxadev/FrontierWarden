@@ -1,7 +1,9 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_opt_addr, field_str, field_u64, normalize_sui_address, SuiEvent};
+use crate::rpc::{
+    event_name, field_addr, field_opt_addr, field_str, field_u64, normalize_sui_address, SuiEvent,
+};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {

@@ -72,12 +72,11 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
         let state_key = format!("migration:{filename_str}");
 
         // Check if this migration was already applied
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT value FROM indexer_state WHERE key = $1"
-        )
-        .bind(&state_key)
-        .fetch_optional(pool)
-        .await?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT value FROM indexer_state WHERE key = $1")
+                .bind(&state_key)
+                .fetch_optional(pool)
+                .await?;
 
         if row.is_some() {
             tracing::info!(migration = %filename_str, "Migration already applied; skipping");
@@ -107,18 +106,14 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
                 preview
             );
             sqlx::query(stmt).execute(pool).await.with_context(|| {
-                format!(
-                    "failed to execute statement {} in {}",
-                    i + 1,
-                    filename_str
-                )
+                format!("failed to execute statement {} in {}", i + 1, filename_str)
             })?;
         }
 
         // Mark migration as applied
         sqlx::query(
             "INSERT INTO indexer_state (key, value, updated_at)
-             VALUES ($1, 'applied', NOW())"
+             VALUES ($1, 'applied', NOW())",
         )
         .bind(&state_key)
         .execute(pool)
@@ -170,8 +165,7 @@ fn strip_sql_comments(input: &str) -> String {
                     break;
                 }
             }
-        }
-        else {
+        } else {
             result.push(c);
         }
     }

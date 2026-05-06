@@ -1,7 +1,7 @@
 use crate::trust_db::{GatePolicy, StandingAttestation};
 use crate::trust_types::{
-    TrustEvaluationResponse, TrustObserved, TrustProof, TrustRequirements,
-    REASON_ALLOW_FREE, REASON_ALLOW_TAXED, REASON_DENY_SCORE_BELOW_THRESHOLD,
+    TrustEvaluationResponse, TrustObserved, TrustProof, TrustRequirements, REASON_ALLOW_FREE,
+    REASON_ALLOW_TAXED, REASON_DENY_SCORE_BELOW_THRESHOLD,
 };
 
 pub(crate) fn compute_confidence(proof: &TrustProof, base: f64) -> f64 {
