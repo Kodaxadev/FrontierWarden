@@ -15,6 +15,18 @@ pub struct EveIdentity {
     pub synced_at: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, sqlx::FromRow)]
+pub struct IdentityEnrichment {
+    pub wallet: String,
+    pub character_id: Option<String>,
+    pub character_name: Option<String>,
+    pub tribe_id: Option<String>,
+    pub tribe_name: Option<String>,
+    pub frontierwarden_profile_id: Option<String>,
+    pub identity_status: String,
+    pub synced_at: Option<String>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct CharacterData {

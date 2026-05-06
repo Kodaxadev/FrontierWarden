@@ -122,5 +122,25 @@ pub async fn upsert_identity(
     .bind(raw_json)
     .execute(pool)
     .await?;
+
+    mark_identity_resolved(pool, &identity.wallet).await?;
+    refresh_wallet_character_map(pool).await;
     Ok(())
+}
+
+async fn mark_identity_resolved(pool: &PgPool, wallet: &str) -> Result<()> {
+    sqlx::query("UPDATE identity_resolution_queue SET resolved_at = NOW() WHERE wallet = $1")
+        .bind(wallet)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+async fn refresh_wallet_character_map(pool: &PgPool) {
+    if let Err(err) = sqlx::query("REFRESH MATERIALIZED VIEW wallet_character_map")
+        .execute(pool)
+        .await
+    {
+        tracing::warn!(error = %err, "wallet_character_map refresh skipped");
+    }
 }

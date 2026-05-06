@@ -1,7 +1,10 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_str, field_u64, normalize_sui_address, SuiEvent};
+use crate::{
+    eve_identity,
+    rpc::{event_name, field_addr, field_str, field_u64, normalize_sui_address, SuiEvent},
+};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
@@ -34,6 +37,9 @@ async fn attestation_issued(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     .bind(&ev.id.tx_digest)
     .execute(pool)
     .await?;
+
+    eve_identity::queue_identity_resolution(pool, &issuer, "attestation_issuer", 50).await?;
+    eve_identity::queue_identity_resolution(pool, &subject, "attestation_subject", 50).await?;
 
     tracing::info!(
         attestation_id,

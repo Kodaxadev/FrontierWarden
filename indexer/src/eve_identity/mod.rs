@@ -1,12 +1,16 @@
 mod client;
 mod db;
+mod enrichment;
 mod parser;
 mod resolver;
 mod types;
 
+pub use enrichment::{
+    batch_identity_enrichments, identity_by_character, queue_identity_resolution,
+};
 pub use db::resolve_cached_identity;
 pub use resolver::{resolve_identity_via_graphql, unresolved_identity};
-pub use types::EveIdentity;
+pub use types::{EveIdentity, IdentityEnrichment};
 
 #[cfg(test)]
 mod tests {
@@ -147,6 +151,37 @@ mod tests {
         };
         assert_eq!(id.character_id, None);
         assert_eq!(id.identity_status, "unresolved");
+    }
+
+    #[test]
+    fn batch_wallets_normalize_and_dedupe_in_order() {
+        let wallets = enrichment::normalize_batch_wallets(vec![
+            "0xabc".to_string(),
+            "0x0000000000000000000000000000000000000000000000000000000000000abc".to_string(),
+            "not-an-address".to_string(),
+            "0xdef".to_string(),
+        ]);
+
+        assert_eq!(wallets.len(), 2);
+        assert_eq!(
+            wallets[0].normalized,
+            "0x0000000000000000000000000000000000000000000000000000000000000abc"
+        );
+        assert_eq!(
+            wallets[1].normalized,
+            "0x0000000000000000000000000000000000000000000000000000000000000def"
+        );
+    }
+
+    #[test]
+    fn queued_enrichment_has_safe_null_identity() {
+        let row = enrichment::queued_enrichment(
+            "0x0000000000000000000000000000000000000000000000000000000000000abc",
+        );
+
+        assert_eq!(row.identity_status, "queued");
+        assert_eq!(row.character_id, None);
+        assert_eq!(row.frontierwarden_profile_id, None);
     }
 
     #[test]

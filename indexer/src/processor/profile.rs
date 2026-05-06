@@ -1,7 +1,10 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::rpc::{event_name, field_addr, field_str, field_u64, normalize_sui_address, SuiEvent};
+use crate::{
+    eve_identity,
+    rpc::{event_name, field_addr, field_str, field_u64, normalize_sui_address, SuiEvent},
+};
 
 pub async fn handle(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     match event_name(&ev.type_) {
@@ -30,6 +33,8 @@ async fn profile_created(pool: &PgPool, ev: &SuiEvent) -> Result<()> {
     .bind(&ev.id.tx_digest)
     .execute(pool)
     .await?;
+
+    eve_identity::queue_identity_resolution(pool, &owner, "profile_created", 100).await?;
 
     Ok(())
 }

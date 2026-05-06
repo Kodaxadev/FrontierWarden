@@ -1,6 +1,6 @@
 use axum::{
     extract::{Extension, Path, Query, State},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,11 @@ pub fn router(eve_cfg: Option<EveConfig>) -> Router<PgPool> {
         .route("/eve/ships/{id}", get(ship))
         .route("/eve/types", get(types))
         .route("/eve/types/{id}", get(type_by_id))
+        .route("/eve/identity/batch", post(identity_batch))
+        .route(
+            "/eve/identity/by-character/{character_id}",
+            get(identity_by_character),
+        )
         .route("/eve/identity/{wallet}", {
             let eve_cfg = eve_cfg.clone();
             get(
@@ -40,6 +45,11 @@ pub fn router(eve_cfg: Option<EveConfig>) -> Router<PgPool> {
 #[derive(Deserialize)]
 struct IdentityQuery {
     refresh: Option<bool>,
+}
+
+#[derive(Deserialize)]
+struct IdentityBatchRequest {
+    wallets: Vec<String>,
 }
 
 // ── World Status ──────────────────────────────────────────────────────────────
@@ -275,6 +285,22 @@ async fn identity(
     // Safe unresolved response (null EVE identity + FW profile if found)
     let unresolved = eve_identity::unresolved_identity(&pool, &normalized).await?;
     Ok(Json(unresolved))
+}
+
+async fn identity_batch(
+    State(pool): State<PgPool>,
+    Json(req): Json<IdentityBatchRequest>,
+) -> Result<Json<std::collections::HashMap<String, eve_identity::IdentityEnrichment>>, ApiError> {
+    let rows = eve_identity::batch_identity_enrichments(&pool, req.wallets).await?;
+    Ok(Json(rows))
+}
+
+async fn identity_by_character(
+    State(pool): State<PgPool>,
+    Path(character_id): Path<String>,
+) -> Result<Json<Option<eve_identity::IdentityEnrichment>>, ApiError> {
+    let row = eve_identity::identity_by_character(&pool, &character_id).await?;
+    Ok(Json(row))
 }
 
 #[cfg(test)]
