@@ -112,6 +112,35 @@ Indexer config implication:
 
 ---
 
+## Upstream Documentation Automation Watch
+
+`evefrontier/world-contracts` commit `db577cf` added an automated draft-PR
+documentation update flow for `evefrontier/builder-documentation`. This makes
+the docs repository part of FrontierWarden's upstream monitoring surface, not a
+replacement for source audits.
+
+Watch both:
+
+- `evefrontier/world-contracts` source commits and merged PRs.
+- `evefrontier/builder-documentation` draft PRs generated from those changes.
+
+High-signal mappings from `.github/docs-mapping.json`:
+
+- `contracts/world/sources/assemblies/gate` -> `smart-assemblies/gate/README.md`
+  and `smart-assemblies/gate/build.md`
+- `contracts/world/sources/access` -> `smart-contracts/ownership-model.md` and
+  `smart-contracts/move-patterns-in-frontier.md`
+
+This does not change current FrontierWarden assumptions:
+
+- `ExtensionAuthorizedEvent` proves `world_gate_id -> extension TypeName`, not
+  `world_gate_id -> GatePolicy`.
+- GatePolicy binding still requires FrontierWarden-owned binding state.
+- Event filters still use the world type-origin package ID.
+- Stillness world-event cold starts still use checkpoint `308264360`.
+
+---
+
 **References:**
 - `evefrontier/world-contracts` — Move source audited; key confirmed findings below
 - Ocky-Public/Frontier-Indexer (world contract reference indexer, Rust/TimescaleDB)

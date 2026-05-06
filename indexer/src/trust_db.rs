@@ -108,9 +108,12 @@ pub(crate) async fn world_gate_for_policy(
 ) -> Result<Option<WorldGateProjection>> {
     sqlx::query_as::<_, WorldGateProjection>(
         "SELECT status, linked_gate_id
-         FROM world_gates
-         WHERE fw_gate_policy_id = $1 OR gate_id = $1
-         ORDER BY fw_extension_active DESC, updated_at DESC
+         FROM world_gates wg
+         JOIN gate_policy_world_bindings gpwb
+           ON gpwb.world_gate_id = wg.gate_id
+          AND gpwb.active = TRUE
+         WHERE gpwb.gate_policy_id = $1
+         ORDER BY gpwb.updated_at DESC
          LIMIT 1",
     )
     .bind(gate_id)
