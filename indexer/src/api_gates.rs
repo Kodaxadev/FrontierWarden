@@ -12,6 +12,10 @@ pub fn router() -> Router<PgPool> {
     Router::new()
         .route("/gates", get(gates))
         .route("/gates/{gate_id}", get(gate_single))
+        .route(
+            "/gates/{gate_policy_id}/binding-status",
+            get(gate_binding_status),
+        )
         .route("/gates/{gate_id}/policy", get(gate_policy))
         .route("/gates/{gate_id}/passages", get(gate_passages))
 }
@@ -35,6 +39,35 @@ struct GatePolicyRow {
     tx_digest: String,
     checkpoint_seq: i64,
     indexed_at: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GateBindingStatusResponse {
+    gate_policy_id: String,
+    binding_status: &'static str,
+    world_gate_id: Option<String>,
+    world_gate_status: Option<String>,
+    linked_gate_id: Option<String>,
+    fw_extension_active: bool,
+    extension_type: Option<String>,
+    active: bool,
+    bound_tx_digest: Option<String>,
+    bound_checkpoint: Option<i64>,
+    updated_at: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+struct GateBindingStatusRow {
+    world_gate_id: String,
+    world_gate_status: Option<String>,
+    linked_gate_id: Option<String>,
+    fw_extension_active: Option<bool>,
+    extension_type: Option<String>,
+    active: bool,
+    bound_tx_digest: Option<String>,
+    bound_checkpoint: Option<i64>,
+    updated_at: Option<String>,
 }
 
 #[derive(Serialize, sqlx::FromRow)]
@@ -89,6 +122,67 @@ async fn gate_policy(
     .await?;
 
     Ok(Json(row))
+}
+
+async fn gate_binding_status(
+    State(pool): State<PgPool>,
+    Path(gate_policy_id): Path<String>,
+) -> Result<Json<GateBindingStatusResponse>, ApiError> {
+    let row = sqlx::query_as::<_, GateBindingStatusRow>(
+        "SELECT
+            gpwb.world_gate_id,
+            wg.status AS world_gate_status,
+            wg.linked_gate_id,
+            COALESCE(wg.fw_extension_active, FALSE) AS fw_extension_active,
+            wge.extension_type,
+            gpwb.active,
+            gpwb.bound_tx_digest,
+            gpwb.bound_checkpoint,
+            gpwb.updated_at::TEXT AS updated_at
+         FROM gate_policy_world_bindings gpwb
+         LEFT JOIN world_gates wg ON wg.gate_id = gpwb.world_gate_id
+         LEFT JOIN world_gate_extensions wge
+           ON wge.world_gate_id = gpwb.world_gate_id
+          AND wge.active = TRUE
+         WHERE gpwb.gate_policy_id = $1
+           AND gpwb.active = TRUE
+         ORDER BY gpwb.updated_at DESC
+         LIMIT 1",
+    )
+    .bind(&gate_policy_id)
+    .fetch_optional(&pool)
+    .await?;
+
+    let Some(row) = row else {
+        return Ok(Json(GateBindingStatusResponse {
+            gate_policy_id,
+            binding_status: "unbound",
+            world_gate_id: None,
+            world_gate_status: None,
+            linked_gate_id: None,
+            fw_extension_active: false,
+            extension_type: None,
+            active: false,
+            bound_tx_digest: None,
+            bound_checkpoint: None,
+            updated_at: None,
+        }));
+    };
+
+    let verified = row.fw_extension_active.unwrap_or(false) && row.extension_type.is_some();
+    Ok(Json(GateBindingStatusResponse {
+        gate_policy_id,
+        binding_status: if verified { "verified" } else { "bound" },
+        world_gate_id: Some(row.world_gate_id),
+        world_gate_status: row.world_gate_status,
+        linked_gate_id: row.linked_gate_id,
+        fw_extension_active: row.fw_extension_active.unwrap_or(false),
+        extension_type: row.extension_type,
+        active: row.active,
+        bound_tx_digest: row.bound_tx_digest,
+        bound_checkpoint: row.bound_checkpoint,
+        updated_at: row.updated_at,
+    }))
 }
 
 async fn gate_passages(

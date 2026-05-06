@@ -3,9 +3,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
-import { fetchAttestationFeed, fetchAttestations, fetchBatchIdentities, fetchChallenges, fetchEveIdentity, fetchGatePolicy, fetchGates, fetchLeaderboard, fetchScores, fetchVouches } from '../lib/api';
+import { fetchAttestationFeed, fetchAttestations, fetchBatchIdentities, fetchChallenges, fetchEveIdentity, fetchGateBindingStatus, fetchGatePolicy, fetchGates, fetchLeaderboard, fetchScores, fetchVouches } from '../lib/api';
 import { networkTitle, SUI_NETWORK_LABEL } from '../lib/network';
-import type { AttestationFeedRow, AttestationRow, EveIdentity, FraudChallengeRow, GatePolicyRow, GateSummaryRow, IdentityEnrichmentMap, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
+import type { AttestationFeedRow, AttestationRow, EveIdentity, FraudChallengeRow, GateBindingStatusResponse, GatePolicyRow, GateSummaryRow, IdentityEnrichmentMap, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
 import { FW_DATA } from '../components/features/frontierwarden/fw-data';
 import type { FwAlert, FwContract, FwData, FwGate, FwKill, FwPilot, FwPolicy, FwProof, FwVouch } from '../components/features/frontierwarden/fw-data';
 import type { Provenance } from '../components/features/frontierwarden/LiveStatus';
@@ -63,7 +63,7 @@ function ageLabel(iso: string): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-function mapGate(gate: GateSummaryRow): FwGate {
+function mapGate(gate: GateSummaryRow, binding?: GateBindingStatusResponse): FwGate {
   const threshold = gate.ally_threshold;
   const status = gateStatus(gate);
 
@@ -79,6 +79,7 @@ function mapGate(gate: GateSummaryRow): FwGate {
     updated: formatUpdated(gate.config_updated_at),
     threat: gate.denies_24h > 0 ? `${gate.denies_24h} denied / 24h` : undefined,
     checkpoint: gate.latest_checkpoint,
+    binding,
   };
 }
 
@@ -245,8 +246,23 @@ function collectIdentityWallets(
   return [...wallets];
 }
 
+async function fetchGateBindings(
+  gates: GateSummaryRow[],
+): Promise<Record<string, GateBindingStatusResponse>> {
+  const entries = await Promise.all(gates.map(async gate => {
+    try {
+      return [gate.gate_id, await fetchGateBindingStatus(gate.gate_id)] as const;
+    } catch {
+      return null;
+    }
+  }));
+
+  return Object.fromEntries(entries.filter(entry => entry != null));
+}
+
 function mergeLiveData(
   gates: GateSummaryRow[],
+  gateBindings: Record<string, GateBindingStatusResponse>,
   challenges: FraudChallengeRow[],
   profile: LeaderboardEntry | null,
   scores: ScoreRow[],
@@ -258,7 +274,7 @@ function mergeLiveData(
   eveIdentity: EveIdentity | null,
   demoEnabled: boolean,
 ): { data: FwData; provenance: Record<string, Provenance> } {
-  const liveGates = gates.map(mapGate);
+  const liveGates = gates.map(gate => mapGate(gate, gateBindings[gate.gate_id]));
   const liveAlerts = challenges.slice(0, 5).map(challengeAlert);
   const liveVouches = mapVouches(vouches);
   const liveProofs = mapProofs(attestations);
@@ -322,6 +338,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       ]);
       const profile = creditLeaders[0] ?? standingLeaders[0] ?? null;
       const firstGateId = gates.find(g => g.gate_id)?.gate_id ?? null;
+      const gateBindings = await fetchGateBindings(gates);
       const [scores, vouches, attestations] = profile
         ? await Promise.all([
           fetchScores(profile.profile_id),
@@ -347,7 +364,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       setEveIdentity(identity);
       setEveIdentityMap(identityMap);
 
-      const result = mergeLiveData(gates, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts, identity, demoEnabled);
+      const result = mergeLiveData(gates, gateBindings, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts, identity, demoEnabled);
       setData(result.data);
       setProvenance(result.provenance);
       setLive(gates.length > 0 || challenges.length > 0 || profile != null || shipKills.length > 0 || policy != null || bountyContracts.length > 0);

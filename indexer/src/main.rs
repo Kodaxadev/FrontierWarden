@@ -24,6 +24,8 @@ mod processor;
 mod rpc;
 #[cfg(test)]
 mod trust_api_http_tests;
+#[cfg(test)]
+mod gate_binding_status_api_tests;
 mod trust_db;
 mod trust_eval_gate;
 mod trust_eval_score;

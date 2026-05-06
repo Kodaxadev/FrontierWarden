@@ -11,6 +11,7 @@ import { LiveStatus } from '../LiveStatus';
 import type { FwData, FwGate } from '../fw-data';
 import type { Provenance } from '../LiveStatus';
 import { SponsoredPassageStatus } from './SponsoredPassageStatus';
+import { GateBindingStatusBadge } from './GateBindingStatusBadge';
 
 type GateFilter = 'ALL' | 'open' | 'camped' | 'toll' | 'closed';
 const FILTERS: GateFilter[] = ['ALL', 'open', 'camped', 'toll', 'closed'];
@@ -149,6 +150,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
             <th>Gate</th>
             <th>Route</th>
             <th>Status</th>
+            <th>Binding</th>
             <th>Policy</th>
             <th>Toll</th>
             <th>Traffic / h</th>
@@ -171,6 +173,7 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
                 {g.from} <span style={{ color: 'var(--c-lo)' }}>→</span> {g.to}
               </td>
               <td>{statusBadge(g.status)}</td>
+              <td><GateBindingStatusBadge binding={g.binding} compact /></td>
               <td style={{ color: 'var(--c-mid)', fontSize: 11 }}>{g.policy}</td>
               <td style={{
                 color: g.toll === '0' ? 'var(--c-green)' : 'var(--c-amber)',
@@ -215,6 +218,9 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
         }}>
           <div className="c-view__title" style={{ marginBottom: 12 }}>
             Passage Feed / {selectedGate.id}
+          </div>
+          <div className="c-sub" style={{ marginBottom: 12 }}>
+            Binding proof: <GateBindingStatusBadge binding={selectedGate.binding} />
           </div>
 
           {!live && (
