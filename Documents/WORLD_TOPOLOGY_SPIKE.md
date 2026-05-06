@@ -141,9 +141,58 @@ This does not change current FrontierWarden assumptions:
 
 ---
 
+## Link Audit Findings - 2026-05-06
+
+The `research/link_audit` crawl hardens FrontierWarden's upstream watchlist
+without changing the binding architecture.
+
+Verified upstream sources:
+
+- `gate.move` remains the authoritative source for gate events, extension
+  authorization, TypeName payloads, linking, and jump behavior.
+- Smart Gate `/build` is the practical official builder flow for gate
+  extensions, including OwnerCap handling and scaffold usage.
+- `tools/world-upgrades` is the package-lineage source for `Move.lock`,
+  `original-id`, `published-at`, `UpgradeCap`, and MVR monitoring.
+
+Tooling and scaffold implications:
+
+- Treat `efctl` as a first-class upstream builder dependency to monitor. It is
+  official/community tooling, not FrontierWarden protocol authority.
+- Treat `builder-scaffold/move-contracts/smart_gate_extension` as the current
+  practical gate-extension template path.
+- The link audit found an official-docs broken-link pattern pointing at
+  `move-contracts/smart_gate`; the relevant scaffold path currently appears to
+  be `smart_gate_extension`.
+- Gate, storage-unit, and turret build docs all point toward the same shared
+  smart-assembly extension shape: OwnerCap authority, typed witness extension
+  authorization, and scaffold-driven deployment.
+
+Discovery implication:
+
+- `slug` and approval concepts appear in current docs/audit output, but the
+  exact dApp Discovery registry/listing schema is not source-confirmed as final.
+  FrontierWarden should prepare listing metadata without treating those fields
+  as immutable requirements yet.
+
+These findings do **not** change the core invariant:
+
+```text
+Extension authorization proves:
+world_gate_id -> extension TypeName
+
+It does not prove:
+world_gate_id -> FrontierWarden GatePolicy
+```
+
+Frontier-Indexer remains a community reference implementation only. Do not cite
+it as authoritative for EVE Frontier contract semantics.
+
+---
+
 **References:**
 - `evefrontier/world-contracts` — Move source audited; key confirmed findings below
-- Ocky-Public/Frontier-Indexer (world contract reference indexer, Rust/TimescaleDB)
+- Ocky-Public/Frontier-Indexer (community reference indexer only, Rust/TimescaleDB)
 - EVE Frontier Builder Documentation — Smart Assemblies, Gate Build API
 - EVE_NATIVE_BRIDGE_DISCOVERY.md — World API findings (gateLinks empty on Cycle 5)
 - EVE_STILLNESS_IDENTITY_DISCOVERY.md — Character/tribe resolution confirmed working

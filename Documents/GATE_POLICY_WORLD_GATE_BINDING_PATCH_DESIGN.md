@@ -39,6 +39,24 @@ indexer, audit trail, Gate Intel, Node Sentinel, and proof bundles.
 - `Documents/ADR_GATE_POLICY_WORLD_GATE_BINDING.md` records the hybrid binding
   model confirmed by the 2026-05-06 Builders call.
 
+## Upstream Implementation References
+
+Use these references before any deploy or package upgrade:
+
+- `evefrontier/world-contracts/.../assemblies/gate.move`: authoritative
+  behavior for gate extension authorization, TypeName emission, linking, and
+  jump events.
+- Smart Gate `/build`: official builder flow for publishing and testing a gate
+  extension.
+- `efctl`: first-class official/community CLI to monitor for world interaction
+  and smart-assembly management workflows.
+- `builder-scaffold/move-contracts/smart_gate_extension`: current practical
+  scaffold path for a gate-extension template.
+
+The scaffold/docs clarify implementation workflow but do not replace
+FrontierWarden's on-chain GatePolicy binding. Extension authorization remains
+separate evidence from GatePolicy binding.
+
 ## Non-Goals
 
 - Do not replace `GatePolicy` with a gate-keyed redesign.
@@ -248,6 +266,22 @@ live.
 7. Confirm binding event indexes.
 8. Confirm Trust API emits topology warnings only for the bound policy.
 9. Add Policy tab binding controls.
+
+## Pre-Deploy Package Lineage Checklist
+
+Before publishing or upgrading a binding-capable package:
+
+- Verify the current world `original-id` and `published-at` from World Upgrades
+  guidance and `Published.toml`.
+- Refresh and inspect `Move.lock` after changing world-contract dependencies.
+- Confirm the relevant `UpgradeCap` ownership and upgrade path.
+- Check MVR guidance for any package-resolution changes.
+- Confirm event filters still use the world type-origin/original package ID.
+- Confirm object type lookups use the package ID present in each object's type
+  string.
+- Confirm new world function calls target the intended current `published-at`.
+- Confirm scaffold references still point to `smart_gate_extension`, not a stale
+  `smart_gate` path.
 
 ## Rollback Plan
 
