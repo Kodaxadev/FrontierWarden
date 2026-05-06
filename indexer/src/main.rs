@@ -33,6 +33,7 @@ mod trust_freshness;
 mod trust_response;
 mod trust_types;
 mod world_api;
+mod world_gate_extensions;
 
 use anyhow::Result;
 use tracing_subscriber::{fmt, EnvFilter};

@@ -77,6 +77,8 @@ pub struct EveConfig {
     pub player_profile_type: String,
     #[serde(default = "EveConfig::default_fw_gate_auth_witness")]
     pub fw_gate_auth_witness: String,
+    #[serde(default)]
+    pub fw_gate_extension_typename: String,
 }
 
 impl EveConfig {
@@ -134,6 +136,9 @@ impl Config {
             }
             if let Ok(s) = std::env::var("EFREP_FW_GATE_AUTH_WITNESS") {
                 eve.fw_gate_auth_witness = s;
+            }
+            if let Ok(s) = std::env::var("EFREP_FW_GATE_EXTENSION_TYPENAME") {
+                eve.fw_gate_extension_typename = s;
             }
             if let Ok(s) = std::env::var("EFREP_EVE_PLAYER_PROFILE_TYPE") {
                 eve.player_profile_type = s;

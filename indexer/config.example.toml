@@ -36,6 +36,9 @@ world_pkg_original_id = "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda30
 world_pkg_published_at = "0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780"
 world_tenant = "stillness"
 fw_gate_auth_witness = "FrontierWardenAuth"
+# Full TypeName for the authorized world gate extension witness.
+# Leave empty until FrontierWarden has a real gate extension Auth type.
+fw_gate_extension_typename = ""
 player_profile_type = "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c::character::PlayerProfile"
 
 # ── Utopia sandbox preset (commented) ─────────────────────────────────────────
@@ -56,4 +59,5 @@ player_profile_type = "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072
 #   EFREP_WORLD_PKG_PUBLISHED_AT
 #   EFREP_WORLD_TENANT
 #   EFREP_FW_GATE_AUTH_WITNESS
+#   EFREP_FW_GATE_EXTENSION_TYPENAME
 #   EFREP_EVE_PLAYER_PROFILE_TYPE

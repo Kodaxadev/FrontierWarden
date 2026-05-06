@@ -105,6 +105,47 @@ impl RpcClient {
         Ok(page)
     }
 
+    /// Fetch a page of events for one exact Move event type.
+    pub async fn query_events_by_type(
+        &self,
+        event_type: &str,
+        cursor: Option<&EventId>,
+        limit: u32,
+    ) -> Result<EventPage> {
+        let filter = json!({ "MoveEventType": event_type });
+        let cursor_param = cursor.map(|c| json!(c)).unwrap_or(Value::Null);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id":      1,
+            "method":  "suix_queryEvents",
+            "params":  [filter, cursor_param, limit, false]
+        });
+
+        let resp: Value = self
+            .http
+            .post(&self.url)
+            .json(&body)
+            .send()
+            .await
+            .context("RPC HTTP request failed")?
+            .json()
+            .await
+            .context("RPC response JSON decode failed")?;
+
+        if let Some(err) = resp.get("error") {
+            anyhow::bail!("Sui RPC error: {err}");
+        }
+
+        let result = resp
+            .get("result")
+            .context("missing 'result' in RPC response")?;
+        let mut page: EventPage =
+            serde_json::from_value(result.clone()).context("EventPage deserialize failed")?;
+        self.fill_missing_checkpoints(&mut page.data).await?;
+        Ok(page)
+    }
+
     async fn fill_missing_checkpoints(&self, events: &mut [SuiEvent]) -> Result<()> {
         let mut cache = HashMap::<String, Option<String>>::new();
 
