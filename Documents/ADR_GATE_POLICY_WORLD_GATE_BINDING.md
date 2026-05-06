@@ -32,32 +32,82 @@ Therefore FrontierWarden must not activate topology-derived proof warnings from
 `world_gates` until the evaluated GatePolicy is bound to a world Gate through
 either on-chain binding evidence or an explicitly marked temporary admin binding.
 
-## Option 1: Move-Level Binding
+## Decision
 
-Add binding at the protocol layer. Two viable shapes:
+Adopt a **hybrid Move-level binding model**:
 
-- Add `world_gate_id: ID` to `GatePolicy`.
-- Emit `GatePolicyBoundToWorldGate { gate_policy_id, world_gate_id }`.
+- `GatePolicy` stores the current authoritative binding as
+  `world_gate_id: Option<ID>` or an equivalent current-state field.
+- A binding function emits:
+
+```text
+GatePolicyBoundToWorldGate {
+  gate_policy_id,
+  world_gate_id
+}
+```
+
+- An optional unbinding function emits:
+
+```text
+GatePolicyUnboundFromWorldGate {
+  gate_policy_id,
+  world_gate_id
+}
+```
+
+The current state must live on-chain because trust proofs need an authoritative
+source for "this GatePolicy governs this world Gate." Events are still required
+because the indexer, frontend, API proof bundles, and audits need a durable
+change log.
+
+Extension authorization remains a separate proof:
+
+```text
+Extension authorization proves:
+world_gate_id -> extension TypeName
+
+It does not prove:
+world_gate_id -> FrontierWarden GatePolicy
+```
+
+Therefore the binding event/object and extension authorization evidence should
+eventually both appear in topology-aware proof bundles.
+
+## Option 1: Hybrid Move-Level Binding Plus Events
+
+Add binding at the protocol layer with both current-state storage and event
+emission:
+
+- Store `world_gate_id: Option<ID>` or equivalent on `GatePolicy`.
+- Emit `GatePolicyBoundToWorldGate { gate_policy_id, world_gate_id }` when the
+  binding is created or changed.
+- Optionally emit `GatePolicyUnboundFromWorldGate { gate_policy_id,
+  world_gate_id }` when an operator clears the binding.
 
 ### Security Properties
 
-This is the strongest option. The binding becomes part of on-chain protocol
-state or the event log, so proof bundles can cite chain evidence instead of an
-operator-maintained database assertion.
+This is the strongest option. The binding becomes part of current on-chain
+protocol state, and the event log gives indexers and auditors the full history.
+Proof bundles can cite chain evidence instead of an operator-maintained database
+assertion.
 
 ### Migration Impact
 
 Requires a Move upgrade or new binding function/event. Existing GatePolicy
-objects need either a compatibility path or an admin binding transaction.
+objects need either a compatibility path, an admin binding transaction, or a new
+GatePolicy version that stores optional binding state.
 
 ### Implementation Cost
 
 Medium. It touches Move, indexer processors, deployment docs, and frontend
-operator flows. It also requires careful upgrade testing.
+operator flows. It also requires careful upgrade testing and a migration story
+for existing GatePolicies.
 
 ### Trust API Impact
 
-Topology warnings become authoritative once the indexed binding exists:
+Topology warnings become authoritative once the indexed binding exists and the
+current on-chain GatePolicy state still points at the same world Gate:
 
 - `WARN_WORLD_GATE_OFFLINE`
 - `WARN_WORLD_GATE_NOT_LINKED`
@@ -78,6 +128,8 @@ FW GatePolicy -> world Gate -> linked gate/status/extension
 - Binding transaction points to the wrong world Gate.
 - Binding exists but world Gate extension authorization is missing or revoked.
 - GatePolicy ownership and world Gate OwnerCap authority diverge.
+- Binding event is indexed but current GatePolicy state later changes; API must
+  prefer current state and use events as history.
 
 ## Option 2: Off-Chain Verified Admin Binding
 
@@ -95,8 +147,8 @@ status
 ### Security Properties
 
 This is weaker than Move-level binding. It can be useful as a bridge, but must be
-marked non-authoritative unless backed by a verifiable transaction or signed
-operator proof.
+marked temporary and non-authoritative unless backed by a verifiable transaction
+or signed operator proof.
 
 ### Migration Impact
 
@@ -171,7 +223,12 @@ intended dApp pattern.
 
 ## Recommendation
 
-Adopt **Option 1: Move-Level Binding** as the target architecture.
+Adopt **Option 1: Hybrid Move-Level Binding Plus Events** as the target
+architecture.
+
+Current state should live on-chain in `GatePolicy`, while binding/unbinding
+events provide indexing, frontend visibility, audit history, and API proof
+bundle evidence.
 
 Permit **Option 2: Off-Chain Verified Admin Binding** only as a temporary bridge,
 and label it non-authoritative unless backed by a reproducible proof.
@@ -184,11 +241,13 @@ Frontier dApps should store gate policy directly by `world_gate_id`.
 1. Keep topology warnings dormant for unbound GatePolicies.
 2. Ask CCP whether gate dApps should use explicit binding objects/events or
    world-gate-keyed policy state.
-3. If Move-level binding is approved, add `GatePolicyBoundToWorldGate` or a
-   `world_gate_id` field in a protocol upgrade.
-4. Index binding evidence and expose binding status in Gate Intel.
-5. Activate additive topology warnings only for bound policies.
-6. Consider admin-verified binding only if a demo or integration requires a
+3. If Move-level binding is approved, add optional `world_gate_id` current-state
+   binding to `GatePolicy`.
+4. Add `GatePolicyBoundToWorldGate` and optional
+   `GatePolicyUnboundFromWorldGate` events.
+5. Index binding evidence and expose binding status in Gate Intel.
+6. Activate additive topology warnings only for bound policies.
+7. Consider admin-verified binding only if a demo or integration requires a
    bridge before the Move upgrade.
 
 ## Open CCP Questions
