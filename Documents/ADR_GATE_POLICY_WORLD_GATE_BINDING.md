@@ -74,6 +74,26 @@ world_gate_id -> FrontierWarden GatePolicy
 Therefore the binding event/object and extension authorization evidence should
 eventually both appear in topology-aware proof bundles.
 
+## Builder Call Confirmation - 2026-05-06
+
+The Builders call confirmed the selected hybrid direction:
+
+- World authorization registers the dApp extension.
+- FrontierWarden must maintain its own policy-to-gate binding state.
+- Binding events should exist for indexing and proof bundles.
+- A queryable object/current-state binding is preferable to event-only
+  reconstruction.
+
+This keeps the core invariant intact:
+
+```text
+Extension authorization proves:
+world_gate_id -> extension TypeName
+
+It does not prove:
+world_gate_id -> FrontierWarden GatePolicy
+```
+
 ## Option 1: Hybrid Move-Level Binding Plus Events
 
 Add binding at the protocol layer with both current-state storage and event

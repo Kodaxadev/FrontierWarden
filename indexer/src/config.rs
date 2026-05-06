@@ -74,6 +74,8 @@ pub struct EveConfig {
     pub world_pkg_published_at: String,
     #[serde(default = "EveConfig::default_world_tenant")]
     pub world_tenant: String,
+    #[serde(default)]
+    pub world_start_checkpoint: u64,
     pub player_profile_type: String,
     #[serde(default = "EveConfig::default_fw_gate_auth_witness")]
     pub fw_gate_auth_witness: String,
@@ -133,6 +135,9 @@ impl Config {
             }
             if let Ok(s) = std::env::var("EFREP_WORLD_TENANT") {
                 eve.world_tenant = s;
+            }
+            if let Ok(s) = std::env::var("EFREP_WORLD_START_CHECKPOINT") {
+                eve.world_start_checkpoint = s.parse().unwrap_or(0);
             }
             if let Ok(s) = std::env::var("EFREP_FW_GATE_AUTH_WITNESS") {
                 eve.fw_gate_auth_witness = s;

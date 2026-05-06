@@ -28,5 +28,6 @@ world_package_id = "0xPLACEHOLDER"
 world_pkg_original_id = "0xPLACEHOLDER"
 world_pkg_published_at = "0xPLACEHOLDER"
 world_tenant = "stillness"
+world_start_checkpoint = 308264360
 fw_gate_extension_typename = ""
 player_profile_type = "0xPLACEHOLDER"

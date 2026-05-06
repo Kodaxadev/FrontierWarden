@@ -88,6 +88,30 @@ Therefore:
 
 ---
 
+## Builder Call Findings - 2026-05-06
+
+Confirmed:
+
+- Gate dApps should maintain their own binding state for app policy.
+- World `ExtensionAuthorizedEvent` is necessary but not sufficient as current
+  policy binding proof.
+- Events are historical/audit signals; objects/current state should remain the
+  authoritative source for policy decisions.
+- Recommended Stillness world-event start checkpoint: `308264360`.
+- CCP is working on dApp discovery.
+
+Indexer config implication:
+
+- `EFREP_WORLD_START_CHECKPOINT=308264360`
+- Use this value for world-event cold start/replay only, not `world_gates`
+  object sync.
+- Cold start: begin world-event indexing from `308264360`.
+- Resume: continue from the last committed event cursor/checkpoint.
+- Recovery: replay from `308264360`.
+- World reset or major redeploy: update the checkpoint.
+
+---
+
 **References:**
 - `evefrontier/world-contracts` — Move source audited; key confirmed findings below
 - Ocky-Public/Frontier-Indexer (world contract reference indexer, Rust/TimescaleDB)
@@ -657,9 +681,11 @@ What advance notice will builders receive before the next world contract upgrade
 
 ---
 
-**Q8 — Recommended start checkpoint for Stillness world events** *(open — blocking Step 3 production deploy)*
+**Q8 — Recommended start checkpoint for Stillness world events** *(answered 2026-05-06)*
 
-What Sui testnet checkpoint should FW use as the start point for indexing Stillness world events? This avoids replaying all history. Is there a published "deployment checkpoint" for the current world package (`published-at: 0xd2fd...`)?
+Use checkpoint `308264360` for Stillness world-event cold starts and replay.
+Do not hardcode this in code; use `EFREP_WORLD_START_CHECKPOINT` / `[eve].world_start_checkpoint`.
+Object sync does not use this value.
 
 ---
 
@@ -720,9 +746,9 @@ Steps are sequenced so each is independently shippable and non-breaking. No step
 
 ---
 
-### Step 3 — JumpEvent stream indexer ✅ UNBLOCKED (deploy after Q8)
+### Step 3 — JumpEvent stream indexer ✅ UNBLOCKED (checkpoint known)
 
-**Dependency:** Q8 (start checkpoint) strongly recommended before production deployment
+**Dependency:** `EFREP_WORLD_START_CHECKPOINT=308264360` for production cold start/replay
 **What:** Add `gate::JumpEvent` to ingester with `original-id` package prefix. Add `processor/world_jump.rs` that writes to `world_jump_events`.
 
 ```rust
@@ -740,7 +766,7 @@ event:   "JumpEvent"
 ```
 
 **Output:** `world_jump_events` populated in real time
-**Risk:** Low-medium. Event shape confirmed; `original-id` filter is upgrade-safe. Q8 (start checkpoint) should be confirmed before deploying to production to avoid history replay.
+**Risk:** Low-medium. Event shape confirmed; `original-id` filter is upgrade-safe. Use the configured start checkpoint to avoid unnecessary history replay.
 
 ---
 
@@ -802,18 +828,17 @@ Until a proven association exists, topology warnings must remain dormant. Three 
 | B — Admin table | Operator manually binds `gate_policy_id ↔ world_gate_id` with tx_digest proof | Medium | New DB table + admin route |
 | C — Extension event correlation | Index `ExtensionAuthorizedEvent`; if package/module/auth_witness match FW and owner matches policy owner, infer association | Lower — correlation only | `ExtensionAuthorizedEvent` investigation (next step) |
 
-**Current recommended path:** Investigate `ExtensionAuthorizedEvent` / `ExtensionRevokedEvent` from world-contracts source. If the event carries gate_id + extension type tuple, this is the safest read-only association signal. See Phase 2 investigation spike (separate doc).
+**Current recommended path:** Implement Move-level GatePolicy binding as the target architecture: `GatePolicy` stores the current `world_gate_id` binding, and binding/unbinding emits events for indexing, frontend, audit trail, and API proof bundles. Off-chain admin binding remains only a temporary non-authoritative bridge.
 
 ### Source-confirmed but gated
 - Step 2 live link/unlink processor: event names confirmed; field shapes pending Q11
-- Step 3 JumpEvent indexer: event shape confirmed; production needs Q8 start checkpoint
+- Step 3 JumpEvent indexer: event shape confirmed; start checkpoint is `308264360`
 - Step 5 tribe warnings: design clear; player tribe data pending Q6
 
-### Remaining open CCP questions (6 of 11)
+### Remaining open CCP questions (5 of 11)
 - Q5 — gateLinks REST timeline (deprioritized; events are the correct source)
 - Q6 — Player tribes on Stillness *(blocking Step 5)*
 - Q7 — World package upgrade cadence and advance notice
-- Q8 — Recommended start checkpoint *(blocking Step 3 production deploy)*
 - Q9 — Kill event automation suitability
 - Q11 — GateCreatedEvent / GateLinkedEvent / GateUnlinkedEvent field shapes *(blocking Step 2 fully)*
 
