@@ -2,6 +2,8 @@
 // All values are mock/static for design fidelity.
 // IMPORTANT: Every name/id here is prefixed with [DEMO] so it is never mistaken for live data.
 
+import type { GateBindingStatusResponse } from '../../../types/api.types';
+
 export interface FwPilot {
   name: string; handle: string; syndicate: string; syndicateTag: string;
   tribe: string; sec: number; standing: string;
@@ -22,6 +24,7 @@ export interface FwGate {
   toll: string; traffic: number; policy: string; updated: string; threat?: string;
   sourceId?: string;
   checkpoint?: number | null;
+  binding?: GateBindingStatusResponse;
 }
 
 export interface FwPolicy {

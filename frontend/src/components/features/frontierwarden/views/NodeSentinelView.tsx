@@ -10,6 +10,7 @@ import { SentinelAccessRisk } from '../sentinel/SentinelAccessRisk';
 import { SentinelWarnings } from '../sentinel/SentinelWarnings';
 import { SentinelRecommendations } from '../sentinel/SentinelRecommendations';
 import { SentinelChangeFeed } from '../sentinel/SentinelChangeFeed';
+import { SentinelBindingStatus } from '../sentinel/SentinelBindingStatus';
 import type { FwData } from '../fw-data';
 import type { EveIdentity, IdentityEnrichmentMap } from '../../../../types/api.types';
 
@@ -78,6 +79,7 @@ export function NodeSentinelView({ data, live, loading, error, eveIdentity, eveI
 
         {/* Right column — Access risk + Warnings + Recommendations */}
         <div className="ns-col">
+          <SentinelBindingStatus gates={data.gates} />
           <SentinelAccessRisk accessRisk={accessRisk} />
           <SentinelWarnings warnings={warnings} />
           <SentinelRecommendations

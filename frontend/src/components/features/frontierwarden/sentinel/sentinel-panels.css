@@ -94,6 +94,16 @@
   border-top: 1px solid rgba(255,255,255,0.02);
 }
 
+.ns-hint {
+  padding: 10px 16px 12px;
+  border-top: 1px solid rgba(255,255,255,0.03);
+  color: var(--c-mid);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
 /* ── Access Risk ──────────────────────────────────────────────────────────── */
 .ns-risk-grid {
   padding: 4px 0;

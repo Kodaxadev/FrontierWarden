@@ -798,6 +798,22 @@
 .c-badge--claimed { color: var(--c-mid);     background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); }
 .c-badge--expired { color: var(--c-mid);     background: transparent;            border: 1px solid var(--c-lo); }
 
+.c-binding-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.c-binding-badge--dim { color: var(--c-mid); background: rgba(255,255,255,0.02); }
+.c-binding-badge--amber { color: var(--c-amber); background: rgba(245,158,11,0.08); }
+.c-binding-badge--green { color: var(--c-green); background: rgba(16,185,129,0.08); }
+.c-binding-badge__detail { color: var(--c-mid); font-family: var(--font-mono); }
+
 /* Sub text */
 .c-sub { font-size: 9px; color: var(--c-mid); margin-top: 3px; letter-spacing: 0.04em; }
 

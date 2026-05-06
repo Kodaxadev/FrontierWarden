@@ -9,6 +9,7 @@ import type {
   AttestationRow,
   LeaderboardEntry,
   SystemIntelResponse,
+  GateBindingStatusResponse,
   GateSummaryRow,
   GatePolicyRow,
   GatePassageRow,
@@ -157,6 +158,11 @@ export const fetchGate = (gateId: string): Promise<GateSummaryRow | null> =>
 
 export const fetchGatePolicy = (gateId: string): Promise<GatePolicyRow | null> =>
   get(`/gates/${encodeURIComponent(gateId)}/policy`);
+
+export const fetchGateBindingStatus = (
+  gatePolicyId: string,
+): Promise<GateBindingStatusResponse> =>
+  get(`/gates/${encodeURIComponent(gatePolicyId)}/binding-status`);
 
 export const fetchGatePassages = (
   gateId: string,

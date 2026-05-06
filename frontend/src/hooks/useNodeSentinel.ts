@@ -34,8 +34,8 @@ function shortAddr(addr: string): string {
 }
 // FwGate.sourceId is currently a protocol gate/policy identifier, not a proven
 // EVE world Gate binding. Keep Sentinel advisory until explicit binding exists.
-function hasConfirmedWorldGateBinding(_data: FwData): boolean {
-  return false;
+function hasConfirmedWorldGateBinding(data: FwData): boolean {
+  return data.gates.some(gate => gate.binding?.bindingStatus === 'verified');
 }
 
 // Build WardenNode from FwData

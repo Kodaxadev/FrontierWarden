@@ -105,6 +105,22 @@ export interface GatePolicyRow {
   indexed_at:     string;
 }
 
+export type GateBindingStatusValue = 'unbound' | 'bound' | 'verified';
+
+export interface GateBindingStatusResponse {
+  gatePolicyId:      string;
+  bindingStatus:    GateBindingStatusValue;
+  worldGateId:      string | null;
+  worldGateStatus:  string | null;
+  linkedGateId:     string | null;
+  fwExtensionActive: boolean;
+  extensionType:    string | null;
+  active:           boolean;
+  boundTxDigest:    string | null;
+  boundCheckpoint:  number | null;
+  updatedAt:        string | null;
+}
+
 export interface GatePassageRow {
   gate_id:        string;
   traveler:       string;
