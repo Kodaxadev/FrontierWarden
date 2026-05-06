@@ -180,6 +180,17 @@ Existing live `GatePolicy` objects remain unbound.
 After a package upgrade, do not assume old policies have a world binding.
 The operator must execute an explicit binding transaction for each policy.
 
+### Object Layout Compatibility
+
+Adding `world_gate_id` to `GatePolicy` changes the struct layout for newly
+created policies. Existing policies from the previous package version must be
+treated as legacy/unbound unless an explicit migration or replacement path is
+implemented.
+
+The first implementation must not assume old GatePolicy objects can be read as
+the new struct shape without confirming Sui upgrade behavior and existing object
+compatibility.
+
 Current live behavior remains valid:
 
 ```text
@@ -261,5 +272,8 @@ warnings/proof details.
 - Verify exact Move option syntax with the current Sui toolchain.
 - Confirm whether `get_world_gate_id` can return `option::Option<ID>` in the
   desired public API shape.
+- If returning `option::Option<ID>` is awkward, prefer:
+  `is_world_gate_bound(gate): bool` plus `get_bound_world_gate_id(gate): ID`
+  where the getter aborts with `ENotBound` when unbound.
 - Decide whether frontend binding controls belong in the first implementation
   branch or a follow-up branch.
