@@ -40,6 +40,8 @@ module reputation::reputation_gate {
     const EInsufficientPayment:   u64 = 7;
     const ENotAdmin:              u64 = 8;
     const EZeroAllyThreshold:     u64 = 9;
+    const EAlreadyBound:          u64 = 10;
+    const ENotBound:              u64 = 11;
 
     // === Events ===
     public struct PassageGranted has copy, drop {
@@ -70,6 +72,20 @@ module reputation::reputation_gate {
         amount:  u64,
     }
 
+    public struct GatePolicyBoundToWorldGate has copy, drop {
+        gate_policy_id: ID,
+        world_gate_id:  ID,
+        owner:          address,
+        epoch:          u64,
+    }
+
+    public struct GatePolicyUnboundFromWorldGate has copy, drop {
+        gate_policy_id: ID,
+        world_gate_id:  ID,
+        owner:          address,
+        epoch:          u64,
+    }
+
     // === Structs ===
 
     /// Shared object -- deployed once per gate. Stores policy params + toll accumulator.
@@ -85,6 +101,7 @@ module reputation::reputation_gate {
         // Accumulated tolls, withdrawable by owner via GateAdminCap.
         treasury:        Balance<SUI>,
         paused:          bool,
+        world_gate_id:   Option<ID>,
     }
 
     /// Owned by gate deployer. Required for all admin operations.
@@ -114,6 +131,7 @@ module reputation::reputation_gate {
             base_toll_mist,
             treasury:       balance::zero<SUI>(),
             paused:         false,
+            world_gate_id:  option::none<ID>(),
         };
         let cap = GateAdminCap {
             id:      object::new(ctx),
@@ -258,10 +276,51 @@ module reputation::reputation_gate {
         event::emit(TollsWithdrawn { gate_id: object::id(gate), owner: gate.owner, amount });
     }
 
+    /// Bind this FrontierWarden policy to one EVE world Gate object.
+    public fun bind_world_gate(
+        cap:           &GateAdminCap,
+        gate:          &mut GatePolicy,
+        world_gate_id: ID,
+        ctx:           &mut TxContext,
+    ) {
+        assert_admin(cap, gate);
+        assert!(option::is_none(&gate.world_gate_id), EAlreadyBound);
+        gate.world_gate_id = option::some(world_gate_id);
+        event::emit(GatePolicyBoundToWorldGate {
+            gate_policy_id: object::id(gate),
+            world_gate_id,
+            owner: tx_context::sender(ctx),
+            epoch: tx_context::epoch(ctx),
+        });
+    }
+
+    /// Clear an existing world Gate binding. Rebinding requires this explicit step.
+    public fun unbind_world_gate(
+        cap:  &GateAdminCap,
+        gate: &mut GatePolicy,
+        ctx:  &mut TxContext,
+    ) {
+        assert_admin(cap, gate);
+        assert!(option::is_some(&gate.world_gate_id), ENotBound);
+        let world_gate_id = option::extract(&mut gate.world_gate_id);
+        event::emit(GatePolicyUnboundFromWorldGate {
+            gate_policy_id: object::id(gate),
+            world_gate_id,
+            owner: tx_context::sender(ctx),
+            epoch: tx_context::epoch(ctx),
+        });
+    }
+
     // === View Functions ===
 
     public fun get_ally_threshold(gate: &GatePolicy): u64  { gate.ally_threshold }
     public fun get_base_toll(gate: &GatePolicy): u64        { gate.base_toll_mist }
     public fun is_paused(gate: &GatePolicy): bool           { gate.paused }
     public fun treasury_balance(gate: &GatePolicy): u64     { balance::value(&gate.treasury) }
+    public fun is_world_gate_bound(gate: &GatePolicy): bool { option::is_some(&gate.world_gate_id) }
+
+    public fun get_bound_world_gate_id(gate: &GatePolicy): ID {
+        assert!(option::is_some(&gate.world_gate_id), ENotBound);
+        *option::borrow(&gate.world_gate_id)
+    }
 }
