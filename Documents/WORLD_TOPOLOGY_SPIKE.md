@@ -3,7 +3,91 @@
 **Date:** 2026-05-05
 **Type:** Architecture spike — no implementation
 **Constraint:** No schema or deployment changes until CCP guidance is confirmed
-**Status:** Updated with confirmed world-contract source findings (2026-05-05)
+**Status:** Updated with live production findings (2026-05-05)
+
+---
+
+## ⚠️ Architecture Status — Topology Warnings Are Dormant
+
+Implementation is complete but warnings are correctly suppressed. Live production state as of 2026-05-05:
+
+```
+world_gates indexed:            41
+fw_extension_active = true:      0
+fw_gate_policy_id populated:     0
+world_gates.extension field:     null on all 41 gates
+fw_extension_active in DB:       false on all rows
+GatePolicy ↔ world Gate joins:  0 rows matched
+```
+
+**Reason:** FrontierWarden currently operates as a parallel trust/reputation policy system.
+It is not yet installed as an authorized extension on any EVE Frontier world Gate.
+
+Three separate layers exist with no proven edge between layers 1 and 2:
+
+```
+Layer 1 — World Gate
+  EVE Frontier smart assembly gate object.
+  Has: linked_gate_id, status, owner_cap_id, extension field.
+  extension.package_id / module_name / struct_name: null on all live gates.
+
+Layer 2 — FrontierWarden GatePolicy
+  FW-owned policy object on Sui.
+  Has: schema, threshold, toll, treasury, paused state.
+  Does NOT store world_gate_id. No reference to world Gate object.
+
+Layer 3 — Gate access evaluation
+  Trust API evaluates GatePolicy + attestations/score_cache.
+  World topology warnings (WARN_WORLD_GATE_OFFLINE, WARN_WORLD_GATE_NOT_LINKED)
+  are implemented in trust_eval_gate.rs but dormant:
+  world_gate_for_policy() returns None for all live gate IDs.
+```
+
+**Correct product description:**
+> FrontierWarden currently operates as a Sui trust/reputation policy system with
+> sponsored execution and live world-gate observability. It is not yet installed
+> as an authorized extension on an EVE Frontier world Gate.
+
+**Do not emit production topology warnings until the GatePolicy ↔ world Gate
+association is proven via on-chain evidence (extension authorization event or
+Move-level binding).**
+
+---
+
+## Live Extension-State Result
+
+World gate extension indexing is implemented with exact TypeName matching.
+
+Current live Stillness event counts:
+- `gate::ExtensionAuthorizedEvent`: 0
+- `gate::ExtensionRevokedEvent`: 0
+
+This result is meaningful: no live indexed world gate currently proves an
+authorized FrontierWarden extension.
+
+Important invariant:
+
+```text
+Extension authorization proves:
+world_gate_id -> extension TypeName
+
+It does not prove:
+world_gate_id -> FrontierWarden GatePolicy
+```
+
+Therefore:
+
+- `world_gate_extensions` can track world Gate -> extension TypeName once
+  events exist.
+- `world_gates.fw_extension_active` may be set only from exact TypeName
+  matches.
+- `world_gates.fw_gate_policy_id` must remain unset until a separate binding
+  exists.
+- Trust API topology warnings must remain dormant unless a reliable GatePolicy
+  -> world Gate association exists.
+
+---
+
 **References:**
 - `evefrontier/world-contracts` — Move source audited; key confirmed findings below
 - Ocky-Public/Frontier-Indexer (world contract reference indexer, Rust/TimescaleDB)
@@ -603,7 +687,7 @@ What fields do these events carry? Specifically:
 
 Steps are sequenced so each is independently shippable and non-breaking. No step changes existing FW migrations or trust evaluation logic.
 
-### Step 1 — World gate object indexer ✅ UNBLOCKED
+### Step 1 — World gate object indexer ✅ SHIPPED
 
 **Dependency:** None (gate object structure confirmed from source)
 **What:** Add a `sync_world_gates` background task (similar to `sync_eve_world` CLI) that:
@@ -660,7 +744,7 @@ event:   "JumpEvent"
 
 ---
 
-### Step 4 — Trust API `gate_access` warning enrichment ✅ UNBLOCKED (after Steps 1+2)
+### Step 4 — Trust API `gate_access` warning enrichment ✅ SHIPPED (dormant — see Architecture Status above)
 
 **Dependency:** Steps 1+2 complete
 **What:** In `trust_eval_gate.rs`, after fetching `latest_gate_policy`, query `world_gates` by `fw_gate_policy_id`:
@@ -700,17 +784,32 @@ Additive to existing proof bundle. No change to `allow`/`decision` fields. No AP
 
 ## Summary
 
-**Ready to implement without new CCP input:**
-- Step 1: World gate object sync (GraphQL, read-only, no event stream)
-- Step 4 scaffolding: `gate_access` warning enrichment can be designed now, but should only read live world data after Step 1 and Step 2 data exist.
+### Implemented (live)
+- ✅ Step 1: `world_gates` object sync — `sync_world_gates` CLI, 41 rows on Stillness
+- ✅ Step 4: `gate_access` warning enrichment — `WARN_WORLD_GATE_OFFLINE` + `WARN_WORLD_GATE_NOT_LINKED` wired into `trust_eval_gate.rs`
 
-**Source-confirmed but still gated before production implementation:**
-- Step 2 live link/unlink processor: event existence confirmed; exact field names still require Q11 or source inspection.
-- Step 3 JumpEvent indexer: event shape and `original-id` filter are confirmed; production deploy still needs Q8 start checkpoint to avoid unnecessary history replay.
-- Step 5 tribe warnings: design is clear; player-tribe usefulness still depends on Q6.
-- Kill-event attestation: event research exists; automation still depends on Q9 reporter reliability.
+### Dormant (implemented, not yet active)
+- `world_gate_for_policy()` returns None for all live gate policies — no `fw_gate_policy_id` populated
+- `WARN_WORLD_GATE_OFFLINE` / `WARN_WORLD_GATE_NOT_LINKED` never fire in production
+- **Reason:** `fw_extension_active = false` and `fw_gate_policy_id = null` on all 41 world gates
 
-**Remaining open CCP questions (6 of 11):**
+### Blocking gap — GatePolicy ↔ world Gate binding
+Until a proven association exists, topology warnings must remain dormant. Three binding paths:
+
+| Option | Mechanism | Safety | Requires |
+|---|---|---|---|
+| A — Move-level binding | `GatePolicy` stores `world_gate_id: ID` or emits `GatePolicyBoundToWorldGate` event | Highest | Move upgrade to FW package |
+| B — Admin table | Operator manually binds `gate_policy_id ↔ world_gate_id` with tx_digest proof | Medium | New DB table + admin route |
+| C — Extension event correlation | Index `ExtensionAuthorizedEvent`; if package/module/auth_witness match FW and owner matches policy owner, infer association | Lower — correlation only | `ExtensionAuthorizedEvent` investigation (next step) |
+
+**Current recommended path:** Investigate `ExtensionAuthorizedEvent` / `ExtensionRevokedEvent` from world-contracts source. If the event carries gate_id + extension type tuple, this is the safest read-only association signal. See Phase 2 investigation spike (separate doc).
+
+### Source-confirmed but gated
+- Step 2 live link/unlink processor: event names confirmed; field shapes pending Q11
+- Step 3 JumpEvent indexer: event shape confirmed; production needs Q8 start checkpoint
+- Step 5 tribe warnings: design clear; player tribe data pending Q6
+
+### Remaining open CCP questions (6 of 11)
 - Q5 — gateLinks REST timeline (deprioritized; events are the correct source)
 - Q6 — Player tribes on Stillness *(blocking Step 5)*
 - Q7 — World package upgrade cadence and advance notice
@@ -718,7 +817,13 @@ Additive to existing proof bundle. No change to `allow`/`decision` fields. No AP
 - Q9 — Kill event automation suitability
 - Q11 — GateCreatedEvent / GateLinkedEvent / GateUnlinkedEvent field shapes *(blocking Step 2 fully)*
 
-**Explicitly deferred:**
+### Builders call question (priority)
+> FrontierWarden currently works as a parallel trust policy, but the missing edge is installing
+> a policy as a world Gate extension. Is the intended pattern that each dApp stores per-gate
+> policy keyed by world `gate_id` — like CivilizationControl — rather than creating separate
+> policy objects that later need mapping?
+
+### Explicitly deferred
 - `route_trust` action
 - Full character history indexing
 - StorageUnit / Turret / NetworkNode energy state tracking
