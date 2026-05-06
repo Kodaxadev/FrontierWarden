@@ -12,20 +12,21 @@ mod api_reputation;
 mod api_request_log;
 mod api_sessions;
 mod api_trust;
+mod api_world_gates;
 
 // Re-export for main
 use api_trust::TrustConfig;
 mod config;
 mod db;
 mod eve_identity;
+#[cfg(test)]
+mod gate_binding_status_api_tests;
 mod gate_policy_bindings;
 mod ingester;
 mod processor;
 mod rpc;
 #[cfg(test)]
 mod trust_api_http_tests;
-#[cfg(test)]
-mod gate_binding_status_api_tests;
 mod trust_db;
 mod trust_eval_gate;
 mod trust_eval_score;
@@ -37,6 +38,8 @@ mod trust_response;
 mod trust_types;
 mod world_api;
 mod world_gate_extensions;
+#[cfg(test)]
+mod world_gates_api_tests;
 
 use anyhow::Result;
 use tracing_subscriber::{fmt, EnvFilter};
