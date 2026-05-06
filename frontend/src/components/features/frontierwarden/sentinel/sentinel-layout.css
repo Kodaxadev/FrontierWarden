@@ -1,0 +1,252 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   NODE SENTINEL — Diegetic terminal UI
+   "You are standing inside your node's trust firewall."
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Root ─────────────────────────────────────────────────────────────────── */
+.ns-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  gap: 0;
+  font-family: var(--c-mono);
+  color: var(--c-hi);
+  position: relative;
+}
+
+/* Subtle hex-grid background */
+.ns-root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.25;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(245,158,11,0.06) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* ── Terminal Header ──────────────────────────────────────────────────────── */
+.ns-terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(245,158,11,0.15);
+  background: linear-gradient(90deg, rgba(245,158,11,0.04), transparent 60%);
+  position: relative;
+  z-index: 1;
+}
+
+.ns-terminal-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ns-terminal-header__logo {
+  font-size: 16px;
+  color: var(--c-amber);
+  text-shadow: 0 0 16px rgba(245,158,11,0.7), 0 0 40px rgba(245,158,11,0.3);
+}
+
+.ns-terminal-header__title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--c-amber);
+  text-shadow: 0 0 20px rgba(245,158,11,0.5);
+}
+
+.ns-terminal-header__sep {
+  font-size: 10px;
+  color: rgba(245,158,11,0.3);
+}
+
+.ns-terminal-header__subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--c-hi);
+}
+
+.ns-terminal-header__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ns-terminal-header__mode {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--c-amber);
+  padding: 3px 10px;
+  border: 1px solid rgba(245,158,11,0.25);
+  background: rgba(245,158,11,0.06);
+}
+
+/* ── Grid layout ──────────────────────────────────────────────────────────── */
+.ns-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 1080px) {
+  .ns-grid { grid-template-columns: 1fr; }
+}
+
+.ns-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
+/* ── Block (panel container) ──────────────────────────────────────────────── */
+.ns-block {
+  background: rgba(5,21,37,0.65);
+  border: 1px solid rgba(245,158,11,0.08);
+  border-top: 1px solid rgba(245,158,11,0.18);
+  box-shadow: 0 1px 0 rgba(245,158,11,0.06) inset;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Corner accents */
+.ns-block::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 12px; height: 12px;
+  border-top: 1px solid rgba(245,158,11,0.35);
+  border-left: 1px solid rgba(245,158,11,0.35);
+  pointer-events: none;
+}
+.ns-block::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 12px; height: 12px;
+  border-bottom: 1px solid rgba(245,158,11,0.15);
+  border-right: 1px solid rgba(245,158,11,0.15);
+  pointer-events: none;
+}
+
+.ns-block__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(245,158,11,0.08);
+  background: linear-gradient(90deg, rgba(245,158,11,0.04), transparent 70%);
+}
+
+/* ── Labels & text ────────────────────────────────────────────────────────── */
+.ns-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--c-mid);
+}
+.ns-label--red { color: var(--c-crimson); }
+.ns-label--dim { color: var(--c-mid); opacity: 0.6; font-size: 8px; }
+
+.ns-count {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--c-mid);
+}
+
+.ns-mono { font-family: var(--c-mono); }
+
+.ns-empty {
+  padding: 20px 16px;
+  font-size: 10px;
+  color: var(--c-mid);
+  letter-spacing: 0.06em;
+  text-align: center;
+  opacity: 0.6;
+}
+.ns-empty--ok { color: var(--c-green); opacity: 0.7; }
+
+/* ── Dot indicators ───────────────────────────────────────────────────────── */
+.ns-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ns-glow--green {
+  background: var(--c-green);
+  box-shadow: 0 0 8px var(--c-green), 0 0 16px rgba(16,185,129,0.4);
+}
+.ns-glow--amber {
+  background: var(--c-amber);
+  box-shadow: 0 0 8px var(--c-amber), 0 0 16px rgba(245,158,11,0.4);
+}
+.ns-glow--red {
+  background: var(--c-crimson);
+  box-shadow: 0 0 8px var(--c-crimson), 0 0 16px rgba(239,68,68,0.4);
+}
+
+/* ── Value colors ─────────────────────────────────────────────────────────── */
+.ns-val--green  { color: var(--c-green); }
+.ns-val--amber  { color: var(--c-amber); }
+.ns-val--red    { color: var(--c-crimson); }
+.ns-val--dim    { color: var(--c-mid); }
+
+/* ── KV Grid (Node Status) ────────────────────────────────────────────────── */
+.ns-kv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0;
+}
+
+.ns-kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+.ns-kv:nth-child(odd) {
+  border-right: 1px solid rgba(255,255,255,0.02);
+}
+.ns-kv__k {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--c-mid);
+}
+.ns-kv__v {
+  font-size: 11px;
+  color: var(--c-hi);
+  text-align: right;
+}
+
+.ns-enforcement-warn {
+  padding: 10px 16px;
+  background: rgba(239,68,68,0.04);
+  border-top: 1px solid rgba(239,68,68,0.12);
+}
+
+.ns-blocker {
+  font-size: 9px;
+  color: var(--c-crimson);
+  letter-spacing: 0.06em;
+  padding: 3px 0;
+  opacity: 0.85;
+}
+.ns-blocker::before { content: '▸ '; }
+

@@ -22,6 +22,7 @@ export interface FrontierWardenDataState {
   contractsLive: boolean;
   provenance: Record<string, Provenance>;
   error: string | null;
+  eveIdentity: EveIdentity | null;
   refresh: () => void;
 }
 
@@ -344,5 +345,5 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
     return () => clearInterval(id);
   }, [refresh]);
 
-  return { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, refresh };
+  return { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, eveIdentity, refresh };
 }

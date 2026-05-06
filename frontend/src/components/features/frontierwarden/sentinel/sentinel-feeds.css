@@ -1,0 +1,244 @@
+/* ── Warnings ─────────────────────────────────────────────────────────────── */
+.ns-warn-list {
+  padding: 4px 0;
+}
+
+.ns-warn-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  border-left: 2px solid transparent;
+  transition: background 80ms;
+}
+.ns-warn-row:hover { background: rgba(255,255,255,0.01); }
+
+.ns-warn--critical { border-left-color: var(--c-crimson); }
+.ns-warn--high     { border-left-color: var(--c-amber); }
+.ns-warn--medium   { border-left-color: rgba(245,158,11,0.4); }
+.ns-warn--low      { border-left-color: var(--c-mid); }
+.ns-warn--info     { border-left-color: rgba(255,255,255,0.06); }
+
+.ns-warn-icon {
+  font-size: 10px;
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+}
+.ns-warn--critical .ns-warn-icon { color: var(--c-crimson); text-shadow: 0 0 6px rgba(239,68,68,0.6); }
+.ns-warn--high .ns-warn-icon     { color: var(--c-amber); text-shadow: 0 0 6px rgba(245,158,11,0.6); }
+.ns-warn--medium .ns-warn-icon   { color: var(--c-amber); opacity: 0.6; }
+.ns-warn--low .ns-warn-icon      { color: var(--c-mid); }
+.ns-warn--info .ns-warn-icon     { color: var(--c-mid); opacity: 0.4; }
+
+.ns-warn-body {
+  flex: 1;
+  min-width: 0;
+}
+.ns-warn-title {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--c-hi);
+}
+.ns-warn-detail {
+  display: block;
+  font-size: 9px;
+  color: var(--c-mid);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+.ns-warn-category {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--c-mid);
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+/* ── Recommendations ──────────────────────────────────────────────────────── */
+.ns-advisory-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  padding: 3px 8px;
+  color: var(--c-amber);
+  border: 1px solid rgba(245,158,11,0.25);
+  background: rgba(245,158,11,0.06);
+}
+
+.ns-advisory-notice {
+  padding: 8px 16px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--c-amber);
+  background: rgba(245,158,11,0.04);
+  border-bottom: 1px solid rgba(245,158,11,0.08);
+}
+
+.ns-rec-list { padding: 4px 0; }
+
+.ns-rec-row {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.ns-rec-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ns-rec-target {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--c-mid);
+  min-width: 60px;
+}
+
+.ns-rec-action {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border: 1px solid;
+}
+.ns-action--allow  { color: var(--c-green); border-color: rgba(16,185,129,0.2); background: rgba(16,185,129,0.04); }
+.ns-action--deny   { color: var(--c-crimson); border-color: rgba(239,68,68,0.25); background: rgba(239,68,68,0.06); }
+.ns-action--review { color: var(--c-amber); border-color: rgba(245,158,11,0.2); background: rgba(245,158,11,0.04); }
+
+.ns-rec-confidence {
+  font-size: 10px;
+  color: var(--c-mid);
+  margin-left: auto;
+}
+
+.ns-rec-reasons {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.ns-rec-code {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  padding: 1px 5px;
+  border: 1px solid rgba(255,255,255,0.04);
+  color: var(--c-mid);
+  font-family: var(--c-mono);
+}
+
+.ns-rec-evidence {
+  margin-top: 6px;
+}
+.ns-rec-evidence-line {
+  font-size: 9px;
+  color: var(--c-mid);
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+}
+
+/* ── Change Feed ──────────────────────────────────────────────────────────── */
+.ns-change-list { padding: 4px 0; }
+
+.ns-change-row {
+  display: grid;
+  grid-template-columns: 64px 140px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  font-size: 10px;
+}
+
+.ns-change-time {
+  font-family: var(--c-mono);
+  font-size: 9px;
+  color: var(--c-mid);
+  letter-spacing: 0.04em;
+}
+
+.ns-change-kind {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.ns-change--critical .ns-change-kind { color: var(--c-crimson); }
+.ns-change--high .ns-change-kind     { color: var(--c-amber); }
+.ns-change--medium .ns-change-kind   { color: var(--c-amber); opacity: 0.7; }
+.ns-change--low .ns-change-kind      { color: var(--c-mid); }
+.ns-change--info .ns-change-kind     { color: var(--c-mid); opacity: 0.6; }
+
+.ns-change-summary {
+  color: var(--c-hi);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Terminal Footer ──────────────────────────────────────────────────────── */
+.ns-terminal-footer {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  margin-top: 24px;
+  border-top: 1px solid rgba(245,158,11,0.08);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--c-mid);
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+}
+.ns-terminal-footer__text { white-space: nowrap; }
+.ns-terminal-footer__sep { margin: 0 10px; color: rgba(245,158,11,0.2); }
+.ns-terminal-footer__spacer { flex: 1; }
+.ns-terminal-footer__eyes { color: var(--c-amber); letter-spacing: 0.16em; opacity: 0.6; }
+
+/* ── Loading state ────────────────────────────────────────────────────────── */
+.ns-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 80px 0;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--c-amber);
+  text-transform: uppercase;
+}
+
+.ns-loading__dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--c-amber);
+  animation: ns-loading-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ns-loading-pulse {
+  0%,100% { opacity: 0.3; transform: scale(0.8); }
+  50%     { opacity: 1; transform: scale(1.1); }
+}
+
+/* ── Error banner ─────────────────────────────────────────────────────────── */
+.ns-error-banner {
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--c-crimson);
+  background: rgba(239,68,68,0.06);
+  border: 1px solid rgba(239,68,68,0.2);
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+}

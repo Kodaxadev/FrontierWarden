@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { FwHeader }           from './FwHeader';
 import { FwNav }              from './FwNav';
+import { NodeSentinelView }   from './views/NodeSentinelView';
 import { GateIntelView }      from './views/GateIntelView';
 import { KillboardView }      from './views/KillboardView';
 import { ReputationView }     from './views/ReputationView';
@@ -16,12 +17,12 @@ import { TrustConsoleView }   from './views/TrustConsoleView';
 import { useFrontierWardenData } from '../../../hooks/useFrontierWardenData';
 import { useDemoFallback } from '../../../hooks/useDemoFallback';
 
-export type FwTab = 'gates' | 'trust' | 'killboard' | 'reputation' | 'contracts' | 'policy' | 'oracle' | 'social' | 'disputes';
+export type FwTab = 'sentinel' | 'gates' | 'trust' | 'killboard' | 'reputation' | 'contracts' | 'policy' | 'oracle' | 'social' | 'disputes';
 
 export function FrontierWardenDashboard() {
-  const [tab, setTab] = useState<FwTab>('gates');
+  const [tab, setTab] = useState<FwTab>('sentinel');
   const { demoEnabled, toggleDemo } = useDemoFallback();
-  const { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error } = useFrontierWardenData({ demoEnabled });
+  const { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, eveIdentity } = useFrontierWardenData({ demoEnabled });
 
   return (
     <div className="c-shell">
@@ -40,6 +41,7 @@ export function FrontierWardenDashboard() {
           <span className="c-sub">{demoEnabled ? 'Mock data shown when live API returns no rows' : 'Only live indexer data — no fallback'}</span>
         </div>
 
+        {tab === 'sentinel'   && <NodeSentinelView data={data} live={live} loading={loading} error={error} eveIdentity={eveIdentity} />}
         {tab === 'gates'      && <GateIntelView  data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
         {tab === 'trust'      && <TrustConsoleView data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
         {tab === 'killboard'  && <KillboardView  data={data} live={killboardLive} loading={loading} error={error} provenance={provenance.killboard} />}

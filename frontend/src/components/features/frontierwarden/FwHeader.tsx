@@ -24,7 +24,12 @@ export function FwHeader({ data }: FwHeaderProps) {
 
   return (
     <header className="c-header">
-      <span className="c-header__brand">FRONTIERWARDEN</span>
+      <span className="c-header__brand">
+        FRONTIERWARDEN
+        <span style={{ fontSize: 8, color: 'var(--c-mid)', letterSpacing: '0.14em', marginLeft: 8 }}>
+          NODE SENTINEL
+        </span>
+      </span>
 
       <div className="c-header__chain">
         <span className="c-header__dot" />

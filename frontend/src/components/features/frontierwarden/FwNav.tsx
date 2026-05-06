@@ -3,6 +3,7 @@ import type { FwTab } from './FrontierWardenDashboard';
 import type { FwAlert } from './fw-data';
 
 const TABS: { id: FwTab; label: string }[] = [
+  { id: 'sentinel',   label: 'NODE SENTINEL' },
   { id: 'gates',      label: 'GATE INTEL'  },
   { id: 'trust',      label: 'TRUST'       },
   { id: 'killboard',  label: 'KILLBOARD'   },
