@@ -13,15 +13,15 @@ live testnet package configured by FrontierWarden does not expose
 `reputation_gate::bind_world_gate`.
 
 The current deployment wallet owns an `UpgradeCap` for the configured package,
-but upgrade compatibility is not proven because the local Sui CLI is behind the
-testnet protocol. The safest approved path is:
+but upgrade compatibility fails because `GatePolicy` changed from 7 fields to 8
+fields. The safe path is:
 
 ```text
 fresh package + fresh compatible GatePolicy + fresh GateAdminCap
 ```
 
-Use the upgrade path only if a current CLI dry run proves compatibility and an
-object-level test proves old GatePolicy objects are usable.
+Do not use the upgrade path for this patch unless the Move design changes to
+avoid modifying the existing `GatePolicy` layout.
 
 ## Current Evidence
 
@@ -87,7 +87,8 @@ Upgrade policy:  0
 Upgrade version: 2
 ```
 
-Upgrade dry-run attempted:
+The first upgrade dry run with `sui 1.70.2` was blocked by a local CLI/protocol
+mismatch:
 
 ```powershell
 sui client upgrade `
@@ -98,20 +99,50 @@ sui client upgrade `
   .
 ```
 
-Observed result:
-
 ```text
 Network protocol version is ProtocolVersion(123), but the maximum supported
 version by the binary is 121. Please upgrade the binary.
+```
+
+The Sui 1.71.1 binary was then extracted from the Chocolatey package into:
+
+```text
+C:\Users\Justi\.local\tools\sui-1.71.1\sui.exe
+```
+
+It reports:
+
+```text
+sui 1.71.1-2f5992f189cd-dirty
+```
+
+Upgrade dry run with Sui 1.71.1:
+
+```powershell
+& 'C:\Users\Justi\.local\tools\sui-1.71.1\sui.exe' client upgrade `
+  --upgrade-capability 0x60913b9130eecf0966d30bcb211a55369107de68083e0692dfe263a782058fea `
+  --dry-run `
+  --json `
+  --gas-budget 500000000 `
+  .
+```
+
+Observed result:
+
+```text
+error[Compatibility E01002]: type mismatch
+GatePolicy: Incorrect number of fields: expected 7, found 8
+Structs are part of a module's public interface and cannot be removed or
+changed during an upgrade.
 ```
 
 Conclusion:
 
 ```text
 UpgradeCap ownership is confirmed.
-Upgrade compatibility is not confirmed.
-The local Sui CLI must be upgraded before any publish/upgrade dry run can be
-trusted.
+Upgrade compatibility fails for the current binding patch.
+Fresh package + fresh compatible GatePolicy is required unless the Move layout
+change is redesigned.
 ```
 
 Sui's official upgrade docs say upgrades require the `UpgradeCap` flow and
@@ -153,26 +184,21 @@ Reason:
 - a fresh compatible `GatePolicy` avoids mutating assumptions around old shared
   object layout.
 
-Consider upgrade only if:
-
-1. the local Sui CLI supports the current testnet protocol;
-2. `sui client upgrade --dry-run` succeeds;
-3. compatibility output explicitly accepts the package change;
-4. a test call proves the existing live `GatePolicy` can still be read and used;
-5. the team intentionally chooses to keep the old policy rather than replace it.
+Do not use `--skip-verify-compatibility` as a production escape hatch. It would
+hide the exact layout mismatch this preflight was meant to catch.
 
 ## Command Sequence
 
-### 1. Upgrade Local Sui CLI
+### 1. Use Current Sui CLI
 
 ```powershell
-sui --version
-sui client active-env
-sui client active-address
+& 'C:\Users\Justi\.local\tools\sui-1.71.1\sui.exe' --version
+& 'C:\Users\Justi\.local\tools\sui-1.71.1\sui.exe' client active-env
+& 'C:\Users\Justi\.local\tools\sui-1.71.1\sui.exe' client active-address
 ```
 
-The CLI must support the current testnet protocol before deployment commands are
-meaningful.
+Chocolatey install failed without admin rights, so this preflight used the
+extracted user-space binary directly.
 
 ### 2. Build
 
@@ -197,9 +223,27 @@ If this fails on layout compatibility, stop and use the fresh package path.
 
 ### 4. Fresh Package Dry Run
 
+Because the repo has an existing `Published.toml`, simulate a fresh publish from
+a temporary copy with `Published.toml` removed:
+
 ```powershell
-sui client publish --dry-run --json --gas-budget 500000000 .
+& 'C:\Users\Justi\.local\tools\sui-1.71.1\sui.exe' client publish `
+  --dry-run `
+  --json `
+  --gas-budget 500000000 `
+  <TEMP_COPY_WITHOUT_Published.toml>
 ```
+
+Observed result:
+
+```text
+status: success
+simulated package ID: 0xe563909a19d40ef6338401fdb67d6ed87f41b59526e20883f52875b012812540
+simulated UpgradeCap ID: 0x0e1de23851e10f907289e69bc0a75be9c187356804a74cb631713b30b19b812c
+simulated gas: 170828400 MIST
+```
+
+These IDs are dry-run artifacts and must not be used in config.
 
 ### 5. Fresh Package Publish
 
@@ -279,9 +323,10 @@ World package config is unchanged.
 Before any frontend bind implementation:
 
 1. Upgrade local Sui CLI until dry-run commands support the current testnet
-   protocol.
-2. Decide fresh package or compatible upgrade from dry-run evidence.
-3. Publish or upgrade a package containing `bind_world_gate`.
+   protocol, or use the extracted Sui 1.71.1 binary explicitly.
+2. Use the fresh package path; upgrade compatibility failed on `GatePolicy`
+   layout.
+3. Publish a fresh package containing `bind_world_gate`.
 4. Capture the active package ID.
 5. Create a compatible `GatePolicy` and `GateAdminCap` if using the fresh path.
 6. Capture GatePolicy ID, initial shared version, and GateAdminCap ID.
@@ -323,8 +368,9 @@ smoke tests.
 
 ## Open Risks
 
-- Local Sui CLI is stale relative to testnet protocol and must be upgraded.
-- `GatePolicy` layout compatibility is unproven and likely unsafe to assume.
+- Default `sui` on PATH is still the stale Cargo-installed binary unless PATH is
+  updated or the extracted Sui 1.71.1 binary is invoked explicitly.
+- Package upgrade compatibility fails for the current `GatePolicy` layout.
 - Frontend `VITE_*` config and Railway `EFREP_PACKAGE_ID` can drift.
 - Binding events can become invisible if Railway watches the wrong package.
 - Existing live GatePolicy objects remain legacy/unbound unless explicitly
