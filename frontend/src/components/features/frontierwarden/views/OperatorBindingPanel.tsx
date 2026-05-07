@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useGateAdminCaps } from '../../../../hooks/useGateAdminCaps';
 import { fetchGateBindingStatus, fetchWorldGates } from '../../../../lib/api';
 import type {
   GateBindingStatusResponse,
@@ -28,7 +29,44 @@ function gateLabel(gate: WorldGateCandidate): string {
   return `${shortId(gate.worldGateId)} / item ${gate.itemId}${linked}`;
 }
 
+function adminCapCopy(
+  walletAddress: string | null,
+  loading: boolean,
+  error: string | null,
+  hasMatchingCap: boolean,
+) {
+  if (!walletAddress) {
+    return {
+      label: 'Wallet not connected',
+      detail: 'Connect the operator wallet to check GateAdminCap ownership.',
+    };
+  }
+  if (loading) {
+    return {
+      label: 'Checking GateAdminCap',
+      detail: 'Looking for admin capability objects owned by the connected wallet.',
+    };
+  }
+  if (error) {
+    return {
+      label: 'GateAdminCap query failed',
+      detail: error,
+    };
+  }
+  if (hasMatchingCap) {
+    return {
+      label: 'GateAdminCap found',
+      detail: 'Connected wallet controls the admin cap for this GatePolicy.',
+    };
+  }
+  return {
+    label: 'No matching GateAdminCap',
+    detail: 'Connected wallet does not control the admin cap for this GatePolicy.',
+  };
+}
+
 export function OperatorBindingPanel({ gatePolicyId }: OperatorBindingPanelProps) {
+  const adminCaps = useGateAdminCaps(gatePolicyId);
   const [state, setState] = useState<BindingReadState>({
     binding: null,
     worldGates: [],
@@ -72,6 +110,12 @@ export function OperatorBindingPanel({ gatePolicyId }: OperatorBindingPanelProps
     () => state.worldGates.find(gate => gate.worldGateId === selectedWorldGateId) ?? null,
     [selectedWorldGateId, state.worldGates],
   );
+  const capCopy = adminCapCopy(
+    adminCaps.walletAddress,
+    adminCaps.loading,
+    adminCaps.error,
+    adminCaps.hasMatchingCap,
+  );
 
   return (
     <div style={{
@@ -98,6 +142,16 @@ export function OperatorBindingPanel({ gatePolicyId }: OperatorBindingPanelProps
         <span className="c-kv__v">
           {state.binding ? <GateBindingStatusBadge binding={state.binding} /> : 'loading'}
         </span>
+      </div>
+      <div className="c-kv">
+        <span className="c-kv__k">Admin capability</span>
+        <span className="c-kv__v">{capCopy.label}</span>
+      </div>
+      <div className="c-sub" style={{ marginBottom: 12 }}>
+        {capCopy.detail}
+        {adminCaps.matchingCap && (
+          <> Cap {shortId(adminCaps.matchingCap.objectId)}.</>
+        )}
       </div>
 
       <label className="c-kv" style={{ alignItems: 'center' }}>
