@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useBindWorldGate } from '../../../../hooks/useBindWorldGate';
 import { useGateAdminCaps } from '../../../../hooks/useGateAdminCaps';
 import { fetchGateBindingStatus, fetchWorldGates } from '../../../../lib/api';
 import type {
@@ -65,6 +66,21 @@ function adminCapCopy(
   };
 }
 
+function bindingDisabledReason(
+  binding: GateBindingStatusResponse | null,
+  selectedGate: WorldGateCandidate | null,
+  hasMatchingCap: boolean,
+  walletAddress: string | null,
+): string | null {
+  if (!walletAddress) return 'Connect wallet';
+  if (!hasMatchingCap) return 'Missing GateAdminCap';
+  if (!selectedGate) return 'Select world gate';
+  if (binding?.bindingStatus !== 'unbound') return 'Already bound';
+  if (selectedGate.status.toLowerCase() !== 'online') return 'World gate offline';
+  if (!selectedGate.linkedGateId) return 'World gate unlinked';
+  return null;
+}
+
 export function OperatorBindingPanel({ gatePolicyId }: OperatorBindingPanelProps) {
   const adminCaps = useGateAdminCaps(gatePolicyId);
   const [state, setState] = useState<BindingReadState>({
@@ -72,6 +88,9 @@ export function OperatorBindingPanel({ gatePolicyId }: OperatorBindingPanelProps
     worldGates: [],
     loading: true,
     error: null,
+  });
+  const bindTx = useBindWorldGate(gatePolicyId, binding => {
+    setState(prev => ({ ...prev, binding }));
   });
   const [selectedWorldGateId, setSelectedWorldGateId] = useState('');
 
@@ -116,6 +135,24 @@ export function OperatorBindingPanel({ gatePolicyId }: OperatorBindingPanelProps
     adminCaps.error,
     adminCaps.hasMatchingCap,
   );
+  const disabledReason = bindingDisabledReason(
+    state.binding,
+    selectedGate,
+    adminCaps.hasMatchingCap,
+    adminCaps.walletAddress,
+  );
+  const canAttemptBinding = disabledReason == null
+    && bindTx.bindState.step !== 'submitted'
+    && bindTx.sponsoredState.step !== 'signing'
+    && bindTx.sponsoredState.step !== 'executing';
+
+  const attemptBinding = () => {
+    if (!canAttemptBinding || !adminCaps.matchingCap || !selectedGate) return;
+    void bindTx.bindWorldGate({
+      gateAdminCapId: adminCaps.matchingCap.objectId,
+      worldGateId: selectedGate.worldGateId,
+    });
+  };
 
   return (
     <div style={{
@@ -208,8 +245,25 @@ export function OperatorBindingPanel({ gatePolicyId }: OperatorBindingPanelProps
         </div>
       )}
 
-      <button className="c-commit" disabled style={{ marginTop: 16 }}>
-        Attempt binding unavailable
+      {bindTx.bindState.message && (
+        <div className="c-sub" style={{ marginTop: 12 }}>
+          {bindTx.bindState.message}
+          {bindTx.bindState.digest && <> Tx {shortId(bindTx.bindState.digest)}.</>}
+        </div>
+      )}
+      {(bindTx.bindState.error || bindTx.sponsoredState.error) && (
+        <div className="c-sub" style={{ color: 'var(--c-crimson)', marginTop: 12 }}>
+          {bindTx.bindState.error ?? bindTx.sponsoredState.error}
+        </div>
+      )}
+
+      <button
+        className="c-commit"
+        disabled={!canAttemptBinding}
+        onClick={attemptBinding}
+        style={{ marginTop: 16 }}
+      >
+        {canAttemptBinding ? 'Attempt binding' : `Attempt binding unavailable${disabledReason ? ` - ${disabledReason}` : ''}`}
       </button>
     </div>
   );
