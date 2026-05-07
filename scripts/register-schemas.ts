@@ -18,9 +18,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { loadKeypair } from './lib/seed-wallet.js';
+import { execute, loadKeypair, makeClient } from './lib/seed-wallet.js';
 
 interface SchemaSpec {
   id: string;            // schema_id as ASCII (encoded to vector<u8>)
@@ -65,23 +64,17 @@ async function main() {
   const { network, package: pkg, schemaRegistry } = loadAddresses();
   const keypair = loadKeypair();
   const sender = keypair.getPublicKey().toSuiAddress();
-  const rpc = process.env.SUI_RPC_URL ?? getFullnodeUrl(network);
-  const gasBudget = BigInt(process.env.GAS_BUDGET ?? '100000000');
-  const dryRun = process.env.DRY_RUN === '1';
 
   console.log('[register-schemas]');
   console.log('  package         :', pkg);
   console.log('  schema_registry :', schemaRegistry);
   console.log('  network         :', network);
   console.log('  sender          :', sender);
-  console.log('  rpc             :', rpc);
   console.log('  schemas         :', SCHEMAS.map(s => s.id).join(', '));
-  console.log('  mode            :', dryRun ? 'dry-run' : 'submit');
 
-  const client = new SuiClient({ url: rpc });
+  const client = makeClient();
   const tx = new Transaction();
   tx.setSender(sender);
-  tx.setGasBudget(gasBudget);
 
   for (const s of SCHEMAS) {
     tx.moveCall({
@@ -96,35 +89,8 @@ async function main() {
     });
   }
 
-  if (dryRun) {
-    const built = await tx.build({ client });
-    const simulated = await client.dryRunTransactionBlock({ transactionBlock: built });
-    console.log('\n[dry-run] effects:', simulated.effects.status);
-    if (simulated.effects.status.status !== 'success') {
-      console.error(simulated.effects.status.error);
-      process.exit(1);
-    }
-    console.log('[dry-run] gas used (MIST):', simulated.effects.gasUsed);
-    return;
-  }
-
-  const result = await client.signAndExecuteTransaction({
-    transaction: tx,
-    signer: keypair,
-    options: { showEffects: true, showEvents: true },
-  });
-
-  console.log('\n[submit] digest:', result.digest);
-  console.log('[submit] status:', result.effects?.status);
-  if (result.effects?.status.status !== 'success') {
-    console.error(result.effects?.status.error);
-    process.exit(1);
-  }
-  const registered = (result.events ?? [])
-    .filter(e => e.type.endsWith('::schema_registry::SchemaRegistered'))
-    .map(e => (e.parsedJson as { schema_id: number[] }).schema_id)
-    .map(bytes => new TextDecoder().decode(Uint8Array.from(bytes)));
-  console.log('[submit] registered:', registered);
+  await execute(client, keypair, tx, 'REGISTER-SCHEMAS');
+  console.log('[submit] registered:', SCHEMAS.map(s => s.id));
 }
 
 main().catch(err => {

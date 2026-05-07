@@ -59,7 +59,7 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
     // Load saved cursors for each module.
     let mut cursors: Vec<(&str, Option<EventId>)> = Vec::with_capacity(TRACKED_MODULES.len());
     for &module in TRACKED_MODULES {
-        let cursor = restore_cursor(&pool, module).await;
+        let cursor = restore_cursor(&pool, &package_id, module).await;
         cursors.push((module, cursor));
     }
     let mut world_cursors = restore_world_gate_extension_cursors(&pool, cfg.eve.as_ref()).await;
@@ -99,7 +99,7 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
             }
 
             if let Some(next) = page.next_cursor {
-                persist_cursor(&pool, module, &next).await;
+                persist_cursor(&pool, &package_id, module, &next).await;
                 *cursor = Some(next);
             }
         }
@@ -152,12 +152,12 @@ struct WorldEventCursor {
 
 // ── Cursor helpers ────────────────────────────────────────────────────────────
 
-fn cursor_key(module: &str) -> String {
-    format!("cursor:{module}")
+fn cursor_key(package_id: &str, module: &str) -> String {
+    format!("cursor:{package_id}:{module}")
 }
 
-async fn restore_cursor(pool: &PgPool, module: &str) -> Option<EventId> {
-    let key = cursor_key(module);
+async fn restore_cursor(pool: &PgPool, package_id: &str, module: &str) -> Option<EventId> {
+    let key = cursor_key(package_id, module);
     restore_cursor_key(pool, module, &key).await
 }
 
@@ -178,8 +178,8 @@ async fn restore_cursor_key(pool: &PgPool, label: &str, key: &str) -> Option<Eve
     }
 }
 
-async fn persist_cursor(pool: &PgPool, module: &str, cursor: &EventId) {
-    let key = cursor_key(module);
+async fn persist_cursor(pool: &PgPool, package_id: &str, module: &str, cursor: &EventId) {
+    let key = cursor_key(package_id, module);
     persist_cursor_key(pool, &key, cursor).await
 }
 
@@ -218,11 +218,20 @@ async fn restore_world_gate_extension_cursors(
 
 #[cfg(test)]
 mod tests {
-    use super::TRACKED_MODULES;
+    use super::{cursor_key, TRACKED_MODULES};
 
     #[test]
     fn tracks_operational_protocol_modules() {
         assert!(TRACKED_MODULES.contains(&"fraud_challenge"));
         assert!(TRACKED_MODULES.contains(&"reputation_gate"));
+    }
+
+    #[test]
+    fn module_cursor_keys_are_package_scoped() {
+        let old_key = cursor_key("0xold", "reputation_gate");
+        let new_key = cursor_key("0xnew", "reputation_gate");
+
+        assert_eq!(old_key, "cursor:0xold:reputation_gate");
+        assert_ne!(old_key, new_key);
     }
 }

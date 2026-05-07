@@ -1,17 +1,17 @@
 {
   "network": "testnet",
   "chain_id": "4c78adac",
-  "deployed_at": "2026-04-28",
-  "note": "Upgraded 2026-04-29 to v2 package with reputation_gate::TollsWithdrawn event. On-chain reseed remains valid on original shared objects.",
+  "deployed_at": "2026-05-06",
+  "note": "Fresh package published 2026-05-06 for GatePolicy world_gate_id binding support. Previous package/policies are legacy/historical.",
   "package": {
-    "id": "0xe41ddd1a2126af8b4bae52ea0526959f76b4e4f445c1054a53cbecfb15ac0ea2",
-    "original_id": "0xfd1b1315f9002b65ac2a214d2b7d312db75836c8e67f8f00a747206b5a61876c",
-    "version": "2",
-    "publish_tx": "2nG49mv8Erzob76XXmemok3KFPjTrcbmdkifrhtHzXuT",
-    "upgrade_tx": "5818FL8UHSiUvMYsWycLFDEudRtEAQNpm4eQuKoGGpaa",
-    "upgrade_checkpoint": 331265863,
-    "schemas_registered_tx": "9kqMa7tM7Ro5GRAaWzEVBSrgEPR8JsbX1SsV5E2pVmCo",
-    "upgrade_cap": "0x60913b9130eecf0966d30bcb211a55369107de68083e0692dfe263a782058fea",
+    "id": "0xb43fcd4e383efcb9af8c6d7b621958153dd92876da0e769b2167c2ccf409abfa",
+    "original_id": "0xb43fcd4e383efcb9af8c6d7b621958153dd92876da0e769b2167c2ccf409abfa",
+    "version": "1",
+    "publish_tx": "FeWLpKJSrfQRt47nd51L7NqEYWYYR6MRG6vathKbgBVw",
+    "upgrade_tx": null,
+    "upgrade_checkpoint": null,
+    "schemas_registered_tx": "AEDZta3AdTWiyr3yPt3KjAVdx1A5dzhJ8xMiwnGWPna3",
+    "upgrade_cap": "0x7fc3220ea06d912afee9ab0ab2514d3cbd9c242983054a36b814a24f032650b9",
     "modules": [
       "attestation",
       "fraud_challenge",
@@ -27,24 +27,22 @@
   },
   "shared_objects": {
     "schema_registry": {
-      "id": "0x7cc899e0d1677dba3cf09659b79801abf37a87a75ddca35a68dc6e2a372a455b",
+      "id": "0xc85e7257af424bd0c17c8537ad74b2e8417f3ba0b8862ac4100ee80f1c3a6e1e",
       "type": "...::schema_registry::SchemaRegistry",
-      "initial_version": 349181608
+      "initial_version": 349181655
     },
     "oracle_registry": {
-      "id": "0x9ab780bd914d7e61a1b73896d900968ecec752509f8ad89c824c21162137e9f2",
+      "id": "0xcbe4f3a7bdfdcdb3035ccb091729285c5265cfd14e79207145cbde3953912688",
       "type": "...::oracle_registry::OracleRegistry",
-      "initial_version": 349181608
+      "initial_version": 349181655
     },
     "gate_policy": {
-      "id": "0xb63c9939e28db885392e68537336f85453392ac07d4590c029d1f65938733e36",
+      "id": "0x7b10f2ee46602382ad8b5a1716f7282a3f6db53b4b6346f85ec27b8308353807",
       "type": "...::reputation_gate::GatePolicy",
-      "initial_version": 349181609,
-      "create_tx": "AN5qG3XdQ9PAJ9oJQCh6CjrnFQc3kBkjhtj3m5zZyUaR",
-      "latest_config_tx": "G4fGxvgpdhbjy4yRu474S9S4vTYpYJqAVcEbSzhrTvsC",
-      "latest_config_checkpoint": 331437414,
-      "latest_withdraw_tx": "CAJWpnWSrqGLqtQqvKQ1NQ829C1QJ6qzcEHGf8U5voud",
-      "latest_withdraw_checkpoint": 331437435,
+      "initial_version": 349181665,
+      "create_tx": "HPbaewQMaAR4RXuadeZpZgdiw1wEqKeqaFaXqeFrTQCc",
+      "latest_config_tx": "GpXjDsihTtvKU4MwW8a3KHC8tny366niUqQZsDzRL7Ur",
+      "latest_config_checkpoint": 334017323,
       "config": {
         "schema_id": "TRIBE_STANDING",
         "ally_threshold": 500,
@@ -52,10 +50,29 @@
       }
     },
     "gate_admin_cap": {
-      "id": "0xa6c2b1f6ca3855bd968b8e7f7692bee75cc85606ef47078afaeeb7f85bc8d5ff",
+      "id": "0x7876d36be78743903085fb0e32e56fa82424fbc6f0ee4997e9a237a14b2253a3",
       "type": "...::reputation_gate::GateAdminCap",
       "owner": "0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f",
-      "transfer_tx": "EjhkVCtU5JfdNZL6gasvudNPzcExLAswCPXigij1HUYy"
+      "transfer_tx": "4JSqpkZU2Ye91mq5r9RfkS3m5FyPKSG7qou9S2tqvNPf"
+    },
+    "first_unindexed_gate_policy": {
+      "id": "0x9e025d376cfe03512d98707d33713fdbfbd46a0af32701dac2b9e3770eae028e",
+      "type": "...::reputation_gate::GatePolicy",
+      "initial_version": 349181656,
+      "create_tx": "AwRB9jpYjAUztvUnhE5AyLZZdb6gKKiQ5VzjdqXtxCd8",
+      "config": {
+        "schema_id": "TRIBE_STANDING",
+        "ally_threshold": 500,
+        "base_toll_mist": 100000000
+      },
+      "note": "First fresh-package GatePolicy create path did not emit GateConfigUpdated; kept for audit only."
+    },
+    "first_unindexed_gate_admin_cap": {
+      "id": "0x7d1bd8471e2359aa326f5c856ab07020491b8241f90b6491f2e6c12f07d0c9e6",
+      "type": "...::reputation_gate::GateAdminCap",
+      "owner": "0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f",
+      "transfer_tx": "FFHxseLVo9HsmVHzR3hNuqPLhSswWG2af96LRi5EBLd2",
+      "note": "Cap from first fresh-package GatePolicy; kept for audit only."
     }
   },
   "deployer_objects": {
@@ -64,12 +81,12 @@
       "role": "Pays sponsored transaction gas only; does not own GateAdminCap"
     },
     "reputation_profile": {
-      "id": "0xc3ffccede53e1ee7fb8388362a841b0cfa0ee621f13f8f89e4bf551267515bbf",
+      "id": "0x4d0345c47ca04baa6d9b7abe968b96dc31a6c62e9bf9519429d8026c96f88032",
       "type": "...::profile::ReputationProfile",
-      "note": "Shared profile for deployer 0xcfcf...db8f; seeded via TX-1 seed-testnet.ts"
+      "note": "Fresh package deployer profile seeded via FDiGrRgCpYmck3EZEfxzbdkjvGjzwfu2jZ8A7Wjg8rF1"
     },
     "oracle_cap": {
-      "id": "0xdd27c7ab2d385a597d60cbda3b2c541009b54fc76dbe91dc50c670be21c00ff9",
+      "id": "0x5343cbfa5e85f54dbda394bc6fe4dc1712dc8b1dd34f3d89b282b751d64c0cd7",
       "type": "...::oracle_registry::OracleCapability",
       "owner": "0xcfcf2247346d7a0676e2018168f94b86e1d1263fd3afd6862685725c8c49db8f",
       "authorized_schemas": [
@@ -85,15 +102,15 @@
         "PLAYER_BOUNTY",
         "TRIBE_STANDING"
       ],
-      "note": "Seeded via TX-1 seed-testnet.ts (1.0 SUI stake)"
+      "note": "Fresh package oracle cap seeded via FDiGrRgCpYmck3EZEfxzbdkjvGjzwfu2jZ8A7Wjg8rF1"
     },
     "tribe_standing_attestation_gate_admin": {
-      "id": "0x308d20a6dd7e98f9d212d2a9b3066fd5a0208f7f5c66231c2a9ab802a258be49",
+      "id": "0x7b4c0652836b43bf6409a7fa43fcd0e07e53eb77f7ee7e4ef98119756e8396f5",
       "type": "...::attestation::Attestation",
       "owner": "0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f",
       "schema": "TRIBE_STANDING",
       "value": 750,
-      "issued_tx": "AwN5rdhQNopjaCZ8GNSdLpoBez8FPQKa1t1KEuz1pYSi"
+      "issued_tx": "Fu2pv9FnjnFLx8twXRgS3rojBxog6eVPEoGLatqXoN7p"
     },
     "tribe_standing_attestation_eve": {
       "id": "0x62219deb27aadf9dad90d03af7934a64a94643fc0ad8a188e38776d32364291a",
@@ -103,14 +120,16 @@
       "schema": "TRIBE_STANDING",
       "value": 750,
       "issued_tx": "FHwyCS6x2L6GpKj5ML1MoFrNdpqQn6yqFmTBbe2JWDiG",
-      "note": "Legacy deployer-oracle proof. Replace with an EVE Vault-issued proof after 0xabff...b4430f registers as oracle."
+      "note": "Legacy deployer-oracle proof from previous active package; current fresh package uses tribe_standing_attestation_gate_admin."
     }
   },
   "seed_transactions": {
-    "bootstrap": "7KgHY5fRc8wnJZHAEfubFkN6hoRQwHCBjadwVTwbcC97",
-    "self_score_credit_700": "8BMoJufMLZBoqx57kZpFLkNt6cc6sNALSJhn11fygbDZ",
-    "vouch_deployer_to_player_a": "44XCMLRFTbKhxhix8JXoSi5aLMQUCTK5vrsFVRKAdVbr",
-    "attestations_12gate_3kill": "Dz4aokXRzorurm7HyM7vV9FP1yWjp2XmG9vyYTuaRbaq"
+    "bootstrap": "FDiGrRgCpYmck3EZEfxzbdkjvGjzwfu2jZ8A7Wjg8rF1",
+    "self_score_credit_700": "4UtKRFh2tSd3BhnQi31dvPy4CLFAKAi8XAHxeUrAydPw",
+    "vouch_deployer_to_player_a": null,
+    "attestations_12gate_3kill": "2fre5GeDQL4ZgTGvZiFJjeb1fAAScDn1YtpJk8iPTJrP",
+    "credit_schema_registered": "7BBpyTB5r4wCTVvN6rHyWSb7sSaAus4futi41wFyTyUQ",
+    "tribe_standing_gate_admin": "Fu2pv9FnjnFLx8twXRgS3rojBxog6eVPEoGLatqXoN7p"
   },
   "previous_deployment": {
     "network": "devnet",
@@ -118,5 +137,15 @@
     "deployed_at": "2026-04-25",
     "package_id": "0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37",
     "schemas_registered_tx": "8unGkdS3gNjuPfqcgmivcaejZsCXnsnDsVz9Ltt2dgPL"
+  },
+  "legacy_active_package": {
+    "package_id": "0xe41ddd1a2126af8b4bae52ea0526959f76b4e4f445c1054a53cbecfb15ac0ea2",
+    "original_id": "0xfd1b1315f9002b65ac2a214d2b7d312db75836c8e67f8f00a747206b5a61876c",
+    "publish_tx": "2nG49mv8Erzob76XXmemok3KFPjTrcbmdkifrhtHzXuT",
+    "upgrade_tx": "5818FL8UHSiUvMYsWycLFDEudRtEAQNpm4eQuKoGGpaa",
+    "upgrade_cap": "0x60913b9130eecf0966d30bcb211a55369107de68083e0692dfe263a782058fea",
+    "gate_policy_id": "0xb63c9939e28db885392e68537336f85453392ac07d4590c029d1f65938733e36",
+    "gate_admin_cap_id": "0xa6c2b1f6ca3855bd968b8e7f7692bee75cc85606ef47078afaeeb7f85bc8d5ff",
+    "status": "legacy/historical after fresh package publish for binding support"
   }
 }
