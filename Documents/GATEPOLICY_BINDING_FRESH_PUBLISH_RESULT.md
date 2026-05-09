@@ -1,5 +1,11 @@
 # GatePolicy Binding Fresh Publish Result
 
+> **PARTIALLY SUPERSEDED:** Fresh package and active object evidence in this
+> document remains current, but the `UNBOUND` smoke status below was superseded
+> by the successful live bind recorded in
+> `Documents/GATEPOLICY_WORLD_GATE_BIND_RESULT.md`. Current state is `BOUND`,
+> not `BINDING VERIFIED`; FrontierWarden extension evidence remains absent.
+
 Date: 2026-05-06
 Environment: Sui testnet / Stillness
 
@@ -68,9 +74,9 @@ Frontend production config was updated to the fresh package, active policy,
 fresh registries, and fresh GateAdminCap. Railway indexer production config was
 updated so `EFREP_PACKAGE_ID` points to the fresh package.
 
-No frontend bind button was enabled. The operator binding UI remains read-only
-and disabled until GateAdminCap discovery and transaction construction are
-implemented.
+At this fresh-publish point, no frontend bind button was enabled. That status
+was later superseded by GateAdminCap discovery and the live `Attempt binding`
+flow recorded in `Documents/GATEPOLICY_WORLD_GATE_BIND_RESULT.md`.
 
 ## Indexer Cursor Note
 
@@ -79,23 +85,34 @@ could not safely resume against a new package filter. The indexer now scopes
 module cursors by package ID, preventing a fresh package from inheriting a
 legacy package cursor.
 
-## Live Smoke Result
+## Live Smoke Result At Fresh Publish Time
 
 - EF-Indexer deploy: `48cba59b-1f8a-45e0-9df6-9a758a29488b`
 - EF-Indexer health: `ok`
 - Frontend bundle: `/assets/index-DQoT5iAg.js`
 - `/world/gates?tenant=stillness`: `41`
 - `/gates`: includes the active fresh GatePolicy
-- Binding status for active fresh GatePolicy: `unbound`
+- Binding status for active fresh GatePolicy at fresh-publish smoke time:
+  `unbound`
 - `fwExtensionActive`: `false`
 - Trust API `gate_access` for active fresh GatePolicy: `ALLOW_FREE`
 - Gas station health: `ok`, `ready`
 
-Current product truth remains:
+Product truth at this fresh-publish smoke point was:
 
 ```text
 GatePolicy status: UNBOUND
 World Gate candidates: indexed
+FW extension evidence: absent
+Verified binding: false
+```
+
+This smoke status is superseded by
+`Documents/GATEPOLICY_WORLD_GATE_BIND_RESULT.md`:
+
+```text
+GatePolicy status: BOUND
+Bound world Gate: 0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c
 FW extension evidence: absent
 Verified binding: false
 ```

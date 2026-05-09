@@ -1,7 +1,13 @@
 # GatePolicy Binding Deployment Preflight
 
+> **HISTORICAL / SUPERSEDED:** This preflight is retained as evidence of the
+> legacy package upgrade failure and the decision to use a fresh package. It was
+> superseded by `Documents/GATEPOLICY_BINDING_FRESH_PUBLISH_RESULT.md` and the
+> live bind result in `Documents/GATEPOLICY_WORLD_GATE_BIND_RESULT.md`. Do not
+> use the legacy package ID in this document as active configuration.
+
 **Date:** 2026-05-06
-**Status:** Deployment preflight only; no deployment performed
+**Status:** Historical deployment preflight only; superseded by fresh publish and live bind result
 **Scope:** Package alignment before enabling `bind_world_gate` in the frontend.
 
 ## Decision

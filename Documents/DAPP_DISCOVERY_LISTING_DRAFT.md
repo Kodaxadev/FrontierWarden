@@ -1,7 +1,7 @@
 # FrontierWarden dApp Discovery Listing Draft
 
 **Status:** Draft only
-**Last updated:** 2026-05-06
+**Last updated:** 2026-05-07
 **Environment:** Stillness/testnet
 
 This document prepares FrontierWarden for a future EVE Frontier dApp Discovery
@@ -23,7 +23,7 @@ concepts exist, but this draft must not be treated as the final schema.
   "tenant": "stillness",
   "network": "testnet",
   "packageIds": {
-    "frontierWarden": "0xe41ddd1a2126af8b4bae52ea0526959f76b4e4f445c1054a53cbecfb15ac0ea2",
+    "frontierWarden": "0xb43fcd4e383efcb9af8c6d7b621958153dd92876da0e769b2167c2ccf409abfa",
     "worldOriginalId": "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c",
     "worldPublishedAt": "0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780"
   },
@@ -50,6 +50,15 @@ Frontier. It exposes Trust API decisions, Gate Intel, Node Sentinel, Social
 profile/vouch surfaces, and sponsored gate-passage diagnostics.
 ```
 
+Current binding status for listing review:
+
+```text
+Active GatePolicy: 0x7b10f2ee46602382ad8b5a1716f7282a3f6db53b4b6346f85ec27b8308353807
+Bound world Gate: 0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c
+State: BOUND, not BINDING VERIFIED
+FrontierWarden world Gate extension evidence: absent
+```
+
 Long copy:
 
 ```text
@@ -71,8 +80,10 @@ transaction signing support on Stillness/testnet.
 ## Caveats
 
 - FrontierWarden is not currently installed as a verified world Gate extension.
-- Topology warnings must remain dormant unless strict GatePolicy to world Gate
-  binding evidence exists.
+- The active GatePolicy is bound to a world Gate, but this is not `BINDING
+  VERIFIED` because FrontierWarden extension authorization evidence is absent.
+- Binding proves `GatePolicy -> world_gate_id`; extension authorization proves
+  `world_gate_id -> extension TypeName`; verified requires both.
 - `slug` and approval concepts appear in current docs/audit, but exact dApp
   Discovery schema and approval workflow are unverified.
 - Walrus URI, metadata hash, registry object ID, and listing object ID remain

@@ -1,8 +1,8 @@
 # ADR: GatePolicy to World Gate Binding
 
 **Date:** 2026-05-05
-**Status:** Proposed
-**Decision scope:** Architecture only; no code implementation in this ADR.
+**Status:** Accepted / partially implemented
+**Decision scope:** Architecture and implementation status for GatePolicy-to-world-Gate binding.
 
 ## Context
 
@@ -14,9 +14,10 @@ topology/extension indexing:
 - FrontierWarden `GatePolicy` objects evaluate schema, threshold, toll,
   treasury, and pause state.
 
-The missing edge is binding a FrontierWarden `GatePolicy` to an EVE world Gate.
-Current `GatePolicy` objects do not store `world_gate_id`. World extension
-authorization events prove only:
+The original missing edge was binding a FrontierWarden `GatePolicy` to an EVE
+world Gate. The current fresh package now stores `world_gate_id` on
+`GatePolicy`, and the active policy is live-bound to one world Gate. World
+extension authorization events still prove only:
 
 ```text
 world_gate_id -> extension TypeName
@@ -31,6 +32,36 @@ world_gate_id -> FrontierWarden GatePolicy
 Therefore FrontierWarden must not activate topology-derived proof warnings from
 `world_gates` until the evaluated GatePolicy is bound to a world Gate through
 either on-chain binding evidence or an explicitly marked temporary admin binding.
+
+## Current Implementation Status
+
+As of 2026-05-07, Option 1 is partially implemented on Sui testnet / Stillness:
+
+- Fresh package:
+  `0xb43fcd4e383efcb9af8c6d7b621958153dd92876da0e769b2167c2ccf409abfa`
+- Active GatePolicy:
+  `0x7b10f2ee46602382ad8b5a1716f7282a3f6db53b4b6346f85ec27b8308353807`
+- GateAdminCap:
+  `0x7876d36be78743903085fb0e32e56fa82424fbc6f0ee4997e9a237a14b2253a3`
+- Bound world Gate:
+  `0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c`
+- Current state: `BOUND`, not `BINDING VERIFIED`
+- FrontierWarden world Gate extension evidence: absent
+
+Implemented:
+
+- `GatePolicy.world_gate_id: Option<ID>` current-state storage.
+- `bind_world_gate` / `unbind_world_gate` guarded by `GateAdminCap`.
+- `GatePolicyBoundToWorldGate` / `GatePolicyUnboundFromWorldGate` events.
+- Indexer projection and API binding status.
+- Frontend operator binding flow.
+
+Not implemented:
+
+- `FrontierWardenAuth` typed witness.
+- `OwnerCap<world::gate::Gate>` borrow/return discovery or transaction flow.
+- World `gate::authorize_extension` / extension authorization.
+- `BINDING VERIFIED` status for the active policy.
 
 ## Decision
 
@@ -276,17 +307,22 @@ Frontier dApps should store gate policy directly by `world_gate_id`.
 
 ## Phased Plan
 
-1. Keep topology warnings dormant for unbound GatePolicies.
+1. Keep topology warnings dormant for unbound GatePolicies. **Implemented.**
 2. Ask CCP whether gate dApps should use explicit binding objects/events or
-   world-gate-keyed policy state.
+   world-gate-keyed policy state. **Superseded by the accepted hybrid path for
+   FrontierWarden's current implementation.**
 3. If Move-level binding is approved, add optional `world_gate_id` current-state
-   binding to `GatePolicy`.
+   binding to `GatePolicy`. **Implemented in the fresh package.**
 4. Add `GatePolicyBoundToWorldGate` and optional
-   `GatePolicyUnboundFromWorldGate` events.
+   `GatePolicyUnboundFromWorldGate` events. **Implemented.**
 5. Index binding evidence and expose binding status in Gate Intel.
-6. Activate additive topology warnings only for bound policies.
+   **Implemented.**
+6. Activate additive topology warnings only for bound policies. **Partially
+   implemented: offline/unlinked topology warnings use strict active binding
+   joins; missing FrontierWarden extension evidence remains visible in binding
+   status/Gate Intel rather than as a Trust API warning.**
 7. Consider admin-verified binding only if a demo or integration requires a
-   bridge before the Move upgrade.
+   bridge before the Move upgrade. **Not used for the current live binding.**
 
 ## Open CCP Questions
 
