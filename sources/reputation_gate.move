@@ -89,6 +89,9 @@ module reputation::reputation_gate {
 
     // === Structs ===
 
+    /// Witness for authorizing the Smart Gate extension.
+    public struct FrontierWardenAuth has drop {}
+
     /// Shared object -- deployed once per gate. Stores policy params + toll accumulator.
     public struct GatePolicy has key {
         id:              UID,
