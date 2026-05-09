@@ -12,6 +12,7 @@ import { gatePolicyConfigReady, missingGatePolicyConfig } from '../../../../lib/
 import { GateAdminTransferPanel } from '../GateAdminTransferPanel';
 import { GatePolicyProvisionPanel } from '../GatePolicyProvisionPanel';
 import { OperatorWorldGateBindingPanel } from '../OperatorWorldGateBindingPanel';
+import { OperatorExtensionAuthPanel } from '../OperatorExtensionAuthPanel';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
 import { TollWithdrawalLedger } from '../TollWithdrawalLedger';
@@ -154,6 +155,7 @@ export function PolicyView({ data, live = false, loading = false, error = null, 
     <>
       <GatePolicyProvisionPanel />
       <OperatorWorldGateBindingPanel />
+      <OperatorExtensionAuthPanel />
       <div className="c-view__title">Gate Policy Editor · {policy ? shortId(policy.gateId) : 'GATE#7720'}</div>
       <LiveStatus
         loading={loading}
