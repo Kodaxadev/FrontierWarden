@@ -1,21 +1,22 @@
 // reputation_gate.move -- Smart Gate policy engine for EVE Frontier.
 //
 // Architectural context:
-//   The EVE Frontier game runs on EVM (MUD). Sui is the oracle/reputation layer.
-//   This module is the POLICY ENGINE: it evaluates whether a traveler's on-chain
-//   TRIBE_STANDING attestation meets the gate owner's threshold, collects a toll
-//   if applicable, and emits a PassageGranted event. An off-chain EVM bridge
-//   reads these events and relays the decision to the MUD Smart Gate contract.
+//   FrontierWarden is a Sui Move policy layer for EVE Frontier Stillness/testnet.
+//   This module evaluates whether a traveler's on-chain TRIBE_STANDING
+//   attestation meets a GatePolicy threshold, collects a configured toll when
+//   applicable, and emits Sui events for indexed proof bundles and operator UI.
 //
-//   The in-game gate enforcement requires the MUD side (out of scope here).
-//   This contract is the canonical reputation decision record on Sui.
+//   GatePolicy binding proves GatePolicy -> world_gate_id. World Gate extension
+//   authorization is a separate EVE world proof: world_gate_id -> extension
+//   TypeName. BINDING VERIFIED requires both proofs; this module only owns the
+//   FrontierWarden GatePolicy side.
 //
 // Flow:
 //   1. Gate owner deploys: create_gate(...)     GatePolicy (shared) + GateAdminCap (owned)
-//   2. Traveler calls:     check_passage(gate, attestation, payment, ctx)
+//   2. Operator calls:     bind_world_gate(...)  records GatePolicy -> world_gate_id
+//   3. Traveler calls:     check_passage(gate, attestation, payment, ctx)
 //                              toll deducted from payment, remainder returned
 //                              PassageGranted | PassageDenied event emitted
-//   3. EVM bridge watches events     relays allow/deny to MUD Smart Gate
 //
 // Score tiers (configurable per gate):
 //   score >= ally_threshold      ALLY  -- free passage

@@ -273,32 +273,33 @@ module reputation::oracle_registry {
         };
     }
 
-    // === Bridge Functions (called by fraud_challenge.move) ===
-    // BRIDGE: These functions are coupling points between oracle_registry and
-    // fraud_challenge. If OracleRegistry fields (oracles, council) change shape,
-    // grep "// BRIDGE" in both files to find all affected sites.
+    // === Registry coupling helpers (called by fraud_challenge.move) ===
+    // REGISTRY_COUPLING: These functions are coupling points between
+    // oracle_registry and fraud_challenge. If OracleRegistry fields (oracles,
+    // council) change shape, grep "// REGISTRY_COUPLING" in both files to find
+    // all affected sites.
 
-    /// BRIDGE -- Returns true if oracle_address is registered in the registry.
+    /// REGISTRY_COUPLING -- Returns true if oracle_address is registered in the registry.
     public fun contains_oracle(registry: &OracleRegistry, oracle: address): bool {
         table::contains(&registry.oracles, oracle)
     }
 
-    /// BRIDGE -- Returns true if addr is an active council member.
+    /// REGISTRY_COUPLING -- Returns true if addr is an active council member.
     public fun is_council_member(registry: &OracleRegistry, addr: address): bool {
         table::contains(&registry.council, addr)
     }
 
-    /// BRIDGE -- Returns the current council member count (used for quorum calculation).
+    /// REGISTRY_COUPLING -- Returns the current council member count (used for quorum calculation).
     public fun get_council_size(registry: &OracleRegistry): u64 {
         registry.council_size
     }
 
-    /// BRIDGE -- Returns the treasury address (slash proceeds destination).
+    /// REGISTRY_COUPLING -- Returns the treasury address (slash proceeds destination).
     public fun get_treasury(registry: &OracleRegistry): address {
         registry.treasury
     }
 
-    /// BRIDGE -- Slashes an oracle's stake; returns (challenger_reward, treasury_amount, slash_total).
+    /// REGISTRY_COUPLING -- Slashes an oracle's stake; returns (challenger_reward, treasury_amount, slash_total).
     /// Caller is responsible for transferring both returned balances.
     /// slash_pct and challenger_reward_pct are supplied by fraud_challenge.move so
     /// oracle_registry stays agnostic about fraud policy.
