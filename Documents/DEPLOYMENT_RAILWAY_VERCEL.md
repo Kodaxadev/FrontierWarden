@@ -1,6 +1,6 @@
 # FrontierWarden Live Ops Runbook
 
-Last updated: 2026-05-05
+Last updated: 2026-05-10
 
 This is the current deployment runbook for the live FrontierWarden testnet demo.
 It is not a first-deploy placeholder guide.
@@ -138,22 +138,82 @@ mirror them into Vercel `VITE_*` variables.
 
 ## Active Migrations
 
-Supabase should have the migrations from `indexer/migrations/` applied in order:
+Supabase should have the migrations from `indexer/migrations/` applied in order.
+Last confirmed applied through production: **0012** (2026-05-05).
+
+### Applied (0001–0012)
 
 ```text
-0001_efrep.sql
-0002_efrep_indexes.sql
-0002_trust_api_indexes.sql
-0003_efrep_partitions.sql
-0004_gate_challenge_projections.sql
-0005_fix_view_security.sql
-0006_revoke_public_access.sql
-0007_toll_withdrawals.sql
-0008_lock_public_data_api.sql
-0009_raw_event_dedup.sql
-0010_eve_world_data.sql
-0011_eve_identity_status.sql
-0012_eve_identity_character_fields.sql
+0001_efrep.sql                        — core protocol tables
+0002_efrep_indexes.sql                — base indexes
+0003_efrep_partitions.sql             — partition helpers
+0004_gate_challenge_projections.sql   — challenge projection
+0005_fix_view_security.sql            — view security fixes
+0006_revoke_public_access.sql         — public access lockdown
+0007_toll_withdrawals.sql             — toll withdrawal tracking
+0008_lock_public_data_api.sql         — API-layer access lock
+0009_raw_event_dedup.sql              — raw event dedup
+0010_eve_world_data.sql               — EVE world data tables
+0011_eve_identity_status.sql          — EVE identity status
+0012_eve_identity_character_fields.sql — character field enrichment
+```
+
+### Pending — apply to Supabase before next Railway deploy (0013–0019)
+
+Apply in strict order. Each is additive and non-breaking.
+
+```text
+0013_world_gates.sql                  — world Gate object projection (Step 1)
+0014_trust_api_indexes.sql            — Trust API v1 performance indexes
+0015_world_gate_extensions.sql        — world Gate extension state (ExtensionAuthorizedEvent)
+0016_identity_enrichment.sql          — identity_resolution_queue for batch enrichment
+0017_gate_policy_world_bindings.sql   — GatePolicy ↔ world Gate binding projection
+0018_world_gate_links.sql             — bidirectional gate link topology (Step 2)
+0019_world_gate_jumps.sql             — per-jump event log (Step 3)
+```
+
+Apply via Supabase SQL editor or `psql`:
+
+```bash
+psql "$SUPABASE_DB_URL" -f indexer/migrations/0013_world_gates.sql
+psql "$SUPABASE_DB_URL" -f indexer/migrations/0014_trust_api_indexes.sql
+psql "$SUPABASE_DB_URL" -f indexer/migrations/0015_world_gate_extensions.sql
+psql "$SUPABASE_DB_URL" -f indexer/migrations/0016_identity_enrichment.sql
+psql "$SUPABASE_DB_URL" -f indexer/migrations/0017_gate_policy_world_bindings.sql
+psql "$SUPABASE_DB_URL" -f indexer/migrations/0018_world_gate_links.sql
+psql "$SUPABASE_DB_URL" -f indexer/migrations/0019_world_gate_jumps.sql
+```
+
+Each migration enables RLS and revokes anon/authenticated access on new tables.
+All new tables are read only via the Rust API layer.
+
+### Railway environment variable — required before indexer cold start
+
+```bash
+EFREP_WORLD_START_CHECKPOINT=308264360
+```
+
+Set this in the Railway dashboard before the first deploy that includes Steps 2/3.
+This is the Stillness world-event cold-start checkpoint confirmed at the Builders call.
+On resume the indexer uses persisted cursor state; this value only matters on first
+boot or after a cursor reset.
+
+### Post-deploy smoke tests
+
+```bash
+API=https://ef-indexer-production.up.railway.app
+
+# Step 1 — world gate objects
+curl "$API/world/gates/0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c"
+
+# Step 2 — topology
+curl "$API/world/gates/0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c/links"
+
+# Step 3 — jump traffic
+curl "$API/world/gates/0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c/jumps?limit=10"
+
+# Activity counts
+curl "$API/world/gates/0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c/activity"
 ```
 
 Supabase security posture:
