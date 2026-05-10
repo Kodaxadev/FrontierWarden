@@ -381,3 +381,66 @@ export interface IdentityEnrichment {
 }
 
 export type IdentityEnrichmentMap = Record<string, IdentityEnrichment>;
+
+// ── World Gate Traffic API ────────────────────────────────────────────────────
+// Mirrors indexer/src/api_world_gate_traffic.rs response types.
+
+export interface WorldGateActiveLinkItem {
+  destination_gate_id:        string;
+  destination_gate_item_id:   number;
+  destination_gate_tenant:    string;
+  linked_at_checkpoint:       number;
+}
+
+export interface WorldGateLinksResponse {
+  gate_id:      string;
+  active_links: WorldGateActiveLinkItem[];
+  link_count:   number;
+}
+
+export interface WorldGateJumpItem {
+  tx_digest:            string;
+  checkpoint:           number;
+  source_gate_id:       string;
+  destination_gate_id:  string;
+  character_id:         string;
+  character_item_id:    number;
+  character_tenant:     string;
+}
+
+export interface WorldGateJumpsResponse {
+  gate_id: string;
+  jumps:   WorldGateJumpItem[];
+  total:   number;
+}
+
+export interface WorldGateActivityResponse {
+  gate_id:               string;
+  jump_count_1h:         number;
+  jump_count_24h:        number;
+  jump_count_7d:         number;
+  unique_characters_24h: number;
+  is_linked:             boolean;
+  link_count:            number;
+  /** Always present. Windows use indexer-observed insertion time, not on-chain timestamp. */
+  activity_window_note:  string;
+}
+
+export interface WorldGateSummaryResponse {
+  gate_id:             string;
+  item_id:             number;
+  tenant:              string;
+  status:              string;
+  fw_extension_active: boolean;
+  fw_gate_policy_id:   string | null;
+  is_linked:           boolean;
+  link_count:          number;
+  jump_count_24h:      number;
+  active_links:        WorldGateActiveLinkItem[];
+}
+
+export interface WorldCharacterJumpsResponse {
+  character_id: string;
+  jumps:        WorldGateJumpItem[];
+  total:        number;
+}

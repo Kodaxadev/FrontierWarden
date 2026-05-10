@@ -13,6 +13,7 @@ import type { Provenance } from '../LiveStatus';
 import { SponsoredPassageStatus } from './SponsoredPassageStatus';
 import { GateBindingStatusBadge } from './GateBindingStatusBadge';
 import { OperatorBindingPanel } from './OperatorBindingPanel';
+import { WorldGateTrafficPanel } from './WorldGateTrafficPanel';
 
 type GateFilter = 'ALL' | 'open' | 'camped' | 'toll' | 'closed';
 const FILTERS: GateFilter[] = ['ALL', 'open', 'camped', 'toll', 'closed'];
@@ -277,6 +278,11 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
         {selectedGate.sourceId && (
           <OperatorBindingPanel gatePolicyId={selectedGate.sourceId} />
         )}
+
+        {/* ── World Gate Intelligence ───────────────────────────────────── */}
+        <WorldGateTrafficPanel
+          worldGateId={selectedGate.binding?.worldGateId ?? null}
+        />
 
         {/* ── CHECK PASSAGE panel ───────────────────────────────────────── */}
         <div style={{

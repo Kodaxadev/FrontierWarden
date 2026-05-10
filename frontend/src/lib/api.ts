@@ -31,6 +31,11 @@ import type {
   EveWorldStatus,
   EveIdentity,
   IdentityEnrichmentMap,
+  WorldGateSummaryResponse,
+  WorldGateLinksResponse,
+  WorldGateJumpsResponse,
+  WorldGateActivityResponse,
+  WorldCharacterJumpsResponse,
 } from '../types/api.types';
 import { createTrustkit } from './trustkit';
 import type { TrustEvaluateRequest, TrustEvaluateResponse } from '../types/api.types';
@@ -322,3 +327,32 @@ export const fetchEveIdentity = (wallet: string): Promise<EveIdentity> =>
 
 export const fetchBatchIdentities = (wallets: string[]): Promise<IdentityEnrichmentMap> =>
   post('/eve/identity/batch', { wallets });
+
+// ── World Gate Traffic ────────────────────────────────────────────────────────
+
+export const fetchWorldGateSummary = (
+  gateId: string,
+): Promise<WorldGateSummaryResponse> =>
+  get(`/world/gates/${encodeURIComponent(gateId)}`);
+
+export const fetchWorldGateLinks = (
+  gateId: string,
+): Promise<WorldGateLinksResponse> =>
+  get(`/world/gates/${encodeURIComponent(gateId)}/links`);
+
+export const fetchWorldGateJumps = (
+  gateId: string,
+  limit = 20,
+): Promise<WorldGateJumpsResponse> =>
+  get(`/world/gates/${encodeURIComponent(gateId)}/jumps?limit=${limit}`);
+
+export const fetchWorldGateActivity = (
+  gateId: string,
+): Promise<WorldGateActivityResponse> =>
+  get(`/world/gates/${encodeURIComponent(gateId)}/activity`);
+
+export const fetchCharacterJumps = (
+  characterId: string,
+  limit = 20,
+): Promise<WorldCharacterJumpsResponse> =>
+  get(`/world/characters/${encodeURIComponent(characterId)}/jumps?limit=${limit}`);
