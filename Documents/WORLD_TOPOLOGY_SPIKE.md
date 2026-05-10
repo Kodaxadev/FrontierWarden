@@ -737,7 +737,7 @@ BLAKE2b-256 of BCS-serialized gate IDs, direction-agnostic. The actual field nam
 
 **Q4 — Gate linking events ✅ CONFIRMED FROM SOURCE**
 
-Both `GateLinkedEvent` and `GateUnlinkedEvent` exist in `gate.move`. Pending: confirm exact struct field names for both events (see Q11 for `GateCreatedEvent` — same need applies here).
+Both `GateLinkedEvent` and `GateUnlinkedEvent` exist in `gate.move`. Field shapes confirmed via Q11 (2026-05-09): `source_gate_id`, `source_gate_key`, `destination_gate_id`, `destination_gate_key` — identical structs for both events. Step 2 processor is fully unblocked.
 
 ---
 
@@ -779,11 +779,37 @@ Object sync does not use this value.
 
 ---
 
-**Q11 — GateCreatedEvent and GateLinkedEvent/GateUnlinkedEvent struct shapes** *(open)*
+**Q11 — GateCreatedEvent and GateLinkedEvent/GateUnlinkedEvent struct shapes ✅ CONFIRMED via Atlas API (2026-05-09)**
 
-What fields do these events carry? Specifically:
-- `GateCreatedEvent`: does it include `owner_cap_id`, initial `item_id`, and `tenant`? (needed for event-driven gate population in Step 1)
-- `GateLinkedEvent` / `GateUnlinkedEvent`: what are the exact field names for the two gate IDs? (needed for Step 2 processor)
+```move
+// gate.move — confirmed from evefrontier/world-contracts @ db577cf9
+public struct GateCreatedEvent has copy, drop {
+    assembly_id:    ID,
+    assembly_key:   TenantItemId,
+    owner_cap_id:   ID,
+    type_id:        u64,
+    location_hash:  vector<u8>,
+    status:         status::Status,
+}
+
+public struct GateLinkedEvent has copy, drop {
+    source_gate_id:       ID,
+    source_gate_key:      TenantItemId,
+    destination_gate_id:  ID,
+    destination_gate_key: TenantItemId,
+}
+
+public struct GateUnlinkedEvent has copy, drop {
+    source_gate_id:       ID,
+    source_gate_key:      TenantItemId,
+    destination_gate_id:  ID,
+    destination_gate_key: TenantItemId,
+}
+```
+
+`GateCreatedEvent` carries `owner_cap_id` (yes), `assembly_key.item_id` (BIGINT, yes), and `assembly_key.tenant` (yes) — Step 1 event-driven backfill is fully unblocked. Note: no `location_hash` → XYZ mapping; only solar system TenantItemId reference is available elsewhere.
+
+`GateLinkedEvent` / `GateUnlinkedEvent` field names: `source_gate_id`, `source_gate_key`, `destination_gate_id`, `destination_gate_key` — Step 2 event-processor is fully unblocked.
 
 ---
 
@@ -807,7 +833,7 @@ Steps are sequenced so each is independently shippable and non-breaking. No step
 
 ---
 
-### Step 2 — Gate link topology from events ⚠️ PARTIALLY UNBLOCKED
+### Step 2 — Gate link topology from events ✅ SHIPPED (branch codex/world-gate-topology-indexing)
 
 **Dependency:** Step 1 for initial backfill; `GateLinkedEvent`/`GateUnlinkedEvent` for live updates
 **What:**
@@ -815,9 +841,22 @@ Steps are sequenced so each is independently shippable and non-breaking. No step
 - Add a `processor/world_topology.rs` handler that upserts `world_gate_links` on link, deletes on unlink
 - Initial backfill via `world_gates.linked_gate_id` (Step 1 data)
 
-**Ready now:** table/view design, initial backfill strategy, event names, and package-ID strategy.
+**Event field names confirmed (Q11, 2026-05-09 via Atlas API, world-contracts @ db577cf9):**
+- `GateLinkedEvent`: `source_gate_id`, `source_gate_key`, `destination_gate_id`, `destination_gate_key`
+- `GateUnlinkedEvent`: identical fields
 
-**Blocked before event-processor implementation:** exact field names of `GateLinkedEvent`/`GateUnlinkedEvent` (Q11). Do not implement the live link/unlink processor until Q11 is answered or source-inspected.
+**Upsert pattern:** On `GateLinkedEvent`, insert `(source_gate_id, destination_gate_id)` and
+`(destination_gate_id, source_gate_id)` for bidirectional O(1) lookup. On `GateUnlinkedEvent`,
+both rows are marked `is_active = FALSE` in place (rows retained for audit/re-link history).
+
+**Files shipped:**
+- `indexer/migrations/0018_world_gate_links.sql` — table, indexes, RLS, active view
+- `indexer/src/world_topology_parser.rs` — `GateLinkRow`, `GateUnlinkRow`, parse functions, unit tests
+- `indexer/src/world_topology.rs` — `upsert_gate_link`, `mark_gate_unlinked`, `active_links_for_gate`
+- `indexer/src/processor/world_topology.rs` — gate module dispatcher
+- `indexer/src/processor/mod.rs` — topology-first routing for `"gate"` module events
+- `indexer/src/ingester.rs` — `WORLD_GATE_TOPOLOGY_EVENTS`, topology cursor loop
+- `indexer/src/lib.rs` — `pub mod world_topology`, `pub mod world_topology_parser`
 
 **Output:** Bidirectional gate adjacency queryable in O(1)
 **Risk:** Low. Confirmed events exist; schema is simple.
@@ -909,7 +948,7 @@ Until a proven association exists, topology warnings must remain dormant. Three 
 **Current recommended path:** Implement Move-level GatePolicy binding as the target architecture: `GatePolicy` stores the current `world_gate_id` binding, and binding/unbinding emits events for indexing, frontend, audit trail, and API proof bundles. Off-chain admin binding remains only a temporary non-authoritative bridge.
 
 ### Source-confirmed but gated
-- Step 2 live link/unlink processor: event names confirmed; field shapes pending Q11
+- Step 2 live link/unlink processor: ✅ fully unblocked — field shapes confirmed via Q11
 - Step 3 JumpEvent indexer: event shape confirmed; start checkpoint is `308264360`
 - Step 5 tribe warnings: design clear; player tribe data pending Q6
 
@@ -918,7 +957,7 @@ Until a proven association exists, topology warnings must remain dormant. Three 
 - Q6 — Player tribes on Stillness *(blocking Step 5)*
 - Q7 — World package upgrade cadence and advance notice
 - Q9 — Kill event automation suitability
-- Q11 — GateCreatedEvent / GateLinkedEvent / GateUnlinkedEvent field shapes *(blocking Step 2 fully)*
+- ~~Q11 — GateCreatedEvent / GateLinkedEvent / GateUnlinkedEvent field shapes~~ ✅ CONFIRMED 2026-05-09 via Atlas API
 
 ### Builders call question (priority)
 > FrontierWarden currently works as a parallel trust policy, but the missing edge is installing

@@ -38,6 +38,10 @@ mod trust_response;
 mod trust_types;
 mod world_api;
 mod world_gate_extensions;
+mod world_gates;
+mod world_gates_parser;
+mod world_topology;
+mod world_topology_parser;
 #[cfg(test)]
 mod world_gates_api_tests;
 

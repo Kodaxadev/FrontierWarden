@@ -19,3 +19,5 @@ pub mod world_gate_extensions;
 mod world_gate_extensions_tests;
 pub mod world_gates;
 pub mod world_gates_parser;
+pub mod world_topology;
+pub mod world_topology_parser;
