@@ -19,8 +19,8 @@ and why.
 | GateAdminCap | `0x7876d36be78743903085fb0e32e56fa82424fbc6f0ee4997e9a237a14b2253a3` |
 | Bound world Gate | `0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c` |
 | World Gate OwnerCap | `0xf0947247bcb8bbb6409eca42ad93ec21ef777bbda56dc22f1fbbf8a793f8d2d2` |
-| OwnerCap owner (Character) | `0x83c90a36b8ec223d48aa9e3b7ccd4c9ed29ac18e2d488b518148b5d0e7402ca0` (mumuyu) |
-| mumuyu controlling wallet | `0xe8e3a759ebf1fdc69df24ab3a7d1ae99c382b672db2866e5853fb0bcaaffb2f6` |
+| OwnerCap owner (Character) | `0x83c90a36b8ec223d48aa9e3b7ccd4c9ed29ac18e2d488b518148b5d0e7402ca0` (unknown external operator "mumuyu" — not an active demo path) |
+| mumuyu controlling wallet (unknown external — not an active path) | `0xe8e3a759ebf1fdc69df24ab3a7d1ae99c382b672db2866e5853fb0bcaaffb2f6` |
 | Kivik wallet (site owner) | `0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f` |
 | Schema Registry | See `VITE_SCHEMA_REGISTRY_ID` in Vercel |
 | Oracle Registry | See `VITE_ORACLE_REGISTRY_ID` in Vercel |
@@ -198,35 +198,32 @@ The indexer observes the `ExtensionAuthorizedEvent` and sets
 
 **Current blocker:**
 
-The bound world Gate (`0x019f53078f…`) is owned by Character "mumuyu"
-(`0x83c90a36…`), whose controlling wallet is
-`0xe8e3a759ebf1fdc69df24ab3a7d1ae99c382b672db2866e5853fb0bcaaffb2f6`.
+The bound world Gate (`0x019f53078f…`) is owned by an unknown external
+operator — Character "mumuyu" (`0x83c90a36…`). Kivik does not control
+that wallet and cannot authorize the extension on their behalf.
 
-The Kivik wallet (`0xabff3b1b…`) does not own this OwnerCap<Gate> and
-therefore cannot authorize the extension.
+This is expected behavior under the multi-tenant authority model. The site
+owner (Kivik) was never expected to own every Gate. Extension authorization
+requires the Gate's actual owner to connect and execute the PTB. Kivik
+currently has no OwnerCap<Gate> of its own.
 
-**Paths to unblock:**
+**Paths to reach BINDING VERIFIED:**
 
-| Path | Effort | Notes |
-|---|---|---|
-| A | Connect mumuyu wallet (`0xe8e3a759…`) to the dashboard | Low — no new code needed; OperatorExtensionAuthPanel will discover mumuyu's OwnerCap<Gate> automatically |
-| B | Kivik acquires a world Gate in EVE Frontier testnet | Medium — requires in-game action: build or claim a Gate, verify OwnerCap<Gate> is assigned to Kivik's Character |
-| C | A new tenant operator connects with their own OwnerCap<Gate> | Low for the platform — this is the intended multi-tenant path |
+| Path | Notes |
+|---|---|
+| **A — Tenant operator connects (primary intended path)** | Any EVE character with an `OwnerCap<Gate>` connects their wallet to the dashboard. `OperatorExtensionAuthPanel` discovers their authority automatically. No new code needed. See `Documents/TENANT_ONBOARDING.md` for the full checklist. |
+| **B — Kivik acquires a Gate** | Requires in-game action: build or claim a world Gate in EVE Frontier testnet, then verify `OwnerCap<Gate>` is assigned to Kivik's Character. Then rebind GatePolicy to that Gate and authorize. |
+| **C — mumuyu participates (external, not recommended)** | mumuyu is an unknown third-party operator. We do not control their wallet. Do not treat this as an active demo path. Only viable if mumuyu intentionally chooses to participate. |
 
-**Path A step by step (recommended for immediate BINDING VERIFIED smoke):**
+Path A is the product design intent. FrontierWarden is multi-tenant
+operator infrastructure. The site owner is not expected to own every Gate.
 
-1. Import the mumuyu wallet private key into EVE Vault or Sui keystore.
-2. Open `https://frontierwarden.kodaxa.dev`, navigate to Policy view.
-3. Connect mumuyu wallet.
-4. Navigate to Extension Authorization panel.
-5. Select GatePolicy `0x7b10f2ee…` and world Gate `0x019f53078f…`.
-6. `useOperatorGateAuthority` should discover OwnerCap
-   `0xf0947247…` via the mumuyu Character.
-7. Confirm prerequisites: `BOUND` binding + OwnerCap found + Character found.
-8. Click AUTHORIZE EXTENSION.
-9. Wallet signs the borrow/authorize/return PTB via gas station handoff.
-10. Wait for indexer to observe `ExtensionAuthorizedEvent`.
-11. Binding status advances from `BOUND` to `BINDING VERIFIED`.
+**For a real tenant operator running Path A:**
+
+The tenant follows the checklist in `Documents/TENANT_ONBOARDING.md`:
+connect wallet → verify EVE Character → confirm OwnerCap<Gate> detected
+→ provision or use existing GatePolicy → bind Gate → authorize extension
+→ confirm BINDING VERIFIED in the UI.
 
 **Post-authorization verification:**
 
@@ -345,10 +342,10 @@ minutes. The UI labels this explicitly in the `WorldGateTrafficPanel`.
 
 ### Pre-smoke requirements
 
-- [ ] Connected wallet controls GateAdminCap (Kivik wallet or mumuyu wallet)
+- [ ] Connected wallet controls GateAdminCap (Kivik wallet, or a tenant operator wallet)
 - [ ] GatePolicy `0x7b10f2ee…` is bound to world Gate `0x019f53078f…`
-- [ ] For BINDING VERIFIED smoke: mumuyu wallet connected (path A) or
-      Kivik has acquired own Gate (path B)
+- [ ] For BINDING VERIFIED smoke: a tenant operator with OwnerCap<Gate>
+      has connected (see `Documents/TENANT_ONBOARDING.md`)
 - [ ] Railway indexer health returns `{"status":"ok"}`
 - [ ] Gas station health returns `{"ok":true,"ready":true}`
 - [ ] Subject wallet has a valid TRIBE_STANDING attestation
@@ -386,11 +383,11 @@ minutes. The UI labels this explicitly in the `WorldGateTrafficPanel`.
    ✓ GateAdminCap discovered
    ✓ Binding status shows BOUND
 
-5. Extension authorization (Step 4 — requires mumuyu wallet)
-   ✓ Connect mumuyu wallet (0xe8e3a759…)
-   ✓ OperatorExtensionAuthPanel loads
-   ✓ OwnerCap<Gate> 0xf0947247… discovered
-   ✓ Character "mumuyu" resolved
+5. Extension authorization (Step 4 — requires tenant with OwnerCap<Gate>)
+   Prerequisites: see Documents/TENANT_ONBOARDING.md — Steps 1–3
+   ✓ Tenant connects Gate-owning wallet
+   ✓ OperatorExtensionAuthPanel discovers OwnerCap<Gate>
+   ✓ Character resolved for OwnerCap
    ✓ Prerequisites: BOUND + OwnerCap found + Character found = ready
    ✓ AUTHORIZE EXTENSION button enabled
    ✓ Transaction builds and reaches wallet signing
@@ -413,7 +410,7 @@ minutes. The UI labels this explicitly in the `WorldGateTrafficPanel`.
 
 | Item | Reason | Unblock Path |
 |---|---|---|
-| `BINDING VERIFIED` state | mumuyu wallet not yet connected | Connect `0xe8e3a759…` or acquire Kivik Gate |
+| `BINDING VERIFIED` state | No tenant with OwnerCap<Gate> has connected; Kivik does not own a Gate | Tenant operator path A (see TENANT_ONBOARDING.md) or Kivik acquires a Gate (path B) |
 | Extension authorization PTB e2e | Blocked on OwnerCap availability | Same as above |
 | World gate jump traffic > 0 | World event cursor still backfilling | Wait for cursor to reach current tip |
 | World gate links > 0 | No GateLinkedEvents observed yet at cursor position | Same as above |
