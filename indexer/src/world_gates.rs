@@ -1,12 +1,15 @@
+// world_gates.rs — GraphQL-based world gate sync (superseded by event indexer).
+//
+// This module is retained for upsert_world_gates which may be reused by future
+// sync paths. Dead code lints suppressed intentionally.
+#![allow(dead_code)]
+
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::Value;
 use sqlx::{PgPool, QueryBuilder};
 
-pub use crate::world_gates_parser::{
-    is_frontierwarden_extension, parse_gate_node, parse_item_id, parse_tenant_item_id,
-    TenantItemId, WorldGateExtension, WorldGateRow,
-};
+use crate::world_gates_parser::{parse_gate_node, WorldGateRow};
 
 const GATE_OBJECTS_QUERY: &str = r#"
 query WorldGates($gateType: String!, $cursor: String) {

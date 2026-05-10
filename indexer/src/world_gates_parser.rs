@@ -1,3 +1,10 @@
+// world_gates_parser.rs — World gate GraphQL object parser.
+//
+// parse_tenant_item_id and related helpers are used by world_jump_parser and
+// world_topology_parser. The parse_gate_node path is retained for future use.
+// Dead code lints suppressed intentionally.
+#![allow(dead_code)]
+
 use anyhow::{Context, Result};
 use serde_json::Value;
 
