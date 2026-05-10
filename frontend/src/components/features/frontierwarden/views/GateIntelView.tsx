@@ -14,6 +14,7 @@ import { SponsoredPassageStatus } from './SponsoredPassageStatus';
 import { GateBindingStatusBadge } from './GateBindingStatusBadge';
 import { OperatorBindingPanel } from './OperatorBindingPanel';
 import { WorldGateTrafficPanel } from './WorldGateTrafficPanel';
+import { TopologyWarningBanner } from './TopologyWarningBanner';
 
 type GateFilter = 'ALL' | 'open' | 'camped' | 'toll' | 'closed';
 const FILTERS: GateFilter[] = ['ALL', 'open', 'camped', 'toll', 'closed'];
@@ -278,6 +279,9 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
         {selectedGate.sourceId && (
           <OperatorBindingPanel gatePolicyId={selectedGate.sourceId} />
         )}
+
+        {/* ── Topology advisory warnings ────────────────────────────────── */}
+        <TopologyWarningBanner binding={selectedGate.binding} />
 
         {/* ── World Gate Intelligence ───────────────────────────────────── */}
         <WorldGateTrafficPanel

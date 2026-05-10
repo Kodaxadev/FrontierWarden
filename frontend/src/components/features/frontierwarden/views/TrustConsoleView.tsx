@@ -9,6 +9,7 @@ import { useProfileCreate } from '../../../../hooks/useProfileCreate';
 import { TrustIdentityStrip } from './TrustIdentityStrip';
 import { TrustInputPanel, TrustPresetStrip } from './TrustInputPanel';
 import { TrustResultPanel } from './TrustResultPanel';
+import { TopologyWarningBanner } from './TopologyWarningBanner';
 import { DEFAULT_GATE, DEFAULT_SUBJECT } from './trust-console-types';
 import type { Preset } from './trust-console-types';
 
@@ -88,6 +89,12 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
     }
   };
 
+  // Binding for the currently selected gate — used to surface topology advisory
+  // context alongside the trust proof result. Only relevant for gate_access action.
+  const selectedGateBinding = action === 'gate_access'
+    ? (data?.gates.find(g => g.sourceId === gateId.trim())?.binding ?? null)
+    : null;
+
   return (
     <>
       <div className="c-view__title">Trust Decision Console</div>
@@ -130,11 +137,16 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
             onEvaluate={runEvaluation}
           />
         </div>
-        <TrustResultPanel
-          result={result}
-          copied={copied}
-          onCopyJson={copyJson}
-        />
+        <div>
+          {selectedGateBinding && (
+            <TopologyWarningBanner binding={selectedGateBinding} />
+          )}
+          <TrustResultPanel
+            result={result}
+            copied={copied}
+            onCopyJson={copyJson}
+          />
+        </div>
       </div>
     </>
   );
