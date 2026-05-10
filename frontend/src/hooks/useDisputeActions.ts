@@ -34,7 +34,7 @@ export function useDisputeActions() {
 
   const reset = useCallback(() => setState(IDLE), []);
 
-  const execute = useCallback(async (build: () => ReturnType<typeof buildCreateChallengeTx>) => {
+  const execute = useCallback(async (build: () => Promise<ReturnType<typeof buildCreateChallengeTx>> | ReturnType<typeof buildCreateChallengeTx>) => {
     if (!account) {
       const next = { step: 'error' as const, digest: null, error: 'Wallet not connected.' };
       setState(next);
@@ -52,7 +52,8 @@ export function useDisputeActions() {
 
     try {
       setState({ step: 'signing', digest: null, error: null });
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: build() });
+      const transaction = await build();
+      const result = await dAppKit.signAndExecuteTransaction({ transaction });
       if (result.$kind === 'FailedTransaction') {
         throw new Error(`Transaction failed: ${result.FailedTransaction.digest}`);
       }

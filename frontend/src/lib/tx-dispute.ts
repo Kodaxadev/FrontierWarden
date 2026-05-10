@@ -1,4 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -34,6 +35,11 @@ function requiredEnv(key: ConfigKey): string {
   return value;
 }
 
+function suiNetwork() {
+  return (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
+    'mainnet' | 'testnet' | 'devnet' | 'localnet';
+}
+
 function oracleRegistryRef(tx: Transaction, mutable: boolean) {
   return tx.sharedObjectRef({
     objectId: requiredEnv('VITE_ORACLE_REGISTRY_ID'),
@@ -51,6 +57,33 @@ function bytes(value: string): number[] {
     );
   }
   return Array.from(new TextEncoder().encode(trimmed));
+}
+
+/**
+ * Fetch the initialSharedVersion for a FraudChallenge shared object.
+ * FraudChallenge is created via transfer::share_object — its owner field
+ * encodes the initial_shared_version needed for mutable shared object refs.
+ */
+async function fetchChallengeSharedVersion(
+  rpcClient: SuiJsonRpcClient,
+  challengeId: string,
+): Promise<number> {
+  const obj = await rpcClient.getObject({
+    id: challengeId,
+    options: { showBcs: false },
+  });
+  if (!obj?.data) {
+    throw new Error(`dispute tx: FraudChallenge object not found: ${challengeId}`);
+  }
+  const owner = obj.data.owner;
+  if (typeof owner === 'object' && owner !== null && 'Shared' in owner) {
+    const v = (owner as { Shared: { initial_shared_version: string | number } }).Shared.initial_shared_version;
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  throw new Error(
+    `dispute tx: FraudChallenge ${challengeId} is not a shared object (owner: ${JSON.stringify(owner)})`,
+  );
 }
 
 export function missingDisputeConfig(): ConfigKey[] {
@@ -84,12 +117,29 @@ export function buildCreateChallengeTx(args: CreateChallengeArgs): Transaction {
   return tx;
 }
 
-export function buildVoteChallengeTx(args: VoteChallengeArgs): Transaction {
+/**
+ * Build a vote_on_challenge PTB.
+ * FraudChallenge is a shared mutable object — must use sharedObjectRef,
+ * not tx.object(), to avoid TypeMismatch errors on direct wallet signing.
+ */
+export async function buildVoteChallengeTx(args: VoteChallengeArgs): Promise<Transaction> {
+  const network = suiNetwork();
+  const rpcClient = new SuiJsonRpcClient({
+    url: getJsonRpcFullnodeUrl(network),
+    network,
+  });
+
+  const initialSharedVersion = await fetchChallengeSharedVersion(rpcClient, args.challengeId);
+
   const tx = new Transaction();
   tx.moveCall({
     target: `${requiredEnv('VITE_PKG_ID')}::fraud_challenge::vote_on_challenge`,
     arguments: [
-      tx.object(args.challengeId),
+      tx.sharedObjectRef({
+        objectId: args.challengeId,
+        initialSharedVersion,
+        mutable: true,
+      }),
       oracleRegistryRef(tx, false),
       tx.pure.bool(args.guilty),
     ],
@@ -97,12 +147,29 @@ export function buildVoteChallengeTx(args: VoteChallengeArgs): Transaction {
   return tx;
 }
 
-export function buildResolveChallengeTx(args: ResolveChallengeArgs): Transaction {
+/**
+ * Build a resolve_challenge PTB.
+ * FraudChallenge is a shared mutable object — must use sharedObjectRef,
+ * not tx.object(), to avoid TypeMismatch errors on direct wallet signing.
+ */
+export async function buildResolveChallengeTx(args: ResolveChallengeArgs): Promise<Transaction> {
+  const network = suiNetwork();
+  const rpcClient = new SuiJsonRpcClient({
+    url: getJsonRpcFullnodeUrl(network),
+    network,
+  });
+
+  const initialSharedVersion = await fetchChallengeSharedVersion(rpcClient, args.challengeId);
+
   const tx = new Transaction();
   tx.moveCall({
     target: `${requiredEnv('VITE_PKG_ID')}::fraud_challenge::resolve_challenge`,
     arguments: [
-      tx.object(args.challengeId),
+      tx.sharedObjectRef({
+        objectId: args.challengeId,
+        initialSharedVersion,
+        mutable: true,
+      }),
       oracleRegistryRef(tx, true),
     ],
   });
