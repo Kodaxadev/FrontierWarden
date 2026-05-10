@@ -31,6 +31,12 @@ const WORLD_GATE_EXTENSION_EVENTS: &[&str] = &["ExtensionAuthorizedEvent", "Exte
 /// extension events above and must not share cursors with them.
 const WORLD_GATE_TOPOLOGY_EVENTS: &[&str] = &["GateLinkedEvent", "GateUnlinkedEvent"];
 
+/// World gate jump events — per-jump activity from `gate.move`.
+/// Uses the same `original-id` prefix as topology events; tracked on a
+/// separate cursor so topology and jump indexing progress independently.
+/// Cold-start checkpoint: 308264360 (confirmed Stillness world-event start).
+const WORLD_GATE_JUMP_EVENTS: &[&str] = &["JumpEvent"];
+
 const HEAT_REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 
 pub fn spawn_heat_refresh(pool: PgPool) {
@@ -71,6 +77,7 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
     let mut world_cursors = restore_world_gate_extension_cursors(&pool, cfg.eve.as_ref()).await;
     let mut topology_cursors =
         restore_world_gate_topology_cursors(&pool, cfg.eve.as_ref()).await;
+    let mut jump_cursors = restore_world_gate_jump_cursors(&pool, cfg.eve.as_ref()).await;
 
     info!(
         package = %package_id,
@@ -180,6 +187,40 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
             }
         }
 
+        for jump in &mut jump_cursors {
+            let page = match rpc
+                .query_events_by_type(
+                    &jump.event_type,
+                    jump.cursor.as_ref(),
+                    cfg.indexer.batch_size,
+                )
+                .await
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    warn!(event_type = %jump.event_type, "jump event RPC query failed, skipping: {e:#}");
+                    continue;
+                }
+            };
+
+            let count = page.data.len();
+            for ev in &page.data {
+                processor::process(&pool, ev, &projection_cfg).await;
+            }
+
+            if count > 0 {
+                info!(event_type = %jump.event_type, count, "pipeline:world_gate_jump_ingest");
+            }
+            if count > 0 || page.has_next_page {
+                any_new = true;
+            }
+
+            if let Some(next) = page.next_cursor {
+                persist_cursor_key(&pool, &jump.cursor_key, &next).await;
+                jump.cursor = Some(next);
+            }
+        }
+
         if !any_new {
             sleep(Duration::from_millis(cfg.indexer.poll_interval_ms)).await;
         }
@@ -258,6 +299,31 @@ async fn restore_world_gate_extension_cursors(
     cursors
 }
 
+/// Build cursors for `JumpEvent` using the world package `original-id` as the
+/// type-origin prefix (upgrade-safe). Separate from topology cursors so jump
+/// and topology indexing progress independently.
+async fn restore_world_gate_jump_cursors(
+    pool: &PgPool,
+    eve: Option<&EveConfig>,
+) -> Vec<WorldEventCursor> {
+    let Some(eve) = eve.filter(|cfg| cfg.enabled && !cfg.world_pkg_original_id.is_empty()) else {
+        return Vec::new();
+    };
+
+    let mut cursors = Vec::with_capacity(WORLD_GATE_JUMP_EVENTS.len());
+    for event in WORLD_GATE_JUMP_EVENTS {
+        let event_type = format!("{}::gate::{event}", eve.world_pkg_original_id);
+        let cursor_key = format!("cursor:world:{event_type}");
+        let cursor = restore_cursor_key(pool, &event_type, &cursor_key).await;
+        cursors.push(WorldEventCursor {
+            event_type,
+            cursor_key,
+            cursor,
+        });
+    }
+    cursors
+}
+
 /// Build cursors for `GateLinkedEvent` and `GateUnlinkedEvent` using the world
 /// package `original-id` as the type-origin prefix (upgrade-safe).
 async fn restore_world_gate_topology_cursors(
@@ -284,7 +350,7 @@ async fn restore_world_gate_topology_cursors(
 
 #[cfg(test)]
 mod tests {
-    use super::{cursor_key, TRACKED_MODULES};
+    use super::{cursor_key, TRACKED_MODULES, WORLD_GATE_JUMP_EVENTS, WORLD_GATE_TOPOLOGY_EVENTS};
 
     #[test]
     fn tracks_operational_protocol_modules() {
@@ -299,5 +365,20 @@ mod tests {
 
         assert_eq!(old_key, "cursor:0xold:reputation_gate");
         assert_ne!(old_key, new_key);
+    }
+
+    #[test]
+    fn jump_events_list_contains_jump_event() {
+        assert!(WORLD_GATE_JUMP_EVENTS.contains(&"JumpEvent"));
+    }
+
+    #[test]
+    fn topology_and_jump_event_sets_are_disjoint() {
+        for event in WORLD_GATE_JUMP_EVENTS {
+            assert!(
+                !WORLD_GATE_TOPOLOGY_EVENTS.contains(event),
+                "event '{event}' must not appear in both topology and jump event lists"
+            );
+        }
     }
 }
