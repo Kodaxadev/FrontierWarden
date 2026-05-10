@@ -79,7 +79,7 @@ module reputation::fraud_challenge {
         challenger_stake: Balance<SUI>,
         ctx: &mut TxContext
     ) {
-        assert!(oracle_registry::contains_oracle(registry, oracle_address), EOracleNotFound); // BRIDGE
+        assert!(oracle_registry::contains_oracle(registry, oracle_address), EOracleNotFound); // REGISTRY_COUPLING
         assert!(balance::value(&challenger_stake) >= MIN_STAKE / 2, EInsufficientStake);
 
         let challenge = FraudChallenge {
@@ -115,7 +115,7 @@ module reputation::fraud_challenge {
         ctx: &mut TxContext
     ) {
         let sender = tx_context::sender(ctx);
-        assert!(oracle_registry::is_council_member(registry, sender), ENotCouncilMember); // BRIDGE
+        assert!(oracle_registry::is_council_member(registry, sender), ENotCouncilMember); // REGISTRY_COUPLING
         assert!(tx_context::epoch(ctx) <= challenge.deadline_epoch, EChallengeExpired);
         assert!(!challenge.resolved, EAlreadyResolved);
         assert!(!vec_set::contains(&challenge.voters, &sender), EAlreadyVoted);
@@ -149,17 +149,17 @@ module reputation::fraud_challenge {
         assert!(!challenge.resolved, EAlreadyResolved);
         challenge.resolved = true;
 
-        let raw_quorum = oracle_registry::get_council_size(registry) * 2 / 3; // BRIDGE
+        let raw_quorum = oracle_registry::get_council_size(registry) * 2 / 3; // REGISTRY_COUPLING
         let quorum = if (raw_quorum == 0) { 1 } else { raw_quorum };
         let total_votes = challenge.votes_guilty + challenge.votes_innocent;
         assert!(total_votes > 0, ENoQuorum);
 
         let guilty = total_votes >= quorum && challenge.votes_guilty >= quorum;
         let challenge_addr = object::id_address(challenge);
-        let treasury = oracle_registry::get_treasury(registry); // BRIDGE
+        let treasury = oracle_registry::get_treasury(registry); // REGISTRY_COUPLING
 
         if (guilty) {
-            let (reward_bal, treasury_bal, slash_total) = oracle_registry::slash_oracle_stake( // BRIDGE
+            let (reward_bal, treasury_bal, slash_total) = oracle_registry::slash_oracle_stake( // REGISTRY_COUPLING
                 registry,
                 challenge.oracle,
                 SLASH_PERCENTAGE,

@@ -25,6 +25,12 @@ pub const TRACKED_MODULES: &[&str] = &[
 
 const WORLD_GATE_EXTENSION_EVENTS: &[&str] = &["ExtensionAuthorizedEvent", "ExtensionRevokedEvent"];
 
+/// World gate topology events — link/unlink pairs from `gate.move`.
+/// Tracked using the world package `original-id` (type origin), which is
+/// stable across package upgrades. These are separate from the FW package
+/// extension events above and must not share cursors with them.
+const WORLD_GATE_TOPOLOGY_EVENTS: &[&str] = &["GateLinkedEvent", "GateUnlinkedEvent"];
+
 const HEAT_REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 
 pub fn spawn_heat_refresh(pool: PgPool) {
@@ -59,10 +65,12 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
     // Load saved cursors for each module.
     let mut cursors: Vec<(&str, Option<EventId>)> = Vec::with_capacity(TRACKED_MODULES.len());
     for &module in TRACKED_MODULES {
-        let cursor = restore_cursor(&pool, module).await;
+        let cursor = restore_cursor(&pool, &package_id, module).await;
         cursors.push((module, cursor));
     }
     let mut world_cursors = restore_world_gate_extension_cursors(&pool, cfg.eve.as_ref()).await;
+    let mut topology_cursors =
+        restore_world_gate_topology_cursors(&pool, cfg.eve.as_ref()).await;
 
     info!(
         package = %package_id,
@@ -99,7 +107,7 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
             }
 
             if let Some(next) = page.next_cursor {
-                persist_cursor(&pool, module, &next).await;
+                persist_cursor(&pool, &package_id, module, &next).await;
                 *cursor = Some(next);
             }
         }
@@ -138,6 +146,40 @@ pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
             }
         }
 
+        for topo in &mut topology_cursors {
+            let page = match rpc
+                .query_events_by_type(
+                    &topo.event_type,
+                    topo.cursor.as_ref(),
+                    cfg.indexer.batch_size,
+                )
+                .await
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    warn!(event_type = %topo.event_type, "topology event RPC query failed, skipping: {e:#}");
+                    continue;
+                }
+            };
+
+            let count = page.data.len();
+            for ev in &page.data {
+                processor::process(&pool, ev, &projection_cfg).await;
+            }
+
+            if count > 0 {
+                info!(event_type = %topo.event_type, count, "pipeline:world_gate_topology_ingest");
+            }
+            if count > 0 || page.has_next_page {
+                any_new = true;
+            }
+
+            if let Some(next) = page.next_cursor {
+                persist_cursor_key(&pool, &topo.cursor_key, &next).await;
+                topo.cursor = Some(next);
+            }
+        }
+
         if !any_new {
             sleep(Duration::from_millis(cfg.indexer.poll_interval_ms)).await;
         }
@@ -152,12 +194,12 @@ struct WorldEventCursor {
 
 // ── Cursor helpers ────────────────────────────────────────────────────────────
 
-fn cursor_key(module: &str) -> String {
-    format!("cursor:{module}")
+fn cursor_key(package_id: &str, module: &str) -> String {
+    format!("cursor:{package_id}:{module}")
 }
 
-async fn restore_cursor(pool: &PgPool, module: &str) -> Option<EventId> {
-    let key = cursor_key(module);
+async fn restore_cursor(pool: &PgPool, package_id: &str, module: &str) -> Option<EventId> {
+    let key = cursor_key(package_id, module);
     restore_cursor_key(pool, module, &key).await
 }
 
@@ -178,8 +220,8 @@ async fn restore_cursor_key(pool: &PgPool, label: &str, key: &str) -> Option<Eve
     }
 }
 
-async fn persist_cursor(pool: &PgPool, module: &str, cursor: &EventId) {
-    let key = cursor_key(module);
+async fn persist_cursor(pool: &PgPool, package_id: &str, module: &str, cursor: &EventId) {
+    let key = cursor_key(package_id, module);
     persist_cursor_key(pool, &key, cursor).await
 }
 
@@ -216,13 +258,46 @@ async fn restore_world_gate_extension_cursors(
     cursors
 }
 
+/// Build cursors for `GateLinkedEvent` and `GateUnlinkedEvent` using the world
+/// package `original-id` as the type-origin prefix (upgrade-safe).
+async fn restore_world_gate_topology_cursors(
+    pool: &PgPool,
+    eve: Option<&EveConfig>,
+) -> Vec<WorldEventCursor> {
+    let Some(eve) = eve.filter(|cfg| cfg.enabled && !cfg.world_pkg_original_id.is_empty()) else {
+        return Vec::new();
+    };
+
+    let mut cursors = Vec::with_capacity(WORLD_GATE_TOPOLOGY_EVENTS.len());
+    for event in WORLD_GATE_TOPOLOGY_EVENTS {
+        let event_type = format!("{}::gate::{event}", eve.world_pkg_original_id);
+        let cursor_key = format!("cursor:world:{event_type}");
+        let cursor = restore_cursor_key(pool, &event_type, &cursor_key).await;
+        cursors.push(WorldEventCursor {
+            event_type,
+            cursor_key,
+            cursor,
+        });
+    }
+    cursors
+}
+
 #[cfg(test)]
 mod tests {
-    use super::TRACKED_MODULES;
+    use super::{cursor_key, TRACKED_MODULES};
 
     #[test]
     fn tracks_operational_protocol_modules() {
         assert!(TRACKED_MODULES.contains(&"fraud_challenge"));
         assert!(TRACKED_MODULES.contains(&"reputation_gate"));
+    }
+
+    #[test]
+    fn module_cursor_keys_are_package_scoped() {
+        let old_key = cursor_key("0xold", "reputation_gate");
+        let new_key = cursor_key("0xnew", "reputation_gate");
+
+        assert_eq!(old_key, "cursor:0xold:reputation_gate");
+        assert_ne!(old_key, new_key);
     }
 }

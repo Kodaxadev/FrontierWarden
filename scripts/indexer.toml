@@ -1,3 +1,10 @@
+# LEGACY / HISTORICAL CONFIG ONLY.
+#
+# This file targets the old 2026-04-25 package and chain metadata. It is
+# retained for audit/history and must not be used for current FrontierWarden
+# Stillness/testnet operations. Current package/object truth lives in
+# scripts/testnet-addresses.json.
+
 [package]
 # Deployed to Sui Testnet: 2026-04-25
 # Package ID: 0x11a3f8dd19c2e55c29a3bb3faa2db5451e2c55fc0e83bcff86ed4726adb47e37

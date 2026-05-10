@@ -1,3 +1,10 @@
+# LEGACY / HISTORICAL DEVNET CONFIG ONLY.
+#
+# This file targets the old 2026-04-25 devnet package and a legacy longcipher
+# sui-indexer fork. It is retained for audit/history and must not be used for
+# current FrontierWarden Stillness/testnet operations. Current package/object
+# truth lives in scripts/testnet-addresses.json.
+#
 # EFRep indexer config — drop into a fork of longcipher/sui-indexer.
 # Deployed to Sui Devnet 2026-04-25 (chain e8118007). Tag: v0.1.0-testnet
 # (tag name predates the testnet→devnet pivot; the deployment is devnet).

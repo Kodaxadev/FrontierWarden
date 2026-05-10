@@ -13,13 +13,25 @@ can call for reputation-backed decisions.
 
 ## Live Status
 
-Status as of 2026-05-05:
+Status as of 2026-05-07:
 
 - Frontend demo is live at [frontierwarden.kodaxa.dev](https://frontierwarden.kodaxa.dev).
 - Rust indexer/API is live on Railway and serves indexed Sui testnet state.
 - Gas station service is live on Railway and reports `ready`.
 - Supabase/Postgres is the backing database for indexed protocol state.
 - Active environment is Stillness/testnet.
+- Fresh binding-ready package:
+  `0xb43fcd4e383efcb9af8c6d7b621958153dd92876da0e769b2167c2ccf409abfa`.
+- Active GatePolicy:
+  `0x7b10f2ee46602382ad8b5a1716f7282a3f6db53b4b6346f85ec27b8308353807`.
+- Active GateAdminCap:
+  `0x7876d36be78743903085fb0e32e56fa82424fbc6f0ee4997e9a237a14b2253a3`.
+- Bound world Gate:
+  `0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c`.
+- Current binding state is `BOUND`, not `BINDING VERIFIED`; FrontierWarden
+  world Gate extension evidence is absent. Binding proves
+  `GatePolicy -> world_gate_id`; extension authorization proves
+  `world_gate_id -> extension TypeName`; verified requires both.
 - Trust Decision API v1 is live for:
   - `gate_access`
   - `counterparty_risk`
@@ -43,6 +55,7 @@ Key protocol flows are verified on Sui testnet and tracked in the
 |---|---|---|
 | Gate Policy Update | `G4fGxvg...hrTvsC` | Indexed |
 | Toll Withdrawal | `CAJWpnW...5voud` | Indexed |
+| GatePolicy world Gate binding | `BzYVxe3z4x1fXZNnrkPXdHn7HwTsShgwqrUqKPk7o3TC` | BOUND, not VERIFIED |
 
 The proof log does not by itself prove that every wallet type can complete final
 gate-passage execution. zkLogin wallet sessions may still fail if the wallet

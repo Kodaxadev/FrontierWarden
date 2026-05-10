@@ -1,7 +1,13 @@
 # Bind World Gate Transaction Preflight
 
+> **HISTORICAL / SUPERSEDED:** This preflight is retained as evidence of the
+> pre-fresh-package transaction plan. It was superseded by the fresh package
+> publish and the live bind result in
+> `Documents/GATEPOLICY_WORLD_GATE_BIND_RESULT.md`. Do not use the legacy
+> package ID in this document as active configuration.
+
 **Date:** 2026-05-06
-**Status:** Preflight only; no implementation
+**Status:** Historical preflight only; superseded by implementation and live bind result
 **Scope:** First real operator transaction flow for
 `reputation_gate::bind_world_gate`.
 

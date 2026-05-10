@@ -9,6 +9,7 @@ pub mod schema_registry;
 pub mod singleton;
 pub mod system_sdk;
 pub mod vouch;
+pub mod world_topology;
 
 use sqlx::PgPool;
 
@@ -58,7 +59,17 @@ pub async fn process(pool: &PgPool, ev: &SuiEvent, cfg: &ProjectionConfig) {
         "reputation_gate" => reputation_gate::handle(pool, ev).await,
         "system_sdk" => system_sdk::handle(pool, ev).await,
         "singleton" => singleton::handle(pool, ev).await,
-        "gate" => world_gate_extensions::handle(pool, ev, &cfg.fw_gate_extension_typename).await,
+        // World `gate` module: try topology events first (GateLinkedEvent,
+        // GateUnlinkedEvent), then fall through to the FW extension handler
+        // (ExtensionAuthorizedEvent, ExtensionRevokedEvent). These are separate
+        // concerns — do not mix FW extension logic with topology indexing.
+        "gate" => match world_topology::handle(pool, ev).await {
+            Ok(true) => Ok(()),
+            Ok(false) => {
+                world_gate_extensions::handle(pool, ev, &cfg.fw_gate_extension_typename).await
+            }
+            Err(e) => Err(e),
+        },
         other => {
             tracing::debug!(module = other, "no projection handler for module");
             Ok(())
