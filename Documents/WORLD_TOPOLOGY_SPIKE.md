@@ -973,3 +973,133 @@ Until a proven association exists, topology warnings must remain dormant. Three 
 - `world_characters` table (use `eve_identities` until proactive coverage is confirmed in scope)
 - Gate XYZ coordinate indexing (requires server-signed location proofs; not available from events)
 - Kill-event attestation automation (pending Q9)
+
+---
+
+## 9. World Gate Traffic API — Read Surface
+
+**Implemented:** 2026-05-09 | **Branch:** `codex/world-gate-traffic-api`
+
+Advisory read surface only. No enforcement decisions. No trust scoring.
+All signals (is_linked, fw_extension_active) are informational — not binding proof.
+
+### Endpoints
+
+#### `GET /world/gates/:gate_id/links`
+
+Returns active outbound links for the gate from `world_gate_links`.
+Backed by `active_links_for_gate()` (world_topology.rs).
+
+```json
+{
+  "gate_id": "0x...",
+  "active_links": [
+    {
+      "destination_gate_id": "0x...",
+      "destination_gate_item_id": 12345,
+      "destination_gate_tenant": "stillness",
+      "linked_at_checkpoint": 308270000
+    }
+  ],
+  "link_count": 1
+}
+```
+
+Returns 404 if the gate is not in `world_gates`.
+
+#### `GET /world/gates/:gate_id/jumps?limit=N`
+
+Most recent jumps (source or destination) from `world_gate_jumps`, newest first.
+Backed by `recent_jumps_for_gate()` (world_jump.rs).
+Default limit: 50. Max limit: 500 (clamped silently — no error returned).
+
+```json
+{
+  "gate_id": "0x...",
+  "jumps": [
+    {
+      "tx_digest": "0x...",
+      "checkpoint": 308270001,
+      "source_gate_id": "0x...",
+      "destination_gate_id": "0x...",
+      "character_id": "0x...",
+      "character_item_id": 67890,
+      "character_tenant": "stillness"
+    }
+  ],
+  "total": 1
+}
+```
+
+Returns 404 if the gate is not in `world_gates`.
+
+#### `GET /world/characters/:character_id/jumps?limit=N`
+
+Same jump shape, filtered by character_id. Same limit rules (default 50, max 500).
+Does NOT require the character to exist in world_gates — character may not be a gate operator.
+
+```json
+{
+  "character_id": "0x...",
+  "jumps": [...],
+  "total": 1
+}
+```
+
+#### `GET /world/gates/:gate_id/activity`
+
+Jump counts and unique character counts using `created_at` (indexer insertion time) as the time anchor.
+
+**Note on time window approximation:** Checkpoint → wall-clock mapping is not available in this codebase.
+`created_at` (database insertion timestamp) is used instead. This is approximate: there may be a small
+lag between on-chain event time and indexer insertion time. The approximation is acceptable for
+advisory activity signals; do not use these counts for billing or enforcement.
+
+```json
+{
+  "gate_id": "0x...",
+  "jump_count_1h": 12,
+  "jump_count_24h": 87,
+  "jump_count_7d": 430,
+  "unique_characters_24h": 34,
+  "is_linked": true,
+  "link_count": 1
+}
+```
+
+`is_linked` and `link_count` are advisory signals — not binding proof of gate reachability.
+
+#### `GET /world/gates/:gate_id`
+
+Combined summary: gate object row + topology + 24h jump count. Three queries run concurrently via `tokio::try_join!`.
+
+```json
+{
+  "gate_id": "0x...",
+  "item_id": 12345,
+  "tenant": "stillness",
+  "status": "online",
+  "fw_extension_active": false,
+  "fw_gate_policy_id": null,
+  "is_linked": true,
+  "link_count": 1,
+  "jump_count_24h": 87,
+  "active_links": [...]
+}
+```
+
+`fw_extension_active` is advisory. It does not prove GatePolicy ↔ world Gate binding.
+
+### Implementation
+
+- Handler file: `indexer/src/api_world_gate_traffic.rs`
+- Tests file: `indexer/src/world_gate_traffic_api_tests.rs`
+- Router registered in `indexer/src/api.rs` alongside existing routes
+
+### Constraints
+
+- No enforcement logic
+- No trust scoring changes
+- No BINDING_VERIFIED in any new file
+- No package ID hardcoding
+- All new files under 400 lines

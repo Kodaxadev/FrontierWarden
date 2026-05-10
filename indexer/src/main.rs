@@ -12,6 +12,7 @@ mod api_reputation;
 mod api_request_log;
 mod api_sessions;
 mod api_trust;
+mod api_world_gate_traffic;
 mod api_world_gates;
 
 // Re-export for main
@@ -44,6 +45,8 @@ mod world_jump;
 mod world_jump_parser;
 mod world_topology;
 mod world_topology_parser;
+#[cfg(test)]
+mod world_gate_traffic_api_tests;
 #[cfg(test)]
 mod world_gates_api_tests;
 
