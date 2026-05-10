@@ -10,6 +10,8 @@
 // Renders nothing when binding is absent or when no advisory signals are present.
 
 import type { GateBindingStatusResponse } from '../../../../types/api.types';
+import { InfoTooltip } from '../InfoTooltip';
+import { HELP } from '../operator-help';
 
 interface TopologyWarning {
   key:   string;
@@ -72,14 +74,14 @@ export function TopologyWarningBanner({ binding }: Props) {
         ? 'rgba(245,158,11,0.04)'
         : 'rgba(0,0,0,0)',
     }}>
-      <div
-        className="c-stat__label"
-        style={{
-          marginBottom: warnings.length > 1 ? 8 : 6,
-          color: hasWarn ? 'var(--c-amber)' : 'var(--c-mid)',
-        }}
-      >
-        TOPOLOGY ADVISORY
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: warnings.length > 1 ? 8 : 6 }}>
+        <div
+          className="c-stat__label"
+          style={{ color: hasWarn ? 'var(--c-amber)' : 'var(--c-mid)' }}
+        >
+          TOPOLOGY ADVISORY
+        </div>
+        <InfoTooltip concept={HELP.topologyAdvisory} />
       </div>
 
       {warnings.map(w => (

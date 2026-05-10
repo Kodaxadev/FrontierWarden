@@ -1,5 +1,7 @@
 import { useOperatorGateAuthority } from "../../../../hooks/useOperatorGateAuthority";
 import type { GateBindingStatusResponse } from "../../../../types/api.types";
+import { InfoTooltip } from "../InfoTooltip";
+import { HELP } from "../operator-help";
 
 interface OperatorGateAuthorityPanelProps {
   binding: GateBindingStatusResponse | null;
@@ -65,8 +67,9 @@ export function OperatorGateAuthorityPanel({
         background: "rgba(255,255,255,0.016)",
       }}
     >
-      <div className="c-stat__label" style={{ marginBottom: 10 }}>
-        Operator Gate Authority
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+        <div className="c-stat__label">Operator Gate Authority</div>
+        <InfoTooltip concept={HELP.tenant} />
       </div>
       <div className="c-kv">
         <span className="c-kv__k">Authority status</span>
@@ -100,7 +103,10 @@ export function OperatorGateAuthorityPanel({
         </span>
       </div>
       <div className="c-kv">
-        <span className="c-kv__k">Gate OwnerCaps</span>
+        <span className="c-kv__k" style={{ display: 'inline-flex', alignItems: 'center' }}>
+          Gate OwnerCaps
+          <InfoTooltip concept={HELP.ownerCapGate} ml={4} />
+        </span>
         <span className="c-kv__v">{operatorAuthority.ownerCaps.length}</span>
       </div>
 
