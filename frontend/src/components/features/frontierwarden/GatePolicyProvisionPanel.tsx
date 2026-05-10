@@ -19,6 +19,9 @@ import { useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { useOperatorGatePolicies } from '../../../hooks/useOperatorGatePolicies';
 import { useCreateGate } from '../../../hooks/useCreateGate';
+import { InfoTooltip } from './InfoTooltip';
+import { OperatorFlowGuide } from './OperatorFlowGuide';
+import { HELP } from './operator-help';
 
 const shortId = (value: string) =>
   value.length <= 14 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
@@ -63,7 +66,10 @@ export function GatePolicyProvisionPanel() {
         maxWidth: 900, marginBottom: 28, padding: 20,
         border: '1px solid rgba(0,210,255,0.25)', background: 'rgba(0,210,255,0.018)',
       }}>
-        <div className="c-stat__label" style={{ marginBottom: 14 }}>Policy Provisioning</div>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+          <div className="c-stat__label">Policy Provisioning</div>
+          <InfoTooltip concept={HELP.gatePolicy} />
+        </div>
         <div className="c-kv">
           <span className="c-kv__k">Status</span>
           <span className="c-kv__v" style={{ color: 'var(--c-green)' }}>Policy provisioned</span>
@@ -93,7 +99,11 @@ export function GatePolicyProvisionPanel() {
       maxWidth: 900, marginBottom: 28, padding: 20,
       border: '1px solid var(--c-border)', background: 'rgba(255,255,255,0.012)',
     }}>
-      <div className="c-stat__label" style={{ marginBottom: 14 }}>Policy Provisioning</div>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+        <div className="c-stat__label">Policy Provisioning</div>
+        <InfoTooltip concept={HELP.gatePolicy} />
+      </div>
+      <OperatorFlowGuide />
       <div className="c-sub" style={{ marginBottom: 18 }}>
         Create your FrontierWarden GatePolicy. This establishes your policy domain.
         Binding to a world Gate is a separate step.

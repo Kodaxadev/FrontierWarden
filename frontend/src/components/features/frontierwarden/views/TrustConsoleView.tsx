@@ -11,6 +11,8 @@ import { TrustInputPanel, TrustPresetStrip } from './TrustInputPanel';
 import { TrustResultPanel } from './TrustResultPanel';
 import { TopologyWarningBanner } from './TopologyWarningBanner';
 import { DEFAULT_GATE, DEFAULT_SUBJECT } from './trust-console-types';
+import { InfoTooltip } from '../InfoTooltip';
+import { HELP } from '../operator-help';
 import type { Preset } from './trust-console-types';
 
 interface Props {
@@ -97,7 +99,10 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
 
   return (
     <>
-      <div className="c-view__title">Trust Decision Console</div>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="c-view__title">Trust Decision Console</div>
+        <InfoTooltip concept={HELP.tribeStanding} ml={10} />
+      </div>
       <div className="c-sub" style={{ marginTop: -16, marginBottom: 24 }}>
         Evaluate gate access, counterparty risk, or bounty trust from indexed Sui testnet proof.
       </div>

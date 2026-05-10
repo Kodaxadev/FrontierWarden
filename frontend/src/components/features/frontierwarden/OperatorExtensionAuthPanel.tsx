@@ -18,6 +18,8 @@ import { useAuthorizeFWExtension } from '../../../hooks/useAuthorizeFWExtension'
 import { fetchGateBindingStatus } from '../../../lib/api';
 import type { GateBindingStatusResponse } from '../../../types/api.types';
 import { GateBindingStatusBadge } from './views/GateBindingStatusBadge';
+import { InfoTooltip } from './InfoTooltip';
+import { HELP } from './operator-help';
 
 const shortId = (value: string | null | undefined): string => {
   if (!value) return '-';
@@ -145,7 +147,10 @@ export function OperatorExtensionAuthPanel() {
       maxWidth: 900, marginBottom: 28, padding: 20,
       border: '1px solid var(--c-border)', background: 'rgba(255,255,255,0.012)',
     }}>
-      <div className="c-stat__label" style={{ marginBottom: 12 }}>Extension Authorization</div>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <div className="c-stat__label">Extension Authorization</div>
+        <InfoTooltip concept={HELP.frontierWardenAuth} />
+      </div>
 
       <div className="c-sub" style={{ marginBottom: 14 }}>
         Authorize the FrontierWardenAuth extension on your world Gate using OwnerCap&lt;Gate&gt;.
@@ -273,7 +278,10 @@ export function OperatorExtensionAuthPanel() {
       {/* PTB summary */}
       {selectedGate && ownerCapForGate && characterForGate && (
         <div style={{ marginTop: 14, paddingLeft: 16 }}>
-          <div className="c-stat__label" style={{ marginBottom: 8 }}>Transaction Plan</div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <div className="c-stat__label">Transaction Plan</div>
+            <InfoTooltip concept={HELP.ptb} />
+          </div>
           <div className="c-sub">
             1. borrow_owner_cap&lt;Gate&gt;(character, Receiving&lt;OwnerCap&gt;)
           </div>

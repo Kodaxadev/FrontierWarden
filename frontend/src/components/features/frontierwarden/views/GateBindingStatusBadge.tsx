@@ -1,4 +1,6 @@
 import type { GateBindingStatusResponse } from '../../../../types/api.types';
+import { InfoTooltip } from '../InfoTooltip';
+import { HELP } from '../operator-help';
 
 interface Props {
   binding?: GateBindingStatusResponse;
@@ -34,14 +36,17 @@ export function GateBindingStatusBadge({ binding, compact = false }: Props) {
     : copy.detail;
 
   return (
-    <span className={className} title={detail}>
-      <span className="c-binding-badge__label">{copy.label}</span>
-      {!compact && (
-        <span className="c-binding-badge__detail">
-          {binding?.worldGateId ? shortId(binding.worldGateId) : detail}
-        </span>
-      )}
-    </span>
+    <>
+      <span className={className} title={detail}>
+        <span className="c-binding-badge__label">{copy.label}</span>
+        {!compact && (
+          <span className="c-binding-badge__detail">
+            {binding?.worldGateId ? shortId(binding.worldGateId) : detail}
+          </span>
+        )}
+      </span>
+      {status === 'verified' && <InfoTooltip concept={HELP.bindingVerified} ml={4} />}
+    </>
   );
 }
 

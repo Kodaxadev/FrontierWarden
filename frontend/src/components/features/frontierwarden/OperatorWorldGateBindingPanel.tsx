@@ -18,6 +18,8 @@ import { useBindOperatorWorldGate } from '../../../hooks/useBindOperatorWorldGat
 import { fetchGateBindingStatus } from '../../../lib/api';
 import type { GateBindingStatusResponse } from '../../../types/api.types';
 import { GateBindingStatusBadge } from './views/GateBindingStatusBadge';
+import { InfoTooltip } from './InfoTooltip';
+import { HELP } from './operator-help';
 
 const shortId = (value: string | null | undefined): string => {
   if (!value) return '-';
@@ -130,7 +132,10 @@ export function OperatorWorldGateBindingPanel() {
       maxWidth: 900, marginBottom: 28, padding: 20,
       border: '1px solid var(--c-border)', background: 'rgba(255,255,255,0.012)',
     }}>
-      <div className="c-stat__label" style={{ marginBottom: 12 }}>World Gate Binding</div>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <div className="c-stat__label">World Gate Binding</div>
+        <InfoTooltip concept={HELP.bound} />
+      </div>
 
       <div className="c-sub" style={{ marginBottom: 14 }}>
         Binding points your FrontierWarden GatePolicy at a world Gate. It does not authorize the

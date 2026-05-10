@@ -18,6 +18,8 @@ import {
   fetchWorldGateActivity,
   fetchWorldGateJumps,
 } from '../../../../lib/api';
+import { InfoTooltip } from '../InfoTooltip';
+import { HELP } from '../operator-help';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -197,8 +199,9 @@ export function WorldGateTrafficPanel({ worldGateId }: Props) {
       {/* ── Observed traffic counts ───────────────────────────────────────── */}
       {activity && (
         <div style={{ marginTop: 20 }}>
-          <div className="c-stat__label" style={{ marginBottom: 10 }}>
-            Observed Traffic
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+            <div className="c-stat__label">Observed Traffic</div>
+            <InfoTooltip concept={HELP.activityWindow} />
           </div>
           <div style={{
             display: 'grid',
