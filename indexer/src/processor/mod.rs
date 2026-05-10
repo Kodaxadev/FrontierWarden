@@ -9,6 +9,7 @@ pub mod schema_registry;
 pub mod singleton;
 pub mod system_sdk;
 pub mod vouch;
+pub mod world_jump;
 pub mod world_topology;
 
 use sqlx::PgPool;
@@ -59,15 +60,21 @@ pub async fn process(pool: &PgPool, ev: &SuiEvent, cfg: &ProjectionConfig) {
         "reputation_gate" => reputation_gate::handle(pool, ev).await,
         "system_sdk" => system_sdk::handle(pool, ev).await,
         "singleton" => singleton::handle(pool, ev).await,
-        // World `gate` module: try topology events first (GateLinkedEvent,
-        // GateUnlinkedEvent), then fall through to the FW extension handler
-        // (ExtensionAuthorizedEvent, ExtensionRevokedEvent). These are separate
-        // concerns — do not mix FW extension logic with topology indexing.
+        // World `gate` module: dispatch in priority order —
+        //   1. topology (GateLinkedEvent, GateUnlinkedEvent)
+        //   2. jump events (JumpEvent)
+        //   3. FW extension handler (ExtensionAuthorizedEvent, ExtensionRevokedEvent)
+        // Each handler returns Ok(true) if it consumed the event, Ok(false) to
+        // pass through to the next. Do not mix concerns between handlers.
         "gate" => match world_topology::handle(pool, ev).await {
             Ok(true) => Ok(()),
-            Ok(false) => {
-                world_gate_extensions::handle(pool, ev, &cfg.fw_gate_extension_typename).await
-            }
+            Ok(false) => match world_jump::handle(pool, ev).await {
+                Ok(true) => Ok(()),
+                Ok(false) => {
+                    world_gate_extensions::handle(pool, ev, &cfg.fw_gate_extension_typename).await
+                }
+                Err(e) => Err(e),
+            },
             Err(e) => Err(e),
         },
         other => {

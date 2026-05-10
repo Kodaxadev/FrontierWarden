@@ -863,10 +863,11 @@ both rows are marked `is_active = FALSE` in place (rows retained for audit/re-li
 
 ---
 
-### Step 3 — JumpEvent stream indexer ✅ UNBLOCKED (checkpoint known)
+### Step 3 — JumpEvent stream indexer ✅ SHIPPED (branch codex/world-gate-jump-event-indexing)
 
 **Dependency:** `EFREP_WORLD_START_CHECKPOINT=308264360` for production cold start/replay
-**What:** Add `gate::JumpEvent` to ingester with `original-id` package prefix. Add `processor/world_jump.rs` that writes to `world_jump_events`.
+**Note:** Start checkpoint `308264360` is documented in the ingester constant comment and wired into the `WORLD_GATE_JUMP_EVENTS` cursor bootstrap — set `EFREP_WORLD_START_CHECKPOINT=308264360` in deployment config for cold-start alignment.
+**What:** Add `gate::JumpEvent` to ingester with `original-id` package prefix. Add `processor/world_jump.rs` that writes to `world_gate_jumps`.
 
 ```rust
 // Conceptual — not yet written
@@ -949,7 +950,7 @@ Until a proven association exists, topology warnings must remain dormant. Three 
 
 ### Source-confirmed but gated
 - Step 2 live link/unlink processor: ✅ fully unblocked — field shapes confirmed via Q11
-- Step 3 JumpEvent indexer: event shape confirmed; start checkpoint is `308264360`
+- Step 3 JumpEvent indexer: ✅ shipped — `world_gate_jumps` table, parser, DB helpers, processor, ingester cursor loop all wired
 - Step 5 tribe warnings: design clear; player tribe data pending Q6
 
 ### Remaining open CCP questions (5 of 11)
