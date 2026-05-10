@@ -195,9 +195,11 @@ export function OperatorExtensionAuthPanel() {
       <div className="c-kv" style={{ marginBottom: 10 }}>
         <span className="c-kv__k">World Gate</span>
         {authority.isLoading ? (
-          <span className="c-kv__v">Discovering...</span>
+          <span className="c-kv__v">Discovering Gate authority…</span>
         ) : boundGates.length === 0 ? (
-          <span className="c-kv__v">No world Gate candidates found</span>
+          <span className="c-kv__v" style={{ color: 'var(--c-mid)' }}>
+            No world Gate authority found for this wallet
+          </span>
         ) : (
           <select
             value={selectedWorldGateId}
@@ -239,8 +241,9 @@ export function OperatorExtensionAuthPanel() {
           </div>
 
           {!ownerCapForGate && (
-            <div className="c-sub" style={{ color: 'var(--c-crimson)', marginTop: 8 }}>
-              OwnerCap&lt;Gate&gt; not found for this world Gate. Authorization cannot proceed.
+            <div className="c-sub" style={{ color: 'var(--c-amber)', marginTop: 8 }}>
+              No OwnerCap&lt;Gate&gt; detected for this Gate in the connected wallet.
+              Authorization requires the Character that owns this Gate to be connected.
             </div>
           )}
           {ownerCapForGate && !characterForGate && (
@@ -298,6 +301,24 @@ export function OperatorExtensionAuthPanel() {
             <span className="c-kv__k">Gate OwnerCaps</span>
             <span className="c-kv__v">{authority.ownerCaps.length}</span>
           </div>
+
+          {!authority.isLoading && authority.ownerCaps.length === 0 && (
+            <div style={{
+              marginTop: 12,
+              padding: '10px 14px',
+              border: '1px solid var(--c-border)',
+              background: 'rgba(8,13,20,0.5)',
+              fontSize: 10,
+              color: 'var(--c-mid)',
+              lineHeight: 1.7,
+            }}>
+              No owned world Gate authority detected for this operator.
+              <br />
+              FrontierWarden is multi-tenant infrastructure. Each tribe or operator brings their
+              own Gate and OwnerCap. To complete BINDING VERIFIED, connect with a Character that
+              owns a world Gate, or have a tribe/operator connect their Gate-owning wallet.
+            </div>
+          )}
         </div>
       )}
 
