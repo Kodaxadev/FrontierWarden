@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@evefrontier/dapp-kit": "^0.1.9",
+    "@mysten/sui": "^2.16.0",
     "@tanstack/react-query": "^5.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -27,7 +28,7 @@
   },
   "_notes": {
     "react19": "Upgraded from React 18 to 19 -- all dapp-kit versions require react ^19.",
-    "mysten-sui": "Frontend transaction builders import @mysten/sui modules directly; they are currently resolved through the dapp-kit dependency tree. Add an explicit dependency if package resolution changes.",
+    "mysten-sui": "Frontend transaction builders import @mysten/sui modules directly, so the package is declared explicitly instead of relying on dapp-kit transitive resolution.",
     "dapp-kit-version": "0.1.9 is current. No React 18 compatible version exists."
   }
 }
