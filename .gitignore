@@ -21,6 +21,13 @@ skills-lock.json
 research/
 UI_Mockups/
 
+# Local Sui CLI/tool artifacts and scratch inspections
+/*.exe
+/*.tgz
+/*_module.json
+/module.json
+/builder_*.move
+
 # Private/Strategic docs
 private_docs/
 
