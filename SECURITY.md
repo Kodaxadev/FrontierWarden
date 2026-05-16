@@ -166,6 +166,37 @@ If you find a potential vulnerability:
 We aim to acknowledge reports within 48 hours and provide regular updates on
 resolution.
 
+## Derived Intelligence and Aggregation Risk
+
+FrontierWarden indexes public on-chain Sui events, but aggregation and
+correlation create operational risk that does not exist when querying raw chain
+state. Public source data does not imply unrestricted bulk access is safe.
+
+New endpoints that enable bulk queries, leaderboards, graph traversal, raw
+exports, or cross-tenant analytics require security review before merge. The
+preferred response shape is a decision-scoped proof bundle that answers a
+specific trust question without enabling surveillance.
+
+Full policy: [Documents/ADR_DATA_AGGREGATION_RISK.md](./Documents/ADR_DATA_AGGREGATION_RISK.md).
+
+## Governance (Current State)
+
+FrontierWarden is currently operated by a single project maintainer in testnet
+phase. There is no claim of decentralized governance at this stage.
+
+- Admin keys: held by project operator
+- Oracle registry: single-operator controlled
+- No multisig, DAO, or community governance is active
+
+Future governance targets (not yet implemented):
+
+- Multisig for oracle registry and admin actions
+- Public policy for oracle onboarding criteria
+- Active slashing and fraud challenge process
+- Emergency pause runbook
+
+Governance transfer is a mainnet readiness requirement, not a testnet priority.
+
 ## Known Limitations
 
 FrontierWarden is pre-mainnet software. Known pre-mainnet limitations and
