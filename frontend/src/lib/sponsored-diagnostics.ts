@@ -2,6 +2,7 @@ export type SponsoredErrorClass =
   | 'build_kind_failed'
   | 'missing_attestation'
   | 'payment_coin_missing'
+  | 'proof_rate_limited'
   | 'sponsor_api_failed'
   | 'sponsor_response_invalid'
   | 'transaction_from_sponsored_bytes_failed'
@@ -94,6 +95,9 @@ export function byteLength(value: unknown): number | null {
 
 export function classifySponsoredError(message: string): SponsoredErrorClass {
   const lower = message.toLowerCase();
+  if (message.includes('-32012') || lower.includes('rate limit') || lower.includes('ratelimit')) {
+    return 'proof_rate_limited';
+  }
   if (message.includes('Failed to fetch ZK proof')) return 'wallet_zk_proof_fetch_failed';
   if (lower.includes('user rejected') || lower.includes('rejected') || lower.includes('denied')) {
     return 'wallet_sign_rejected';

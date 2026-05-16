@@ -15,12 +15,13 @@
 // This panel does NOT bind to a world Gate, does NOT call authorize_extension,
 // and does NOT claim BINDING VERIFIED.
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { useOperatorGatePolicies } from '../../../hooks/useOperatorGatePolicies';
 import { useCreateGate } from '../../../hooks/useCreateGate';
 import { InfoTooltip } from './InfoTooltip';
 import { OperatorFlowGuide } from './OperatorFlowGuide';
+import { SigningFailureGuide } from './SigningFailureGuide';
 import { HELP } from './operator-help';
 
 const shortId = (value: string) =>
@@ -37,6 +38,11 @@ export function GatePolicyProvisionPanel() {
   const [draftSchema, setDraftSchema] = useState(DEFAULT_SCHEMA);
   const [draftThreshold, setDraftThreshold] = useState(DEFAULT_THRESHOLD);
   const [draftToll, setDraftToll] = useState(DEFAULT_TOLL);
+
+  const handleRetry = useCallback(() => {
+    reset();
+    void createGate({ schemaId: draftSchema, allyThreshold: draftThreshold, baseTollMist: draftToll });
+  }, [reset, createGate, draftSchema, draftThreshold, draftToll]);
 
   const busy = ['building', 'sponsoring', 'signing', 'executing'].includes(txState.step);
   const done = txState.step === 'done';
@@ -171,11 +177,19 @@ export function GatePolicyProvisionPanel() {
         <span style={{ fontSize: 10, color: statusColor }}>
           {done && txState.digest
             ? `provisioned · tx ${shortId(txState.digest)}`
-            : error && txState.error
-              ? (txState.error.length > 120 ? `${txState.error.slice(0, 120)}…` : txState.error)
+            : error
+              ? 'Transaction failed'
               : 'GateAdminCap = FrontierWarden policy authority · OwnerCap&lt;Gate&gt; = world Gate extension authority'}
         </span>
       </div>
+      {error && (
+        <SigningFailureGuide
+          errorClass={txState.trace?.errorClass ?? null}
+          error={txState.error}
+          onRetry={handleRetry}
+          onReset={reset}
+        />
+      )}
     </div>
   );
 }
