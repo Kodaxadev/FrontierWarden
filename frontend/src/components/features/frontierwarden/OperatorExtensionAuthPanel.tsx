@@ -10,7 +10,7 @@
 //   - Only authorizes the FrontierWardenAuth extension on an already-owned Gate
 //   - Shows BINDING VERIFIED only after indexer confirms extension evidence
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { useOperatorGatePolicies } from '../../../hooks/useOperatorGatePolicies';
 import { useOperatorGateAuthority } from '../../../hooks/useOperatorGateAuthority';
@@ -19,6 +19,7 @@ import { fetchGateBindingStatus } from '../../../lib/api';
 import type { GateBindingStatusResponse } from '../../../types/api.types';
 import { GateBindingStatusBadge } from './views/GateBindingStatusBadge';
 import { InfoTooltip } from './InfoTooltip';
+import { SigningFailureGuide } from './SigningFailureGuide';
 import { HELP } from './operator-help';
 
 const shortId = (value: string | null | undefined): string => {
@@ -114,6 +115,17 @@ export function OperatorExtensionAuthPanel() {
       gatePolicyId: selectedPolicy.gatePolicyId,
     });
   };
+
+  const handleRetry = useCallback(() => {
+    if (!selectedPolicy || !selectedGate || !ownerCapForGate || !characterForGate) return;
+    authTx.reset();
+    void authTx.authorize({
+      worldGateId: selectedGate.worldGateId,
+      ownerCapId: ownerCapForGate.objectId,
+      characterId: characterForGate.objectId,
+      gatePolicyId: selectedPolicy.gatePolicyId,
+    });
+  }, [selectedPolicy, selectedGate, ownerCapForGate, characterForGate, authTx]);
 
   const checkBinding = async (policyId: string) => {
     setBindingCheckLoading(true);
@@ -337,11 +349,18 @@ export function OperatorExtensionAuthPanel() {
           {authTx.authorizeState.digest && <> Tx {shortId(authTx.authorizeState.digest)}.</>}
         </div>
       )}
-      {(authTx.authorizeState.error || authTx.sponsoredState.error) && (
+      {authTx.sponsoredState.error ? (
+        <SigningFailureGuide
+          errorClass={authTx.sponsoredState.trace?.errorClass ?? null}
+          error={authTx.sponsoredState.error}
+          onRetry={canAuthorize ? handleRetry : undefined}
+          onReset={authTx.reset}
+        />
+      ) : authTx.authorizeState.error ? (
         <div className="c-sub" style={{ color: 'var(--c-crimson)', marginTop: 12 }}>
-          {authTx.authorizeState.error ?? authTx.sponsoredState.error}
+          {authTx.authorizeState.error}
         </div>
-      )}
+      ) : null}
 
       {/* Action */}
       <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 20 }}>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useBindWorldGate } from "../../../../hooks/useBindWorldGate";
 import { useGateAdminCaps } from "../../../../hooks/useGateAdminCaps";
 import { fetchGateBindingStatus, fetchWorldGates } from "../../../../lib/api";
@@ -8,6 +8,7 @@ import type {
 } from "../../../../types/api.types";
 import { GateBindingStatusBadge } from "./GateBindingStatusBadge";
 import { OperatorGateAuthorityPanel } from "./OperatorGateAuthorityPanel";
+import { SigningFailureGuide } from "../SigningFailureGuide";
 
 interface OperatorBindingPanelProps {
   gatePolicyId: string;
@@ -173,6 +174,15 @@ export function OperatorBindingPanel({
     });
   };
 
+  const handleRetry = useCallback(() => {
+    if (!adminCaps.matchingCap || !selectedGate) return;
+    bindTx.reset();
+    void bindTx.bindWorldGate({
+      gateAdminCapId: adminCaps.matchingCap.objectId,
+      worldGateId: selectedGate.worldGateId,
+    });
+  }, [adminCaps.matchingCap, selectedGate, bindTx]);
+
   return (
     <div
       style={{
@@ -289,14 +299,21 @@ export function OperatorBindingPanel({
           )}
         </div>
       )}
-      {(bindTx.bindState.error || bindTx.sponsoredState.error) && (
+      {bindTx.sponsoredState.error ? (
+        <SigningFailureGuide
+          errorClass={bindTx.sponsoredState.trace?.errorClass ?? null}
+          error={bindTx.sponsoredState.error}
+          onRetry={adminCaps.matchingCap && selectedGate ? handleRetry : undefined}
+          onReset={bindTx.reset}
+        />
+      ) : bindTx.bindState.error ? (
         <div
           className="c-sub"
           style={{ color: "var(--c-crimson)", marginTop: 12 }}
         >
-          {bindTx.bindState.error ?? bindTx.sponsoredState.error}
+          {bindTx.bindState.error}
         </div>
-      )}
+      ) : null}
 
       <button
         className="c-commit"
