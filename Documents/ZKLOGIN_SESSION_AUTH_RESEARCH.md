@@ -367,7 +367,7 @@ or hard-code the testnet/mainnet URLs as defaults.
 **Risk 4 — Epoch expiry (LOW, inherent to zkLogin)**
 
 zkLogin proofs have a `max_epoch` field. A signature is only valid until the Sui
-epoch in that field. The Sui fullnode's `verifyZkLoginSignature` checks this bound.
+epoch in that field. The Sui fullnode's `verifySignature` checks this bound.
 Sessions issued before epoch rollover remain valid (they use the bearer token, not
 the zkLogin proof), but operators with expired proofs must re-auth with fresh proofs.
 This is expected zkLogin behavior.
@@ -503,15 +503,175 @@ These must hold in any implementation:
 
 1. **Ed25519 path unchanged** — local, synchronous, no network calls. Zero regression
    risk.
-2. **Nonce consumed before RPC call** — prevents replay regardless of RPC reliability.
+
+2. **Nonce timing — v1 tradeoff (explicit):**
+   The v1 implementation consumes the nonce *before* calling the GraphQL verifier
+   (current `consume_nonce` → `verify_personal_message` call order in `create_session`).
+   This prevents replay unconditionally: even if the verifier call never completes, the
+   nonce cannot be re-used by an attacker who observed it.
+
+   **The UX cost:** if `verifySignature` times out or returns 503, the nonce is already
+   spent. The operator must request a new nonce before retrying. This is acceptable for
+   v1 — document it clearly in the operator console as "wallet verification timed out,
+   please request a new challenge."
+
+   **A future v2 improvement (not v1):**
+   - Mark nonce as `verification_in_progress` rather than consuming it immediately
+   - Call the verifier
+   - Consume the nonce on success; restore to `pending` on verifier timeout/503
+   - Rate-limit nonces per address to prevent farming: max N active nonces per address
+   - On verifier outage, allow one retry per nonce within a short cooldown window
+
+   This requires a more complex nonce state machine. Do not implement v2 until v1 is
+   proven correct and the verifier uptime is understood.
+
 3. **Address must match** — the GraphQL response must confirm the claimed address. The
    backend never issues a session for an address the fullnode did not verify.
-4. **Scheme 401 is opaque** — unsupported schemes return the same error message as
-   invalid signatures. No scheme leakage in 401 bodies.
+
+4. **Scheme 401 is opaque** — all auth failures (invalid sig, unsupported scheme,
+   issuer rejected) return the same body. No scheme, issuer, JWK, or proof details
+   leak in 401 responses. Log internally with full context; surface nothing externally.
+
 5. **zkLogin verification is opt-in** — only enabled when `EFREP_GRAPHQL_URL` is
    set. Deployments without the env var continue to reject zkLogin with 401.
+
 6. **No frontend trust** — the GraphQL call is always server-side. The backend never
-   trusts a "verified" flag sent by the browser.
+   accepts a "pre-verified" flag from the browser or any request body field.
+
+---
+
+## Gate: Live EVE Vault Test Required Before Implementation
+
+**Production zkLogin session auth must not be implemented until a real EVE Vault
+signature passes `verifySignature` on the testnet node.** The architecture is proven
+viable; the only remaining blocker is the FusionAuth issuer question.
+
+**Test procedure:**
+
+```powershell
+# 1. Get a challenge nonce from the live API
+$nonce = (Invoke-RestMethod -Method POST `
+  https://ef-indexer-production.up.railway.app/auth/nonce `
+  -Body '{"address":"0x<eve-vault-addr>"}' `
+  -ContentType application/json).nonce
+
+# 2. In EVE Vault: sign the session message string with signPersonalMessage
+#    Message: "FrontierWarden operator session\nAddress: 0x<addr>\nNonce: $nonce\nExpires: <ts>"
+#    Copy the returned base64 signature.
+
+# 3. Run the spike with the real signature
+$env:SPIKE_ADDRESS    = "0x<eve-vault-addr>"
+$env:SPIKE_MESSAGE_TEXT = "FrontierWarden operator session`nAddress: ..."
+$env:SPIKE_SIGNATURE  = "<base64-zklogin-sig-from-eve-vault>"
+cargo run --bin verify_signature_spike
+```
+
+**Expected success:**
+```json
+{ "data": { "verifySignature": { "success": true } } }
+```
+
+**Expected blocker (FusionAuth issuer not in testnet allowlist):**
+```json
+{ "errors": [{ "message": "...(issuer / JWK / unsupported provider)..." }] }
+```
+
+Record the exact error. If blocked: see Open Question 1 for fallback options.
+Implementation may proceed only on confirmed `success: true` from an EVE Vault wallet.
+
+---
+
+## Implementation Contract for `codex/zklogin-session-auth-graphql`
+
+_Do not open this branch until the live EVE Vault test confirms `success: true`._
+
+### Scheme dispatch in `verify_personal_message`
+
+```rust
+fn verify_personal_message(
+    message: &str,
+    signature: &str,
+    address: &str,
+    graphql_url: Option<&str>,
+) -> impl Future<Output = anyhow::Result<()>> {
+    let bytes = base64::decode(signature)?;
+    match bytes.first() {
+        Some(0x00) => verify_personal_message_ed25519(message, signature, address),
+        Some(0x05) => match graphql_url {
+            Some(url) => verify_personal_message_zklogin_graphql(message, signature, address, url),
+            None => Err(anyhow::anyhow!("zkLogin session auth not configured")),
+        },
+        Some(_) | None => Err(anyhow::anyhow!("unsupported signature scheme")),
+    }
+}
+```
+
+Schemes `0x01` (secp256k1), `0x02` (secp256r1), `0x03` (multisig), `0x06` (passkey)
+remain rejected. The error message for all rejected paths is the same string:
+`"unsupported signature scheme"` — caller receives an opaque 401.
+
+### Error classification and HTTP status
+
+| Condition | HTTP status | Response body |
+|---|---|---|
+| Invalid signature (Ed25519 or zkLogin) | 401 | `AUTH_FAILED` |
+| Unsupported scheme byte | 401 | `AUTH_FAILED` |
+| zkLogin issuer rejected by fullnode | 401 | `AUTH_FAILED` |
+| zkLogin epoch expired | 401 | `AUTH_FAILED` |
+| `verifySignature` returns GraphQL error (any) | 401 | `AUTH_FAILED` |
+| GraphQL timeout (> 10s) | 503 | `ZKLOGIN_VERIFIER_UNAVAILABLE` |
+| GraphQL connection refused / DNS failure | 503 | `ZKLOGIN_VERIFIER_UNAVAILABLE` |
+| `EFREP_GRAPHQL_URL` not set and scheme is 0x05 | 401 | `AUTH_FAILED` |
+
+**503 body:**
+```json
+{
+  "error": "ZKLOGIN_VERIFIER_UNAVAILABLE",
+  "message": "zkLogin verification service is temporarily unavailable. Try again shortly."
+}
+```
+
+**401 body (all auth failure variants, including issuer rejection and bad signature):**
+```json
+{
+  "error": "AUTH_FAILED",
+  "message": "Invalid wallet signature"
+}
+```
+
+Nothing scheme-specific, issuer-specific, or proof-specific appears in any 401 or
+503 response body. Log full internal detail (scheme byte, GraphQL error message,
+address, request traceId) at `WARN` level. Do not log the signature bytes.
+
+### What NOT to expose externally
+
+These must never appear in response bodies:
+
+- Signature scheme (`ed25519`, `zkLogin`, `0x05`)
+- Issuer URL (`test.auth.evefrontier.com`)
+- JWK or prover details
+- Proof parsing errors (`"Failed to parse BCS"`, etc.)
+- GraphQL error messages from the fullnode
+- Nonce state information
+
+### `create_session` call order (v1)
+
+```
+1. normalize address
+2. consume_nonce(req)          ← nonce spent here; 401 if expired/unknown
+3. detect scheme byte
+4. if 0x05: call verifySignature(graphql_url)
+               ├─ success:true  → proceed to issue token
+               ├─ success:false → 401 AUTH_FAILED
+               ├─ GraphQL error → 401 AUTH_FAILED (log exact error internally)
+               └─ network error → 503 ZKLOGIN_VERIFIER_UNAVAILABLE
+5. issue session token
+```
+
+The nonce is consumed at step 2 regardless of what happens in step 4. On 503,
+the operator must request a new nonce. Document this in the operator console:
+_"Your wallet could not be verified. The verification service may be temporarily
+unavailable. Wait a moment and try again — you will need a new challenge."_
 
 ---
 
