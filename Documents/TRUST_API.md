@@ -1,9 +1,15 @@
 # FrontierWarden Trust Decision API
 
-Last updated: 2026-05-04
+Last updated: 2026-05-16
 
 FrontierWarden exposes a small REST surface for EVE Frontier tools that need a
 defensible trust decision backed by indexed Sui protocol state.
+
+## Quick Links
+
+- **Live endpoint:** `https://ef-indexer-production.up.railway.app`
+- **Integration guide for tool builders:** [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)
+- **Data aggregation risk policy:** [ADR_DATA_AGGREGATION_RISK.md](./ADR_DATA_AGGREGATION_RISK.md)
 
 ## Positioning
 
@@ -80,6 +86,44 @@ client IPs, wallet signatures, API keys, or request bodies.
 This limiter is a testnet guardrail. Public deployments should also use
 gateway, reverse-proxy, or platform-level rate limits because in-process limits
 do not coordinate across multiple API instances.
+
+Rate-limited responses include headers:
+
+```
+X-RateLimit-Limit: <per-minute cap>
+X-RateLimit-Remaining: <requests left in window>
+Retry-After: <seconds until window resets>
+```
+
+## Error Responses
+
+Validation errors return HTTP 400 with a structured JSON body:
+
+```json
+{
+  "error": "VALIDATION_ERROR",
+  "message": "context.gateId is required for gate_access",
+  "field": "context.gateId"
+}
+```
+
+Internal errors return HTTP 500:
+
+```json
+{
+  "error": "INTERNAL_ERROR",
+  "message": "An internal error occurred."
+}
+```
+
+Rate-limited responses return HTTP 429:
+
+```json
+{
+  "error": "RATE_LIMITED",
+  "message": "Too many requests. See Retry-After header."
+}
+```
 
 ## Request
 
@@ -195,6 +239,11 @@ Current warning codes:
 
 Freshness warnings do not currently flip `allow` to `false`. They are defensive
 metadata for operators and external tools.
+
+**Testnet note:** `INDEXER_LAST_EVENT_STALE_SECONDS` with a large value (hours
+or days) typically indicates low protocol activity on testnet, not an outage. If
+`/health` returns `200`, the indexer is running but has no new events to
+process.
 
 ## Decisions
 

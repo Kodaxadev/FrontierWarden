@@ -1,5 +1,6 @@
 use axum::{
     extract::{Extension, State},
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
@@ -7,7 +8,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 
 use crate::{
-    api_common::ApiError,
+    api_common::{ApiError, ValidationError},
     trust_evaluator,
     trust_types::{TrustEvaluationRequest, TrustEvaluationResponse},
 };
@@ -57,7 +58,15 @@ async fn evaluate(
     State(pool): State<PgPool>,
     Extension(cfg): Extension<TrustConfig>,
     Json(req): Json<TrustEvaluationRequest>,
-) -> Result<Json<TrustEvaluationResponse>, ApiError> {
+) -> Result<Json<TrustEvaluationResponse>, axum::response::Response> {
+    if req.action.trim() == "gate_access" && req.context.gate_id.as_deref().map(str::trim).unwrap_or("").is_empty() {
+        return Err(ValidationError::missing_field(
+            "context.gateId",
+            "context.gateId is required for gate_access",
+        )
+        .into_response());
+    }
+
     let response = trust_evaluator::evaluate(
         &pool,
         req,
@@ -65,6 +74,7 @@ async fn evaluate(
         &cfg.default_counterparty_schema,
         &cfg.default_bounty_schema,
     )
-    .await?;
+    .await
+    .map_err(|e| ApiError(e).into_response())?;
     Ok(Json(response))
 }
