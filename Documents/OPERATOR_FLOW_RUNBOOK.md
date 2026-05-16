@@ -421,10 +421,20 @@ minutes. The UI labels this explicitly in the `WorldGateTrafficPanel`.
 ## Known Operational Notes
 
 **zkLogin proof fetch failures:**
-The sponsored passage flow reaches wallet signing, but final execution can
-fail if the zkLogin prover is unavailable. This is a wallet-session
-dependency, not a FrontierWarden transaction construction failure. Retry
-resolves it. Test with a direct-key Ed25519 wallet where possible.
+The sponsored transaction flow reaches wallet signing, but EVE Vault can fail
+to fetch a zkLogin proof. This is a wallet-session dependency, not a
+FrontierWarden transaction construction failure.
+
+Two classified error codes surface in the UI via `SigningFailureGuide`:
+
+- `proof_rate_limited` — EVE Vault's zkLogin prover returned JSON-RPC error
+  `-32012` (rate limit). Wait 30–60 seconds and retry. No on-chain state was
+  changed.
+- `wallet_zk_proof_fetch_failed` — generic proof fetch failure (network,
+  prover unavailable). Retry after a brief wait.
+
+Both show a **TRY AGAIN** button in the operator panels. Test with a
+direct-key Ed25519 wallet where possible to avoid the prover dependency.
 
 **Operator session verification:**
 `/auth/nonce` and `/auth/session` accept Ed25519 signatures only. zkLogin,
