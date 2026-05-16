@@ -72,11 +72,26 @@ pub(crate) fn router_with_security(
 }
 
 fn cors_layer() -> CorsLayer {
-    let raw = std::env::var("EFREP_ALLOWED_ORIGINS")
-        .unwrap_or_else(|_| "http://localhost:5173,http://localhost:3000".to_owned());
+    let allow_any = std::env::var("EFREP_CORS_ALLOW_ANY")
+        .unwrap_or_default()
+        .eq_ignore_ascii_case("true");
+
+    if allow_any {
+        return CorsLayer::new()
+            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+            .allow_headers(Any)
+            .allow_origin(Any);
+    }
+
+    let raw = std::env::var("EFREP_CORS_ALLOWED_ORIGINS")
+        .or_else(|_| std::env::var("EFREP_ALLOWED_ORIGINS"))
+        .unwrap_or_else(|_| {
+            "http://localhost:5173,http://localhost:3000,https://frontierwarden.kodaxa.dev".to_owned()
+        });
     let allowed: Vec<HeaderValue> = raw
         .split(',')
         .map(str::trim)
+        .filter(|s| !s.is_empty())
         .filter_map(|o| o.parse().ok())
         .collect();
     CorsLayer::new()

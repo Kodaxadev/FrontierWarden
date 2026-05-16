@@ -23,6 +23,7 @@ pub(crate) async fn evaluate_gate_access(
         .gate_id
         .as_deref()
         .map(str::trim)
+        .filter(|s| !s.is_empty())
         .ok_or_else(|| anyhow!("context.gateId is required for gate_access"))?
         .to_owned();
     let schema = req

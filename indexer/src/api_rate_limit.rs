@@ -44,9 +44,9 @@ impl RateLimitState {
         })
     }
 
-    fn allow(&self, key: &str, now: Instant) -> bool {
+    fn check(&self, key: &str, now: Instant) -> RateLimitResult {
         let Ok(mut windows) = self.windows.lock() else {
-            return false;
+            return RateLimitResult { allowed: false, limit: self.limit, remaining: 0, retry_after_secs: 60 };
         };
 
         windows.retain(|_, window| now.duration_since(window.started) < WINDOW);
@@ -62,25 +62,55 @@ impl RateLimitState {
         }
 
         if window.count >= self.limit {
-            return false;
+            let elapsed = now.duration_since(window.started).as_secs();
+            let retry_after = 60u64.saturating_sub(elapsed);
+            return RateLimitResult { allowed: false, limit: self.limit, remaining: 0, retry_after_secs: retry_after };
         }
 
         window.count += 1;
-        true
+        let remaining = self.limit.saturating_sub(window.count);
+        RateLimitResult { allowed: true, limit: self.limit, remaining, retry_after_secs: 0 }
     }
+}
+
+pub struct RateLimitResult {
+    pub allowed: bool,
+    pub limit: u32,
+    pub remaining: u32,
+    pub retry_after_secs: u64,
 }
 
 pub async fn rate_limit(
     State(state): State<RateLimitState>,
     req: Request<Body>,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> Response {
     let key = client_key(req.headers());
-    if !state.allow(&key, Instant::now()) {
-        return Err(StatusCode::TOO_MANY_REQUESTS);
+    let result = state.check(&key, Instant::now());
+
+    if !result.allowed {
+        return Response::builder()
+            .status(StatusCode::TOO_MANY_REQUESTS)
+            .header("X-RateLimit-Limit", result.limit.to_string())
+            .header("X-RateLimit-Remaining", "0")
+            .header("Retry-After", result.retry_after_secs.to_string())
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                r#"{"error":"RATE_LIMITED","message":"Too many requests. See Retry-After header."}"#,
+            ))
+            .unwrap_or_default();
     }
 
-    Ok(next.run(req).await)
+    let mut response = next.run(req).await;
+    response.headers_mut().insert(
+        "X-RateLimit-Limit",
+        result.limit.to_string().parse().unwrap(),
+    );
+    response.headers_mut().insert(
+        "X-RateLimit-Remaining",
+        result.remaining.to_string().parse().unwrap(),
+    );
+    response
 }
 
 fn client_key(headers: &HeaderMap) -> String {
@@ -132,19 +162,33 @@ mod tests {
     fn enforces_limit_per_window() {
         let limiter = RateLimitState::new(2).expect("nonzero limit");
         let now = Instant::now();
-        assert!(limiter.allow("client", now));
-        assert!(limiter.allow("client", now));
-        assert!(!limiter.allow("client", now));
-        assert!(limiter.allow("other", now));
+        assert!(limiter.check("client", now).allowed);
+        assert!(limiter.check("client", now).allowed);
+        let denied = limiter.check("client", now);
+        assert!(!denied.allowed);
+        assert_eq!(denied.remaining, 0);
+        assert!(limiter.check("other", now).allowed);
     }
 
     #[test]
     fn resets_after_window() {
         let limiter = RateLimitState::new(1).expect("nonzero limit");
         let now = Instant::now();
-        assert!(limiter.allow("client", now));
-        assert!(!limiter.allow("client", now));
-        assert!(limiter.allow("client", now + WINDOW + Duration::from_secs(1)));
+        assert!(limiter.check("client", now).allowed);
+        assert!(!limiter.check("client", now).allowed);
+        assert!(limiter.check("client", now + WINDOW + Duration::from_secs(1)).allowed);
+    }
+
+    #[test]
+    fn returns_remaining_count() {
+        let limiter = RateLimitState::new(3).expect("nonzero limit");
+        let now = Instant::now();
+        let r1 = limiter.check("client", now);
+        assert!(r1.allowed);
+        assert_eq!(r1.remaining, 2);
+        assert_eq!(r1.limit, 3);
+        let r2 = limiter.check("client", now);
+        assert_eq!(r2.remaining, 1);
     }
 
     #[test]
