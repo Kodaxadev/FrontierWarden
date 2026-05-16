@@ -1,6 +1,7 @@
 # ADR: Private Tenant Data Encryption via Keyspace
 
-> Status: research / not adopted  
+> Status: deferred / watch  
+> Decision: Do not integrate Keyspace until license, adoption, Seal stability, and tribe/group-role support mature.  
 > Date: 2026-05-16  
 > Context: data aggregation risk ADR identified need for encrypted tenant-private layer
 
