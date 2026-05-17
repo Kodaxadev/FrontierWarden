@@ -169,19 +169,25 @@ function mapProofs(rows: AttestationRow[]): FwProof[] {
   }));
 }
 
-function mapKills(rows: AttestationFeedRow[]): FwKill[] {
-  return rows.map(row => ({
-    id: shortId(row.attestation_id),
-    t: row.issued_at,
-    victim: shortId(row.subject),
-    ship: 'SHIP_KILL attestation',
-    system: `${networkTitle(SUI_NETWORK_LABEL.toLowerCase())} indexed`,
-    lux: Math.max(0, row.value),
-    attackers: 1,
-    hash: row.issued_tx,
-    verified: !row.revoked,
-    issuer: shortId(row.issuer),
-  }));
+function mapKills(rows: AttestationFeedRow[], identityMap: IdentityEnrichmentMap): FwKill[] {
+  return rows.map(row => {
+    const identity = identityMap[row.subject];
+    const victimName = identity?.character_name ?? null;
+    return {
+      id: shortId(row.attestation_id),
+      t: row.issued_at,
+      victim: victimName ?? shortId(row.subject),
+      victimWallet: shortId(row.subject),
+      victimCorp: identity?.tribe_name ?? undefined,
+      ship: 'Kill attestation',
+      system: 'unknown',
+      lux: Math.max(0, row.value),
+      attackers: 1,
+      hash: row.issued_tx,
+      verified: !row.revoked,
+      issuer: shortId(row.issuer),
+    };
+  });
 }
 
 function mapPolicy(row: GatePolicyRow | null): FwPolicy | undefined {
@@ -272,13 +278,14 @@ function mergeLiveData(
   policy: GatePolicyRow | null,
   contracts: AttestationFeedRow[],
   eveIdentity: EveIdentity | null,
+  identityMap: IdentityEnrichmentMap,
   demoEnabled: boolean,
 ): { data: FwData; provenance: Record<string, Provenance> } {
   const liveGates = gates.map(gate => mapGate(gate, gateBindings[gate.gate_id]));
   const liveAlerts = challenges.slice(0, 5).map(challengeAlert);
   const liveVouches = mapVouches(vouches);
   const liveProofs = mapProofs(attestations);
-  const liveKills = mapKills(shipKills);
+  const liveKills = mapKills(shipKills, identityMap);
   const livePolicy = mapPolicy(policy);
   const liveContracts = mapContracts(contracts);
 
@@ -364,7 +371,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       setEveIdentity(identity);
       setEveIdentityMap(identityMap);
 
-      const result = mergeLiveData(gates, gateBindings, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts, identity, demoEnabled);
+      const result = mergeLiveData(gates, gateBindings, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts, identity, identityMap, demoEnabled);
       setData(result.data);
       setProvenance(result.provenance);
       setLive(gates.length > 0 || challenges.length > 0 || profile != null || shipKills.length > 0 || policy != null || bountyContracts.length > 0);

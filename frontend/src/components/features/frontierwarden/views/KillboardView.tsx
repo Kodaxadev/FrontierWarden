@@ -5,8 +5,8 @@ import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
 import type { FwData } from '../fw-data';
 
-type KillFilter = 'ALL' | 'HOSTILE' | 'FRIENDLY';
-const FILTERS: KillFilter[] = ['ALL', 'HOSTILE', 'FRIENDLY'];
+// Hostile/friendly filters omitted — relationship data not present in SHIP_KILL attestations.
+type KillFilter = 'ALL';
 
 function luxLabel(lux: number) {
   if (lux >= 1_000_000_000) return `${(lux / 1e9).toFixed(2)}B`;
@@ -22,17 +22,12 @@ interface Props {
 }
 
 export function KillboardView({ data, live = false, loading = false, error = null, provenance }: Props) {
-  const [filter, setFilter] = useState<KillFilter>('ALL');
+  const [filter] = useState<KillFilter>('ALL');
 
-  const kills = data.kills.filter(k => {
-    if (filter === 'FRIENDLY') return k.friendly === true;
-    if (filter === 'HOSTILE')  return !k.friendly;
-    return true;
-  });
+  const kills = data.kills.filter(_k => filter === 'ALL');
 
-  const totalLux   = kills.reduce((s, k) => s + k.lux, 0);
-  const hostile    = kills.filter(k => !k.friendly).length;
-  const verified   = kills.filter(k => k.verified).length;
+  const totalLux = kills.reduce((s, k) => s + k.lux, 0);
+  const verified = kills.filter(k => k.verified).length;
 
   return (
     <>
@@ -47,6 +42,17 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         emptyText="No kills indexed"
       />
 
+      {/* Schema disclaimer */}
+      <div style={{
+        fontSize: 11, color: 'var(--c-mid)',
+        padding: '8px 0 20px',
+        borderBottom: '1px solid var(--c-border)',
+        marginBottom: 20,
+      }}>
+        Killboard entries are oracle attestations, not full combat telemetry.
+        Ship type, system, and attacker count require a richer kill schema.
+      </div>
+
       {/* Summary bar */}
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
@@ -55,10 +61,9 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         background: 'var(--c-border)',
       }}>
         {[
-          { k: 'Total Kills',     v: kills.length.toString() },
-          { k: 'Hostile',         v: hostile.toString() },
-          { k: 'LUX Destroyed',   v: luxLabel(totalLux) },
-          { k: 'Verified',        v: `${verified} / ${kills.length}` },
+          { k: 'Kill Attestations', v: kills.length.toString() },
+          { k: 'LUX Destroyed',     v: luxLabel(totalLux) },
+          { k: 'Verified',          v: `${verified} / ${kills.length}` },
         ].map(s => (
           <div key={s.k} style={{
             background: 'var(--c-surface)',
@@ -70,18 +75,6 @@ export function KillboardView({ data, live = false, loading = false, error = nul
               letterSpacing: '-0.02em', marginTop: 4,
             }}>{s.v}</div>
           </div>
-        ))}
-      </div>
-
-      <div className="c-filters">
-        {FILTERS.map(f => (
-          <button
-            key={f}
-            className={`c-filter${filter === f ? ' c-filter--active' : ''}`}
-            onClick={() => setFilter(f)}
-          >
-            {f}
-          </button>
         ))}
       </div>
 
@@ -100,7 +93,6 @@ export function KillboardView({ data, live = false, loading = false, error = nul
           <tr>
             <th>Time</th>
             <th>Victim</th>
-            <th>System</th>
             <th>LUX Lost</th>
             <th>Issuer</th>
             <th>Attestation</th>
@@ -111,6 +103,7 @@ export function KillboardView({ data, live = false, loading = false, error = nul
           {kills.map(k => {
             const highLux = k.lux > 200_000_000;
             const time = k.t?.includes('T') ? k.t.split('T')[1]?.replace('Z', '') ?? '--:--:--' : '--:--:--';
+            const victimIsName = k.victimWallet !== undefined;
             return (
               <tr key={k.id}>
                 <td>
@@ -118,17 +111,17 @@ export function KillboardView({ data, live = false, loading = false, error = nul
                   <div className="c-sub">{k.id}</div>
                 </td>
                 <td>
-                  <div style={{
-                    fontSize: 14, fontWeight: 600,
-                    color: k.friendly ? 'var(--c-crimson)' : 'var(--c-hi)',
-                    ...(k.friendly ? { textShadow: '0 0 8px rgba(239,68,68,0.4)' } : {}),
-                  }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-hi)' }}>
                     {k.victim}
                   </div>
-                  <div className="c-sub">{k.ship} · {k.attackers} atk</div>
-                </td>
-                <td>
-                  <span style={{ fontSize: 11, color: 'var(--c-mid)' }}>{k.system}</span>
+                  {victimIsName && k.victimWallet && (
+                    <div className="c-sub" style={{ fontFamily: 'var(--c-mono)' }}>
+                      {k.victimWallet}
+                    </div>
+                  )}
+                  {k.victimCorp && (
+                    <div className="c-sub">{k.victimCorp}</div>
+                  )}
                 </td>
                 <td>
                   <div className={`c-kill-isk${highLux ? ' c-kill-isk--large' : ''}`}
@@ -138,7 +131,7 @@ export function KillboardView({ data, live = false, loading = false, error = nul
                 </td>
                 <td>
                   <span style={{ fontSize: 10, color: 'var(--c-mid)', fontFamily: 'var(--c-mono)' }}>
-                    {k.issuer ?? 'design'}
+                    {k.issuer ?? '—'}
                   </span>
                 </td>
                 <td>
