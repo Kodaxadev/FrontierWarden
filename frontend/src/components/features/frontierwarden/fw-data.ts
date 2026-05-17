@@ -37,14 +37,34 @@ export interface FwPolicy {
 }
 
 export interface FwKill {
-  id: string; t: string; victim: string; ship: string;
-  system: string; lux: number; attackers: number;
-  hash: string; verified: boolean; friendly?: boolean;
-  issuer?: string;
-  /** Raw wallet address of the victim (0x-prefixed). */
+  id: string;
+  t: string;
+  /** Display name for the victim (character name or shortened address). */
+  victim: string;
+  /** Raw wallet address of the victim, if a character name was resolved. */
   victimWallet?: string;
-  /** Corporation/tribe name from EVE identity, if resolved. */
+  /** Tribe/corp name of the victim. */
   victimCorp?: string;
+  /** Display name for the killer (native kill mails only). */
+  killer?: string;
+  /** Shortened killer wallet address, if killer name was resolved. */
+  killerWallet?: string;
+  /** Tribe/corp name of the killer. */
+  killerCorp?: string;
+  /** Solar system name. */
+  system: string;
+  /** Loss type string from native kill data (ship class etc). */
+  lossType?: string;
+  // Legacy / attestation-sourced fields — kept for demo data backward compat.
+  ship: string;
+  lux: number;
+  attackers: number;
+  hash: string;
+  verified: boolean;
+  friendly?: boolean;
+  issuer?: string;
+  /** True when a SHIP_KILL attestation exists for the same victim. */
+  attested?: boolean;
 }
 
 export interface FwContract {

@@ -3,9 +3,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
-import { fetchAttestationFeed, fetchAttestations, fetchBatchIdentities, fetchChallenges, fetchEveIdentity, fetchGateBindingStatus, fetchGatePolicy, fetchGates, fetchLeaderboard, fetchScores, fetchVouches } from '../lib/api';
+import { fetchAttestationFeed, fetchAttestations, fetchBatchIdentities, fetchChallenges, fetchEveIdentity, fetchGateBindingStatus, fetchGatePolicy, fetchGates, fetchKillMails, fetchLeaderboard, fetchScores, fetchVouches } from '../lib/api';
 import { networkTitle, SUI_NETWORK_LABEL } from '../lib/network';
-import type { AttestationFeedRow, AttestationRow, EveIdentity, FraudChallengeRow, GateBindingStatusResponse, GatePolicyRow, GateSummaryRow, IdentityEnrichmentMap, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
+import type { AttestationFeedRow, AttestationRow, EveIdentity, FraudChallengeRow, GateBindingStatusResponse, GatePolicyRow, GateSummaryRow, IdentityEnrichmentMap, KillMailItem, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
 import { FW_DATA } from '../components/features/frontierwarden/fw-data';
 import type { FwAlert, FwContract, FwData, FwGate, FwKill, FwPilot, FwPolicy, FwProof, FwVouch } from '../components/features/frontierwarden/fw-data';
 import type { Provenance } from '../components/features/frontierwarden/LiveStatus';
@@ -169,23 +169,31 @@ function mapProofs(rows: AttestationRow[]): FwProof[] {
   }));
 }
 
-function mapKills(rows: AttestationFeedRow[], identityMap: IdentityEnrichmentMap): FwKill[] {
+// Native kill mails are combat telemetry — not trust scores or attestations.
+// attestedVictims: set of victim wallet addresses that have a matching SHIP_KILL attestation.
+function mapKillMails(rows: KillMailItem[], attestedVictims: Set<string>): FwKill[] {
   return rows.map(row => {
-    const identity = identityMap[row.subject];
-    const victimName = identity?.character_name ?? null;
+    const victimName = row.victimName ?? null;
+    const killerName = row.killerName ?? null;
+
     return {
-      id: shortId(row.attestation_id),
-      t: row.issued_at,
-      victim: victimName ?? shortId(row.subject),
-      victimWallet: victimName ? shortId(row.subject) : undefined,
-      victimCorp: identity?.tribe_name ?? undefined,
-      ship: 'Kill attestation',
-      system: 'unknown',
-      lux: Math.max(0, row.value),
+      id: String(row.killMailId),
+      t: row.killTimestamp ?? row.indexedAt,
+      victim: victimName ?? (row.victimAddress ? shortId(row.victimAddress) : '—'),
+      victimWallet: victimName && row.victimAddress ? shortId(row.victimAddress) : undefined,
+      victimCorp: row.victimTribe ?? undefined,
+      killer: killerName ?? (row.killerAddress ? shortId(row.killerAddress) : undefined),
+      killerWallet: killerName && row.killerAddress ? shortId(row.killerAddress) : undefined,
+      killerCorp: row.killerTribe ?? undefined,
+      system: row.solarSystemName ?? 'unknown',
+      lossType: row.lossType ?? undefined,
+      // Legacy fields — not populated from native kill data
+      ship: row.lossType ?? 'Kill mail',
+      lux: 0,
       attackers: 1,
-      hash: row.issued_tx,
-      verified: !row.revoked,
-      issuer: shortId(row.issuer),
+      hash: String(row.sourceId),
+      verified: true,
+      attested: row.victimAddress ? attestedVictims.has(row.victimAddress.toLowerCase()) : false,
     };
   });
 }
@@ -245,6 +253,7 @@ function collectIdentityWallets(
     wallets.add(row.issuer);
     wallets.add(row.subject);
   }
+  // feeds = bounty contracts (PLAYER_BOUNTY attestations)
   for (const row of feeds) {
     wallets.add(row.issuer);
     wallets.add(row.subject);
@@ -274,7 +283,8 @@ function mergeLiveData(
   scores: ScoreRow[],
   vouches: VouchRow[],
   attestations: AttestationRow[],
-  shipKills: AttestationFeedRow[],
+  nativeKills: KillMailItem[],
+  shipKillAttestations: AttestationFeedRow[],
   policy: GatePolicyRow | null,
   contracts: AttestationFeedRow[],
   eveIdentity: EveIdentity | null,
@@ -285,7 +295,11 @@ function mergeLiveData(
   const liveAlerts = challenges.slice(0, 5).map(challengeAlert);
   const liveVouches = mapVouches(vouches);
   const liveProofs = mapProofs(attestations);
-  const liveKills = mapKills(shipKills, identityMap);
+  // Build a set of victim addresses covered by SHIP_KILL attestations for badge overlay.
+  const attestedVictims = new Set(
+    shipKillAttestations.map(a => a.subject.toLowerCase()),
+  );
+  const liveKills = mapKillMails(nativeKills, attestedVictims);
   const livePolicy = mapPolicy(policy);
   const liveContracts = mapContracts(contracts);
 
@@ -335,14 +349,18 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
 
   const refresh = useCallback(async () => {
     try {
-      const [gates, challenges, creditLeaders, standingLeaders, shipKills, bountyContracts] = await Promise.all([
+      const [gates, challenges, creditLeaders, standingLeaders, killMailsResp, bountyContracts, shipKillAttestations] = await Promise.all([
         fetchGates(),
         fetchChallenges(25),
         fetchLeaderboard('CREDIT', 1),
         fetchLeaderboard('TRIBE_STANDING', 1),
-        fetchAttestationFeed({ schema_id: 'SHIP_KILL', limit: 50 }),
+        // Native kill mails are the primary killboard source.
+        fetchKillMails({ limit: 50 }).catch(() => ({ items: [], total: 0, nextCursor: null, dataNote: '' })),
         fetchAttestationFeed({ schema_id: 'PLAYER_BOUNTY', limit: 50 }),
+        // SHIP_KILL attestations remain fetched for the "ATTESTED" badge overlay only.
+        fetchAttestationFeed({ schema_id: 'SHIP_KILL', limit: 50 }).catch(() => [] as AttestationFeedRow[]),
       ]);
+      const nativeKills = killMailsResp.items;
       const profile = creditLeaders[0] ?? standingLeaders[0] ?? null;
       const firstGateId = gates.find(g => g.gate_id)?.gate_id ?? null;
       const gateBindings = await fetchGateBindings(gates);
@@ -363,7 +381,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
         account?.address,
         vouches,
         attestations,
-        [...shipKills, ...bountyContracts],
+        bountyContracts,
       );
       const identityMap = identityWallets.length > 0
         ? await fetchBatchIdentities(identityWallets).catch(() => ({}))
@@ -371,12 +389,12 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       setEveIdentity(identity);
       setEveIdentityMap(identityMap);
 
-      const result = mergeLiveData(gates, gateBindings, challenges, profile, scores, vouches, attestations, shipKills, policy, bountyContracts, identity, identityMap, demoEnabled);
+      const result = mergeLiveData(gates, gateBindings, challenges, profile, scores, vouches, attestations, nativeKills, shipKillAttestations, policy, bountyContracts, identity, identityMap, demoEnabled);
       setData(result.data);
       setProvenance(result.provenance);
-      setLive(gates.length > 0 || challenges.length > 0 || profile != null || shipKills.length > 0 || policy != null || bountyContracts.length > 0);
+      setLive(gates.length > 0 || challenges.length > 0 || profile != null || nativeKills.length > 0 || policy != null || bountyContracts.length > 0);
       setReputationLive(profile != null);
-      setKillboardLive(shipKills.length > 0);
+      setKillboardLive(nativeKills.length > 0);
       setPolicyLive(policy != null);
       setContractsLive(bountyContracts.length > 0);
       setError(null);
