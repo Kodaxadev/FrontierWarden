@@ -111,8 +111,15 @@ impl ZkLoginVerifier {
         match parsed["data"]["verifySignature"]["success"].as_bool() {
             Some(true) => Ok(()),
             Some(false) => Err(ZkLoginError::AuthFailed("verifySignature returned success=false".into())),
+            // If the service responded with 2xx, a null/missing success field means the
+            // verifier rejected or could not process the signature — treat as auth failure
+            // so the caller gets 401, not 503, and the UX is "bad signature" not "retry".
+            // Only classify as Unavailable when the HTTP layer itself indicated an error.
+            None if http_status.is_success() => Err(ZkLoginError::AuthFailed(format!(
+                "verifySignature returned null (HTTP {http_status})"
+            ))),
             None => Err(ZkLoginError::Unavailable(format!(
-                "verifySignature field missing from Sui GraphQL response (HTTP {http_status})"
+                "Sui GraphQL returned non-2xx status: {http_status}"
             ))),
         }
     }
@@ -215,8 +222,33 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn missing_success_field_is_unavailable() {
+    async fn null_verify_signature_on_2xx_is_auth_failed() {
+        // HTTP 200 + null/missing verifySignature = verifier rejected the input,
+        // not a service outage. Must map to AuthFailed (401), not Unavailable (503).
         let url = spawn_mock_graphql(json!({ "data": {} })).await;
+        let v = ZkLoginVerifier::new(url).unwrap();
+        assert!(matches!(
+            v.verify("msg", "sig", "0xaddr").await,
+            Err(ZkLoginError::AuthFailed(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn non_2xx_with_missing_success_is_unavailable() {
+        use axum::{routing::post, Router};
+        use axum::http::StatusCode as AxumStatus;
+        use tokio::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let app = Router::new().route(
+                "/",
+                post(|| async { (AxumStatus::SERVICE_UNAVAILABLE, r#"{"data":{}}"#) }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        let url = format!("http://127.0.0.1:{port}");
         let v = ZkLoginVerifier::new(url).unwrap();
         assert!(matches!(
             v.verify("msg", "sig", "0xaddr").await,
