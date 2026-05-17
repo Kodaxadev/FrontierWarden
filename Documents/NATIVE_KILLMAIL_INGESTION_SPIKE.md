@@ -2,7 +2,8 @@
 
 **Branch:** `codex/native-killmail-ingestion-spike`
 **Date:** 2026-05-17
-**Status:** Design only — no production code changes
+**Verification branch:** `codex/verify-stillness-killmail-source`
+**Status:** Source verified — implementation can proceed
 
 ---
 
@@ -30,236 +31,268 @@ data source.
 
 ---
 
-## 2. Native Kill Mail Sources
+## 2. Native Kill Mail Sources — VERIFIED 2026-05-17
 
-### 2.1 Primary: Pyropechain MUD Indexer
+### 2.1 Confirmed Primary: Alpha-Strike Community API
 
-Community-operated indexer that reads EVE Frontier's on-chain MUD world state.
+**Live, tested, returns full enriched kill data.**
 
-**Endpoint:** `https://indexer.mud.pyropechain.com/q`
-**Method:** POST
-**Content-Type:** `application/json`
+**Endpoint:** `https://api.alpha-strike.space/incident`
+**Method:** GET
+**Auth:** None
 
-**Request shape:**
+**Verified request:**
+```
+GET https://api.alpha-strike.space/incident?limit=200&offset=0
+```
+
+**Verified response shape (redacted sample):**
 ```json
 [
   {
-    "address": "<STILLNESS_WORLD_ADDRESS>",
-    "query": "SELECT \"killMailId\", \"killerCharacterId\", \"victimCharacterId\", \"lossType\", \"solarSystemId\", \"killTimestamp\" FROM \"evefrontier__KillMail\" WHERE \"killMailId\" > $1 ORDER BY \"killMailId\" ASC LIMIT $2"
+    "id": 10771,
+    "victim_tribe_name": "Clonebank 86",
+    "victim_address": "7af35000ef652732050803ec98939f28352aade9",
+    "victim_name": "LexCord",
+    "loss_type": "ship/structure",
+    "killer_tribe_name": "Reapers",
+    "killer_address": "0852def1617e7454961f957c1f1a2ca1004badc4",
+    "killer_name": "emp77",
+    "time_stamp": 1773218188,
+    "solar_system_id": 30014632,
+    "solar_system_name": "IVT-KDB"
   }
 ]
 ```
 
-**Response shape:**
-```json
-[
-  [
-    ["killMailId", "killerCharacterId", "victimCharacterId", "lossType", "solarSystemId", "killTimestamp"],
-    [12345, 67890, 11111, 2, 30000142, 133500000000000000],
-    ...
-  ]
-]
-```
-
-The response is a columnar array: row 0 is the header, rows 1..N are data.
-
-**Table:** `evefrontier__KillMail` (double-quoted, case-sensitive)
-
-**Confirmed fields:**
-| Column | Type | Notes |
+**Confirmed field types:**
+| Field | Type | Notes |
 |---|---|---|
-| `killMailId` | integer | Monotonically increasing, use as cursor |
-| `killerCharacterId` | integer | EVE character ID |
-| `victimCharacterId` | integer | EVE character ID |
-| `lossType` | integer | Enum — values TBD (see §2.3) |
-| `solarSystemId` | integer | EVE solar system ID |
-| `killTimestamp` | integer | LDAP timestamp (100ns intervals since 1601-01-01) |
+| `id` | integer | Sequential, monotonically increasing — use as cursor |
+| `victim_name` | string | EVE character name — always present in tested sample |
+| `victim_address` | string | 20-byte hex, **no 0x prefix** |
+| `victim_tribe_name` | string | Corp/tribe name — always present |
+| `killer_name` | string | EVE character name |
+| `killer_address` | string | 20-byte hex, no 0x prefix |
+| `killer_tribe_name` | string | Corp/tribe name |
+| `loss_type` | string | `"ship/structure"` in all 200 tested rows (confirmed string enum, not integer) |
+| `solar_system_id` | integer | Matches world API system IDs (verified: 30014632 = "IVT-KDB") |
+| `solar_system_name` | string | Pre-resolved system name |
+| `time_stamp` | integer | **Unix epoch seconds** (not LDAP — confirmed by cross-check with known dates) |
 
-**LDAP → UTC conversion:**
+**Pagination — offset + limit (verified working):**
 ```
-unix_seconds = (killTimestamp / 10_000_000) - 11_644_473_600
+GET /incident?limit=200&offset=0      → newest 200 kills
+GET /incident?limit=200&offset=200    → next 200 (older)
+GET /incident?limit=200&offset=N      → {"error":"Bad Request! No incident records found"} at end
+```
+- Results are newest-first (descending `id`)
+- `victim=`, `killer=`, `before=`, `after=` filter params are **unreliable** — do not use
+- `system=<name>` filter appears to work but is not verified for all edge cases
+- Total corpus: ~4,860 kills as of 2026-05-17 (IDs 1–10771 with gaps; oldest kill: 2025-12-10)
+
+**Other confirmed alpha-strike endpoints:**
+```
+GET /characters?name=<name>     → character address + tribe history
+GET /location?id=<system_id>    → solar system name + coordinates (full catalog)
+GET /totals                     → leaderboard (top killers/tribes/systems)
 ```
 
-**⚠ Unknown: Stillness world address.** Alpha-strike's source code has this hardcoded
-as a literal placeholder `CURRENT_WORLD_ADDRESS`. It is the MUD world contract address
-on-chain. Our `world_package_id` from config
-(`0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`) is the most
-likely candidate but must be **verified** before use. See §7 for confirmation steps.
+**Reliability note:** Community-operated, no official SLA. Design the poller with
+retry/backoff and graceful degradation — stale data is acceptable, a crash is not.
 
-**Reliability note:** Pyropechain is community-operated, not CCP-official. It may have
-downtime. Design the poller with retry/backoff and graceful degradation.
+### 2.2 CCP World API — Static Reference Data Only
 
-### 2.2 Secondary: Blockchain Gateway REST API
+**Base URL:** `https://world-api-stillness.live.tech.evefrontier.com`
+**Status:** Live and tested (2026-05-17)
+**Swagger spec:** `GET /docs/doc.json` (confirmed accessible)
 
-CCP-operated REST gateway mirroring world state.
+**Complete confirmed endpoint list (World API v1.0.1):**
 
-**Base URL:** `https://blockchain-gateway-stillness.live.tech.evefrontier.com`
-**Swagger UI:** `<base>/docs/index.html` (currently connection-refused from external fetch)
+| Path | Use |
+|---|---|
+| `GET /config` | Returns `podPublicSigningKey` |
+| `GET /v2/solarsystems?limit=N&offset=N` | System ID → name + location |
+| `GET /v2/solarsystems/{id}` | Single system lookup |
+| `GET /v2/tribes?limit=N&offset=N` | Tribe/corp ID → name |
+| `GET /v2/ships?limit=N&offset=N` | Ship ID → name + class |
+| `GET /v2/types?limit=N&offset=N` | Item type ID → name |
+| `POST /v2/pod/verify` | POD signature verification |
+| `GET /v2/characters/me/jumps` | Auth-gated, not useful here |
 
-Known endpoints from community reverse-engineering:
-- `GET /v2/solarsystems?limit=N&offset=N` → system names
-- `GET /v2/smartcharacters?limit=N&offset=N` → character names + wallet addresses
+**Does NOT exist:** `/v2/kills`, `/v2/killmails`, `/v2/smartcharacters`
 
-**Note:** `world-api-stillness.live.tech.evefrontier.com` and
-`blockchain-gateway-stillness.live.tech.evefrontier.com` may be the same service or
-load-balanced siblings. The `world_api_base` in our config points to `world-api-stillness`.
-Test both; prefer whichever returns 200 for `/v2/smartcharacters`.
+The world API is the correct source for **static reference tables**: ship class names,
+system names, tribe names. It does NOT serve kill data.
 
-### 2.3 lossType Enum
-
-Values are unknown from available sources. Likely maps to EVE ship type IDs or a small
-enum (Ship, Pod/Capsule, Structure, Drone, etc.). Alpha-strike stores the raw integer.
-EF-Map resolves ship names via a separate lookup against `/v2/types` or `/v2/ships`.
-
-**Action required:** Confirm mapping by:
-1. Querying the MUD indexer for a sample of kills
-2. Cross-referencing `lossType` values with `/v2/ships` or `/v2/types` from the world API
-3. Checking `world-chain-contracts` for the `KillMail.sol` schema definition
-
----
-
-## 3. Character Name Resolution
-
-**Endpoint:** `GET /v2/smartcharacters?limit=100&offset=N`
-
-**Response (confirmed from alpha-strike source):**
+**Verified sample responses:**
 ```json
-{
-  "data": [
-    { "id": "12345", "address": "0xabc...", "name": "Vex Korith" },
-    ...
-  ],
-  "metadata": { "total": 8000, "limit": 100, "offset": 0 }
-}
+// GET /v2/solarsystems/30014632
+{"id":30014632,"name":"IVT-KDB","constellationId":20001031,...}
+
+// GET /v2/tribes?limit=2
+{"data":[{"id":1000044,"name":"NPC Corp 1000044","nameShort":"SAK",...}],"metadata":{"total":3,...}}
+
+// GET /v2/ships?limit=2
+{"data":[{"id":81609,"name":"USV","classId":25,"className":"Frigate",...},
+         {"id":81611,"name":"Chumaq","classId":419,"className":"Combat Battlecruiser",...}],
+ "metadata":{"total":11,...}}
 ```
 
-- `id` is a string representation of an integer character ID
-- `address` is the player's Sui wallet address (0x-prefixed)
-- `name` is the EVE character name
+### 2.3 Pyropechain MUD Indexer — NOT VIABLE FOR STILLNESS (2026-05-17)
 
-**Strategy:** Bulk-sync all characters into a `world_characters` lookup table on startup
-and incrementally, re-syncing characters that appear in new kill mails with no cached name.
-This avoids N+1 lookups on the kill poller hot path.
+**Endpoint:** `https://indexer.mud.pyropechain.com/q`
+**Status:** Server alive, but Stillness world address not indexed.
 
-**Character IDs in kill mails** are the same integer IDs in `smartcharacters`.
-They are NOT Sui object addresses. The kill mail's `killerCharacterId: 67890` maps to
-the `smartcharacters` entry `{ "id": "67890", ... }`.
+Direct test with confirmed Stillness world address
+(`0x1dacc0b64b7da0cc6e2b2fe1bd72f58ebd37363c`, OP Sepolia CHAIN_ID=11155420):
+```
+POST /q  [{"address":"0x1dacc0b64b7da0cc6e2b2fe1bd72f58ebd37363c","query":"SELECT ..."}]
+→ {"msg":"schemas not found"}
+```
+The endpoint accepts the EVM address format but returns no schema for Stillness.
+The world may have been upgraded to a new address, or Pyropechain may index a different
+chain. Do not use this source until the correct current world address is confirmed.
 
-**Tribe / corp:** The `smartcharacters` endpoint does not appear to include tribe.
-Tribe resolution for kills goes through the existing `eve_identity` pipeline (GraphQL →
-`PlayerProfile` → character object → `tribe_id`). As a shortcut for the killboard, tribe
-can be omitted in v1 and added when the identity pipeline resolves names.
+Alpha-strike's `kill_update.cpp` uses this indexer as its upstream — meaning alpha-strike
+already resolves the raw MUD query for us. Using the alpha-strike API avoids the need to
+maintain a MUD world address.
+
+### 2.4 loss_type Values — VERIFIED
+
+In 200+ kills tested, `loss_type` is always `"ship/structure"` — a string enum, not an
+integer. Other values that may exist (pod kills, structure-only kills, etc.) have not been
+observed in the test corpus but should be stored verbatim.
+
+No ship type or ship class ID is present in kill records. Ship class data (Frigate,
+Battlecruiser, etc.) is available separately from the world API `/v2/ships` but cannot
+be joined to a specific kill — loss_type does not carry a ship ID.
 
 ---
 
-## 4. Recommended DB Schema
+## 3. Character Name Resolution — REVISED
+
+**Alpha-strike API already resolves character names.** The `/incident` response includes
+`victim_name`, `killer_name`, `victim_tribe_name`, `killer_tribe_name` pre-resolved.
+No separate character lookup is required for kill ingest.
+
+The `/v2/smartcharacters` endpoint **does not exist** on the CCP world API
+(confirmed: not in swagger spec). Character names come from the alpha-strike data only.
+
+**What we store instead of a character lookup table:**
+
+Kill records are write-once and already fully enriched by the time we receive them.
+Denormalize victim/killer names and tribe names directly into `world_kill_mails` at
+ingest time. No separate `world_characters` table is required for the kill pipeline.
+
+Character addresses (20-byte hex, no 0x prefix) are available from alpha-strike and can
+be stored in the kill record for cross-reference with FrontierWarden's existing
+`eve_identities` table — but that join is optional enrichment, not required for the
+killboard display.
+
+**Tribe data:** `victim_tribe_name` and `killer_tribe_name` are directly available.
+No world API tribe lookup needed for kills. World API `/v2/tribes` is useful for
+displaying full tribe info (tax rate, description) in the tribe dossier view, separate
+from the killboard.
+
+
+## 4. Recommended DB Schema — REVISED
+
+Alpha-strike already enriches all names. Schema is simpler than originally designed:
+no `world_characters` join table needed.
 
 ```sql
--- Canonical native kill mails from the world contract
+-- Native kill mail records from alpha-strike / EVE world contract
 CREATE TABLE world_kill_mails (
-    id                  BIGSERIAL PRIMARY KEY,
-    kill_mail_id        BIGINT      NOT NULL,  -- evefrontier__KillMail.killMailId
-    environment         TEXT        NOT NULL DEFAULT 'stillness',  -- stillness | utopia
-    killer_char_id      BIGINT,
-    victim_char_id      BIGINT,
-    killer_name         TEXT,                  -- denormalized from world_characters
-    victim_name         TEXT,                  -- denormalized from world_characters
+    id                  BIGSERIAL   PRIMARY KEY,
+    source_id           BIGINT      NOT NULL,          -- alpha-strike incident id
+    environment         TEXT        NOT NULL DEFAULT 'stillness',
+    victim_name         TEXT,
+    victim_address      TEXT,                          -- 20-byte hex, no 0x prefix
+    victim_tribe        TEXT,
+    killer_name         TEXT,
+    killer_address      TEXT,
+    killer_tribe        TEXT,
     solar_system_id     BIGINT,
-    solar_system_name   TEXT,                  -- denormalized from world_solar_systems
-    loss_type           INT,
-    loss_type_name      TEXT,                  -- resolved when mapping is known
-    kill_time           TIMESTAMPTZ,           -- converted from LDAP killTimestamp
-    raw_json            JSONB,                 -- full source row for forward compat
+    solar_system_name   TEXT,
+    loss_type           TEXT,                          -- "ship/structure" or future values
+    kill_time           TIMESTAMPTZ,                   -- from time_stamp (unix epoch)
+    raw_json            JSONB,                         -- full source row
     indexed_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (kill_mail_id, environment)
+    UNIQUE (source_id, environment)
 );
 
-CREATE INDEX world_kill_mails_env_time ON world_kill_mails (environment, kill_time DESC);
-CREATE INDEX world_kill_mails_victim   ON world_kill_mails (victim_char_id);
-CREATE INDEX world_kill_mails_killer   ON world_kill_mails (killer_char_id);
-CREATE INDEX world_kill_mails_system   ON world_kill_mails (solar_system_id);
+CREATE INDEX world_kill_mails_env_time   ON world_kill_mails (environment, kill_time DESC);
+CREATE INDEX world_kill_mails_victim_name ON world_kill_mails (victim_name);
+CREATE INDEX world_kill_mails_killer_name ON world_kill_mails (killer_name);
+CREATE INDEX world_kill_mails_system      ON world_kill_mails (solar_system_id);
 
--- Character name cache (from /v2/smartcharacters)
-CREATE TABLE world_characters (
-    char_id         BIGINT      PRIMARY KEY,
-    name            TEXT,
-    wallet_address  TEXT,
-    synced_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Solar system name cache (already partially in world_solar_systems if it exists)
--- Reuse existing world_solar_systems table if present; otherwise:
-CREATE TABLE world_solar_systems (
-    system_id   BIGINT PRIMARY KEY,
-    name        TEXT,
-    synced_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Cursor for incremental kill mail polling
--- Reuse indexer_state table: key = 'cursor:kill_mails:stillness'
--- value = last kill_mail_id processed (TEXT, since indexer_state.value is TEXT)
+-- Cursor: stored in existing indexer_state table
+-- key = 'cursor:kill_mails:stillness', value = last source_id processed (TEXT)
 ```
 
-**Denormalization rationale:** Kills are write-once. Denormalizing names at index time
-avoids join overhead on the hot API path and preserves the name as it was at kill time
-(important if a character renames later).
+**Why `raw_json`:** Stores the full alpha-strike response row so we can backfill any
+future fields (e.g., a ship type field if alpha-strike adds one) without re-polling
+historical records.
 
----
+**No `world_characters` table.** Names are denormalized at ingest time from the alpha-strike
+response. Cross-reference to FW `eve_identities` can be done on-demand by victim address
+if needed for the trust dossier view.
 
-## 5. Recommended Ingestion Design
 
-### 5.1 Poller (Rust, runs in the indexer)
+## 5. Recommended Ingestion Design — REVISED
+
+### 5.1 Poller (Rust, in indexer)
 
 ```
 [Startup]
-  1. Load last cursor from indexer_state WHERE key = 'cursor:kill_mails:{env}'
-  2. Loop:
-     a. POST to indexer.mud.pyropechain.com/q
-        body: [{"address": WORLD_ADDRESS, "query": "SELECT ... WHERE killMailId > $cursor ORDER BY killMailId ASC LIMIT 200"}]
-     b. If empty → sleep poll_interval (30s), continue
-     c. For each row:
-        - Resolve killer/victim char IDs via world_characters cache
-          (if not cached → fetch from /v2/smartcharacters/{id} or bulk re-sync)
-        - Resolve solar_system_id via world_solar_systems cache
-        - Convert LDAP timestamp → UTC
-        - INSERT INTO world_kill_mails ... ON CONFLICT DO NOTHING
-     d. Update cursor = max(killMailId) processed
-     e. Save cursor to indexer_state
-     f. If page was full (200 rows) → loop immediately (catch-up mode)
-        else → sleep poll_interval
+1. Load last cursor from indexer_state WHERE key = 'cursor:kill_mails:{env}'
+   cursor = last source_id successfully stored (0 if first run)
+
+[Loop — every 30s]
+2. GET https://api.alpha-strike.space/incident?limit=200&offset=0
+3. Filter: only rows WHERE id > cursor
+   (newest-first response; stop scanning once id <= cursor)
+4. If no new rows → sleep poll_interval, continue
+5. For each new row (oldest first — reverse iteration):
+   a. Parse fields (victim_name, killer_name, solar_system_id, etc.)
+   b. Convert time_stamp (unix seconds) → TIMESTAMPTZ
+   c. INSERT INTO world_kill_mails ... ON CONFLICT (source_id, environment) DO NOTHING
+6. Update cursor = max(source_id) of newly stored rows
+7. Save cursor to indexer_state
+8. If 200 new rows were found → loop immediately (may be more)
+   else → sleep poll_interval (30s)
 ```
 
-**Startup sync:** On first run (cursor = 0), the world may have thousands of kills.
-Use a configurable `kill_mail_start_id` in config (analogous to `world_start_checkpoint`)
-so operators can cold-start from a known recent ID rather than replaying the full history.
+**Cold start:** On first run (cursor = 0), page through full history using offset:
+```
+offset=0 → ids N..N-200
+offset=200 → ids N-200..N-400
+... until {"error":"Bad Request! No incident records found"}
+```
+Insert oldest-first so the cursor always points to the highest confirmed id.
 
-**Config additions needed** (no production change — new section):
+**Config additions (new section, disabled by default):**
 ```toml
 [kill_mails]
-enabled = false                        # disabled until world address confirmed
-world_address = "env:EF_WORLD_ADDRESS" # Stillness world contract address
-start_kill_mail_id = 0                 # cold-start cursor; 0 = all history
+enabled = false                            # enable after schema review in staging
+source_url = "https://api.alpha-strike.space/incident"
+environment = "stillness"
 poll_interval_ms = 30000
 page_size = 200
+# start_source_id = 0                      # 0 = ingest full history on first run
 ```
 
-### 5.2 Character sync
+**Error handling:**
+- HTTP non-200 → log warning, sleep poll_interval, retry (do NOT crash)
+- JSON parse error → log error with raw body, skip page, continue
+- DB error → propagate (restart indexer; cursor protects idempotency)
 
-On every poller cycle, collect character IDs seen in new kill rows that are missing from
-`world_characters`. Batch-fetch those IDs from `/v2/smartcharacters` (if the endpoint
-supports individual ID lookup) or trigger a full incremental re-sync.
+### 5.2 No character sync needed
 
-EF-Map does a scheduled full sync of all characters. For FW, a lighter approach:
-- Full sync on startup (paginate all smartcharacters into `world_characters`)
-- On miss: re-sync all characters (a few thousand total, manageable)
+Alpha-strike pre-resolves all names. The character sync branch (`codex/world-character-cache`)
+from the original sequence is **dropped** — the world API has no smartcharacters endpoint.
 
-### 5.3 Environment isolation
-
-The `environment` column on `world_kill_mails` separates Stillness and Utopia data.
-The poller reads `WORLD_ADDRESS` from config per-environment. Railway services get
-different env vars. Do NOT mix Stillness kills into a Utopia-only DB.
-
----
 
 ## 6. Recommended API
 
@@ -355,46 +388,57 @@ nativeTelemetry: boolean; // true = came from world kill mail
 
 ---
 
-## 8. Implementation Sequence
+## 8. Implementation Sequence — REVISED
 
-Branch sequence after this spike is confirmed:
+`codex/world-character-cache` is **dropped** (no smartcharacters endpoint exists).
+The sequence is now 4 branches (was 4 + the character cache branch):
 
-### Branch 1: `codex/world-character-cache`
-Scope: Add `world_characters` table + full sync from `/v2/smartcharacters` on startup.
-Risk: Low. Read-only from world API; additive DB table.
-Prerequisite: None.
+### Branch 1: `codex/kill-mail-poller-disabled`
+Scope: Migration for `world_kill_mails`, poller code, config section with `enabled=false`.
+No production traffic until explicitly enabled.
+Risk: Low. Dead code path, additive schema.
+Prerequisite: None. Can merge immediately.
 
-### Branch 2: `codex/kill-mail-poller-disabled`
-Scope: Add `world_kill_mails` table, kill mail poller code, new config section — but
-with `kill_mails.enabled = false`. No production traffic until world address confirmed.
-Risk: Low. Dead code until enabled.
-Prerequisite: Branch 1 merged. World address confirmed (see §9).
+### Branch 2: `codex/kill-mail-api`
+Scope: `GET /kill-mails`, `GET /kill-mails/:id`, `GET /world/systems/:id/kills` endpoints.
+Risk: Low. Read-only from `world_kill_mails`.
+Prerequisite: Branch 1 merged. `kill_mails.enabled = true` in staging to populate data.
 
-### Branch 3: `codex/kill-mail-api`
-Scope: `/kill-mails` and `/world/characters/:id/kills` API endpoints.
-Risk: Low. Reads from new table only.
-Prerequisite: Branch 2 merged.
+### Branch 3: `codex/killboard-native-migration`
+Scope: Frontend switches killboard to native kill mail API. Killer column, system column,
+proper timestamps. SHIP_KILL attestation rows become secondary "ATTESTED" badge.
+Risk: Medium. Visible regression risk on killboard view.
+Prerequisite: Branch 2 merged and staging killboard verified with real data.
 
-### Branch 4: `codex/killboard-native-migration`
-Scope: Frontend switches killboard to native kill mail API. SHIP_KILL attestations become
-secondary badge. KillboardView gets killer column, system column, proper timestamps.
-Risk: Medium. Visual regression to existing killboard.
-Prerequisite: Branch 3 merged. `kill_mails.enabled = true` in Railway after world address confirmed.
+### Branch 4: `codex/killboard-dossier-evidence-model`
+Scope: Surface kill attestations as trust evidence in the dossier view:
+```
+Native killmail:   Kivik killed PilotX in SystemY  [combat telemetry]
+Attestation:       Oracle SHIP_KILL · 127.0M LUX   [trust evidence]
+Tenant action:     [Use as evidence] [Ignore] [Attest]
+```
+Risk: Medium. Requires dossier view design work.
+Prerequisite: Branch 3 stable.
 
----
 
-## 9. Open Questions (Must Resolve Before Branch 2)
+## 9. Open Questions — REVISED (post-verification)
 
-| Question | How to confirm |
-|---|---|
-| Stillness world address for MUD indexer | Query the Pyropechain indexer using our `world_package_id` as the address value; if rows come back it's correct. Alternatively ask in EVE Frontier Builders Discord |
-| lossType enum | Fetch sample kill rows; check `loss_type` values against `/v2/types` or `/v2/ships` |
-| Pyropechain indexer uptime/SLA | Check alpha-strike.space uptime history; design poller to tolerate multi-hour outages gracefully |
-| smartcharacters individual-ID endpoint | Test `GET /v2/smartcharacters/{id}` — if it exists, use it for targeted cache misses; otherwise fall back to full re-sync |
-| blockchain-gateway vs world-api | Test whether `blockchain-gateway-stillness.live.tech.evefrontier.com/v2/smartcharacters` works; if so, prefer it (CCP-operated vs community) |
-| Kill mail attacker list | Check whether `evefrontier__KillMail` has an attackers sub-table or join target in the MUD store |
+| Question | Status | Resolution |
+|---|---|---|
+| Stillness kill source | ✅ Confirmed | Alpha-strike API `/incident` — live, tested |
+| World API endpoints | ✅ Confirmed | Full swagger spec enumerated; no kill or character endpoints |
+| lossType enum format | ✅ Confirmed | String `"ship/structure"`, not integer |
+| killTimestamp format | ✅ Confirmed | Unix epoch seconds (not LDAP) |
+| Pagination strategy | ✅ Confirmed | offset+limit, newest-first, ~4,860 total records |
+| Character name resolution | ✅ Confirmed | Pre-resolved by alpha-strike; no separate lookup needed |
+| Pyropechain MUD indexer | ⚠ Deferred | Address not found; use alpha-strike instead |
+| smartcharacters endpoint | ❌ Does not exist | Not in world API swagger spec |
 
----
+**One remaining dependency risk:** Alpha-strike is community-operated. If it goes down,
+the kill poller will produce no new records until it recovers. Design poller to fail
+gracefully (log warning, sleep, retry) rather than crashing. The DB cursor will resume
+from the last successfully ingested `id` on recovery.
+
 
 ## 10. What This Branch Does NOT Change
 
