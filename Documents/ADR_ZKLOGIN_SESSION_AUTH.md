@@ -69,7 +69,7 @@ issuer acceptance applies equally to that path.
 ## GraphQL Request Shape
 
 ```
-POST https://graphql.testnet.sui.io/
+POST https://graphql.testnet.sui.io/graphql
 Content-Type: application/json
 
 query VerifySignature(
@@ -170,7 +170,7 @@ v1 verifier uptime is understood.
 
 | Env var | Default | Notes |
 |---|---|---|
-| `EFREP_SUI_GRAPHQL_URL` | `https://graphql.testnet.sui.io/` | Must use `https://`; rejected at startup otherwise |
+| `EFREP_SUI_GRAPHQL_URL` | `https://graphql.testnet.sui.io/graphql` | Must use `https://`; rejected at startup otherwise |
 
 ---
 
