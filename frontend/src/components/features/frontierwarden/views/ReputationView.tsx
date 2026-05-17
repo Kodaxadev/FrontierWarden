@@ -110,6 +110,9 @@ export function ReputationView({ data, live = false, loading = false, error = nu
   const tier = computeTier(pilot.score);
   const components = deriveComponents(data);
 
+  // Layer 2 signal count for CombatEvidencePanel
+  const shipKillAttestationCount = proofs.filter(p => p.schema === 'SHIP_KILL' && !p.revoked).length;
+
   // Live account summary values
   const activeVouches = vouches.length;
   const activeProofs = proofs.filter(p => !p.revoked).length;
@@ -300,7 +303,7 @@ export function ReputationView({ data, live = false, loading = false, error = nu
     </div>
 
     {/* Combat evidence — full width below the two-column dossier grid */}
-    <CombatEvidencePanel address={identityAddr} />
+    <CombatEvidencePanel address={identityAddr} shipKillAttestationCount={shipKillAttestationCount} />
     </>
   );
 }
