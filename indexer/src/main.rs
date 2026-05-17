@@ -44,6 +44,7 @@ mod world_gates;
 mod world_gates_parser;
 mod world_jump;
 mod world_jump_parser;
+mod kill_mail_poller;
 mod world_topology;
 mod world_topology_parser;
 #[cfg(test)]
@@ -93,6 +94,18 @@ async fn main() -> Result<()> {
         axum::serve(listener, app)
             .await
             .expect("API server crashed");
+    });
+
+    // Kill mail backfill — pages through full history on first run (cursor = 0)
+    kill_mail_poller::backfill_if_needed(&cfg.kill_mails, &pool).await?;
+
+    // Kill mail incremental poller — fire-and-forget; disabled when kill_mails.enabled=false
+    let km_cfg = cfg.kill_mails.clone();
+    let km_pool = pool.clone();
+    tokio::spawn(async move {
+        if let Err(e) = kill_mail_poller::run(km_cfg, km_pool).await {
+            tracing::error!(error = %e, "kill mail poller exited with error");
+        }
     });
 
     // Indexer loop — runs forever; returns only on fatal error

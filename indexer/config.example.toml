@@ -20,6 +20,19 @@ max_connections = 20
 batch_size = 50
 poll_interval_ms = 2000
 
+# ── Native Kill Mail Ingestion ────────────────────────────────────────────────
+# Source: Alpha-Strike community API (verified 2026-05-17)
+# API: https://api.alpha-strike.space/incident
+# Fields: victim_name, killer_name, victim/killer tribe, solar_system, loss_type, kill_time
+# Set enabled = true to start ingestion. Disabled by default.
+# On first run (cursor = 0) the poller backfills the full kill history (~4,800 records).
+[kill_mails]
+enabled = false
+source_url = "https://api.alpha-strike.space/incident"
+environment = "stillness"
+poll_interval_ms = 30000
+page_size = 200
+
 # ── EVE Frontier Integration ──────────────────────────────────────────────────
 # Stillness is the primary environment for the current demo.
 # Utopia remains available as a sandbox environment.
