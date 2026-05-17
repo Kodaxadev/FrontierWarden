@@ -19,6 +19,7 @@ import { TollWithdrawalLedger } from '../TollWithdrawalLedger';
 import type { FwData } from '../fw-data';
 import type { TollWithdrawalRow } from '../../../../types/api.types';
 import { FALLBACK_POLICIES } from '../policy-fixtures';
+import { TenantCombatPolicyPanel } from '../TenantCombatPolicyPanel';
 
 const ADMIN_WALLET =
   import.meta.env.VITE_GATE_ADMIN_OWNER
@@ -413,6 +414,8 @@ export function PolicyView({ data, live = false, loading = false, error = null, 
       </div>
 
       <TollWithdrawalLedger error={withdrawalError} rows={withdrawals} />
+
+      <TenantCombatPolicyPanel />
     </>
   );
 }
