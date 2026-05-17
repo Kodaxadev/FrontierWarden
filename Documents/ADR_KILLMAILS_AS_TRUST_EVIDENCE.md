@@ -93,3 +93,19 @@ FrontierWarden's value is in enabling operators to configure that context, not i
 
 Native kill mails ship as read-only telemetry infrastructure.
 Trust and reputation remain driven by attestations and explicit operator policy only.
+
+---
+
+## Amendment — Active Tenant Combat Policy (2026-05-17)
+
+Active combat policy rules (Phase 3+ in `TENANT_COMBAT_POLICY_DESIGN.md`) are
+permitted under this ADR **only** when all of the following are true:
+
+1. **Tenant-scoped** — effects are confined to the configuring tenant; no cross-tenant reputation change
+2. **Explicit** — the operator wrote and enabled the rule; no system-inferred policy
+3. **Audited** — every rule evaluation writes to `policy_audit_log`
+4. **Explainable** — `explainability_text` is required; empty text is a validation error
+5. **Reversible/challengeable** — a dispute path must exist before `future_score_modifier` actions are enabled
+
+`action: future_score_modifier` requires a further ADR amendment at Phase 5 design time.
+Advisory flags and manual-review routing do not require an amendment — they produce no automated effect.
