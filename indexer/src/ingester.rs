@@ -5,9 +5,11 @@ use tracing::{info, warn};
 
 use crate::{
     config::{Config, EveConfig},
-    db, processor,
+    db,
+    event_source::SuiEventSource,
+    processor,
     processor::ProjectionConfig,
-    rpc::{EventId, RpcClient},
+    rpc::EventId,
 };
 
 pub const TRACKED_MODULES: &[&str] = &[
@@ -57,8 +59,7 @@ pub fn spawn_heat_refresh(pool: PgPool) {
 /// Main indexer loop. Polls each Move module separately (the devnet fullnode
 /// does not support Package or Any filters), persists a cursor per module so
 /// restarts resume correctly.
-pub async fn run(cfg: Config, pool: PgPool) -> Result<()> {
-    let rpc = RpcClient::new(&cfg.network.rpc_url);
+pub async fn run<S: SuiEventSource>(cfg: Config, pool: PgPool, rpc: S) -> Result<()> {
     let package_id = cfg.package.id.clone();
     let projection_cfg = ProjectionConfig {
         fw_gate_extension_typename: cfg

@@ -10,8 +10,8 @@
 // world_gate_id in the FrontierWarden policy layer.
 
 import { toBase64 } from '@mysten/bcs';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
+import { makeSuiJsonRpcClient } from './sui-object-fetcher';
 
 const CONFIG_KEYS = ['VITE_PKG_ID'] as const;
 type ConfigKey = typeof CONFIG_KEYS[number];
@@ -41,21 +41,12 @@ function requiredEnv(key: ConfigKey): string {
   return value;
 }
 
-function suiNetwork() {
-  return (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
-    'mainnet' | 'testnet' | 'devnet' | 'localnet';
-}
-
 export async function buildBindOperatorGateTxKind(
   args: BuildBindOperatorGateArgs,
 ): Promise<string> {
   const pkgId = requiredEnv('VITE_PKG_ID');
 
-  const network = suiNetwork();
-  const rpcClient = new SuiJsonRpcClient({
-    url: getJsonRpcFullnodeUrl(network),
-    network,
-  });
+  const rpcClient = makeSuiJsonRpcClient();
 
   // Resolve GatePolicy initialSharedVersion from chain.
   const policyObject = await rpcClient.getObject({

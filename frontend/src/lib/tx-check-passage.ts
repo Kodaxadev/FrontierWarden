@@ -12,8 +12,8 @@
 // Confirmed by scripts/debug-build-check-passage.ts (dev diagnostic only).
 
 import { toBase64 } from '@mysten/bcs';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
+import { makeSuiJsonRpcClient } from './sui-object-fetcher';
 
 // Active only in dev builds with VITE_DEBUG_TX=true.
 const devLog = import.meta.env.DEV && import.meta.env.VITE_DEBUG_TX === 'true'
@@ -81,7 +81,7 @@ function requiredEnv(key: ConfigKey): string {
 }
 
 async function selectPaymentCoin(
-  client: SuiJsonRpcClient,
+  client: ReturnType<typeof makeSuiJsonRpcClient>,
   owner: string,
   paymentMist: bigint,
 ): Promise<PaymentCoinRef> {
@@ -115,16 +115,10 @@ export async function buildCheckPassageTxKind(
     const gatePolicyId      = requiredEnv('VITE_GATE_POLICY_ID');
     const gatePolicyVersion = normalizeObjectVersion(requiredEnv('VITE_GATE_POLICY_VERSION'));
 
-    const suiNetwork = (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
-      'mainnet' | 'testnet' | 'devnet' | 'localnet';
-
     step = 'rpcClient';
-    const rpcClient = new SuiJsonRpcClient({
-      url:     getJsonRpcFullnodeUrl(suiNetwork),
-      network: suiNetwork,
-    });
+    const rpcClient = makeSuiJsonRpcClient();
 
-    devLog('[CHECK_PASSAGE] v5 step=start', { suiNetwork });
+    devLog('[CHECK_PASSAGE] v5 step=start', { network: import.meta.env.VITE_SUI_NETWORK ?? 'testnet' });
 
     step = 'validate';
     if (BigInt(gatePolicyVersion) <= 0n) {

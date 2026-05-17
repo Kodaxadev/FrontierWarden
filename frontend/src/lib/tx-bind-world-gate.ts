@@ -1,6 +1,6 @@
 import { toBase64 } from '@mysten/bcs';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
+import { makeSuiJsonRpcClient } from './sui-object-fetcher';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -26,11 +26,6 @@ function requiredEnv(key: ConfigKey): string {
   return value;
 }
 
-function suiNetwork() {
-  return (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
-    'mainnet' | 'testnet' | 'devnet' | 'localnet';
-}
-
 export async function buildBindWorldGateTxKind(
   args: BuildBindWorldGateArgs,
 ): Promise<string> {
@@ -42,11 +37,7 @@ export async function buildBindWorldGateTxKind(
     throw new Error('bind world gate tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
-  const network = suiNetwork();
-  const rpcClient = new SuiJsonRpcClient({
-    url: getJsonRpcFullnodeUrl(network),
-    network,
-  });
+  const rpcClient = makeSuiJsonRpcClient();
 
   const adminCapObject = await rpcClient.getObject({
     id: args.gateAdminCapId,

@@ -25,6 +25,7 @@ mod eve_identity;
 #[cfg(test)]
 mod gate_binding_status_api_tests;
 mod gate_policy_bindings;
+mod event_source;
 mod ingester;
 mod processor;
 mod rpc;
@@ -110,5 +111,6 @@ async fn main() -> Result<()> {
     });
 
     // Indexer loop — runs forever; returns only on fatal error
-    ingester::run(cfg, pool).await
+    let event_source = rpc::RpcClient::new(&cfg.network.rpc_url);
+    ingester::run(cfg, pool, event_source).await
 }

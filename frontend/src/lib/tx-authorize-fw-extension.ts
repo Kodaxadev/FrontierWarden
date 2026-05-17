@@ -14,8 +14,8 @@
 //   - Only authorizes the FrontierWardenAuth extension on an already-owned Gate
 
 import { toBase64 } from '@mysten/bcs';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
+import { makeSuiJsonRpcClient } from './sui-object-fetcher';
 
 const CONFIG_KEYS = ['VITE_PKG_ID'] as const;
 type ConfigKey = typeof CONFIG_KEYS[number];
@@ -57,22 +57,13 @@ function requiredEnv(key: ConfigKey): string {
   return value;
 }
 
-function suiNetwork() {
-  return (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
-    'mainnet' | 'testnet' | 'devnet' | 'localnet';
-}
-
 export async function buildAuthorizeFWExtensionTxKind(
   args: BuildAuthorizeFWExtensionArgs,
 ): Promise<string> {
   const pkgId = requiredEnv('VITE_PKG_ID');
   const worldPkgPublishedAt = args.worldPackagePublishedAt ?? DEFAULT_WORLD_PKG_PUBLISHED_AT;
 
-  const network = suiNetwork();
-  const rpcClient = new SuiJsonRpcClient({
-    url: getJsonRpcFullnodeUrl(network),
-    network,
-  });
+  const rpcClient = makeSuiJsonRpcClient();
 
   // Resolve the Gate object to confirm it exists and get its digest.
   const gateObject = await rpcClient.getObject({
