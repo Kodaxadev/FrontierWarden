@@ -114,7 +114,7 @@ function RuleCard({ rule, index }: { rule: PolicyRulePreview; index: number }) {
         </span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 10 }}>
         <div>
           <div style={{ fontSize: 9, color: 'var(--c-lo)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Signal</div>
           <input style={inp} disabled value={SIGNAL_LABELS[rule.signal] ?? rule.signal} readOnly />
@@ -152,59 +152,75 @@ export function TenantCombatPolicyPanel() {
   return (
     <div style={{ marginTop: 56, paddingTop: 32, borderTop: '1px solid var(--c-border)' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
-        <div className="c-view__title">Tenant Combat Policy</div>
-        <span style={{
-          fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-          color: 'var(--c-amber)', padding: '2px 7px',
-          border: '1px solid rgba(245,158,11,0.35)',
+      <details>
+        {/* Collapsed summary — keeps page weight off core GatePolicy */}
+        <summary style={{
+          listStyle: 'none', cursor: 'pointer', display: 'flex',
+          alignItems: 'center', gap: 12, userSelect: 'none',
         }}>
-          Design Preview · Phase 1 of 5 · Not Active
-        </span>
-      </div>
+          <span style={{ fontSize: 10, color: 'var(--c-lo)' }}>▶</span>
+          <span className="c-stat__label" style={{ margin: 0 }}>
+            Tenant Combat Policy
+          </span>
+          <span style={{
+            fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--c-amber)', padding: '2px 7px',
+            border: '1px solid rgba(245,158,11,0.35)',
+          }}>
+            Design Preview · Phase 1 of 5 · Not Active
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--c-lo)', marginLeft: 4 }}>
+            · advisory signals only · no active enforcement
+          </span>
+        </summary>
 
-      {/* Model explanation */}
-      <div style={{
-        fontSize: 11, color: 'var(--c-mid)', lineHeight: 1.7,
-        padding: '12px 0 20px', borderBottom: '1px solid var(--c-border)', marginBottom: 24,
-      }}>
-        Combat policy rules are <strong style={{ color: 'var(--c-hi)' }}>tenant-scoped</strong> — rules you configure here apply only to your operator context.
-        They produce <strong style={{ color: 'var(--c-hi)' }}>advisory flags or review routes</strong>, not automatic score changes.{' '}
-        No kill mail, kill count, or loss count will change a reputation score, loan cap, or gate access decision without explicit policy and oracle attestation.{' '}
-        Credit and access decisions must use explicit policy or attestations.
-        <br /><br />
-        <span style={{ color: 'var(--c-lo)' }}>
-          Backend storage and evaluator integration are Phase 2–3. These rules are shown for design review only.
-          See <code>Documents/TENANT_COMBAT_POLICY_DESIGN.md</code> for the full implementation sequence.
-        </span>
-      </div>
+        {/* Expanded content */}
+        <div style={{ marginTop: 20 }}>
 
-      {/* Rule cards */}
-      <div style={{ marginBottom: 24 }}>
-        <div className="c-stat__label" style={{ marginBottom: 14 }}>
-          Proposed Rules · {PROPOSED_RULES.length} examples · all disabled
+          {/* Model explanation */}
+          <div style={{
+            fontSize: 11, color: 'var(--c-mid)', lineHeight: 1.7,
+            padding: '12px 0 20px', borderBottom: '1px solid var(--c-border)', marginBottom: 24,
+          }}>
+            Combat policy rules are <strong style={{ color: 'var(--c-hi)' }}>tenant-scoped</strong> — rules you configure here apply only to your operator context.
+            They produce <strong style={{ color: 'var(--c-hi)' }}>advisory flags or review routes</strong>, not automatic score changes.{' '}
+            No kill mail, kill count, or loss count will change a reputation score, loan cap, or gate access decision without explicit policy and oracle attestation.{' '}
+            Credit and access decisions must use explicit policy or attestations.
+            <br /><br />
+            <span style={{ color: 'var(--c-lo)' }}>
+              Backend storage and evaluator integration are Phase 2–3. These rules are shown for design review only.
+              See <code>Documents/TENANT_COMBAT_POLICY_DESIGN.md</code> for the full implementation sequence.
+            </span>
+          </div>
+
+          {/* Rule cards */}
+          <div style={{ marginBottom: 24 }}>
+            <div className="c-stat__label" style={{ marginBottom: 14 }}>
+              Proposed Rules · {PROPOSED_RULES.length} examples · all disabled
+            </div>
+            {PROPOSED_RULES.map((rule, i) => (
+              <RuleCard key={rule.name} rule={rule} index={i} />
+            ))}
+          </div>
+
+          {/* Save button — disabled, not yet wired */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              className="c-commit"
+              disabled
+              style={{ opacity: 0.35, cursor: 'not-allowed' }}
+              title="Combat policy storage is Phase 2 — not yet wired to backend"
+            >
+              SAVE RULES
+            </button>
+            <span style={{ fontSize: 10, color: 'var(--c-lo)' }}>
+              Rule storage requires Phase 2 (backend) · evaluator integration requires Phase 3.
+              No effects are applied until both are complete and rules are explicitly enabled.
+            </span>
+          </div>
+
         </div>
-        {PROPOSED_RULES.map((rule, i) => (
-          <RuleCard key={rule.name} rule={rule} index={i} />
-        ))}
-      </div>
-
-      {/* Save button — disabled, not yet wired */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button
-          className="c-commit"
-          disabled
-          style={{ opacity: 0.35, cursor: 'not-allowed' }}
-          title="Combat policy storage is Phase 2 — not yet wired to backend"
-        >
-          SAVE RULES
-        </button>
-        <span style={{ fontSize: 10, color: 'var(--c-lo)' }}>
-          Rule storage requires Phase 2 (backend) · evaluator integration requires Phase 3.
-          No effects are applied until both are complete and rules are explicitly enabled.
-        </span>
-      </div>
+      </details>
 
     </div>
   );
