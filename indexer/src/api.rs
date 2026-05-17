@@ -40,7 +40,8 @@ pub(crate) fn router_with_security(
         .merge(crate::api_reputation::router())
         .merge(crate::api_trust::router_with_config(trust_cfg))
         .merge(crate::api_world_gates::router())
-        .merge(crate::api_world_gate_traffic::router());
+        .merge(crate::api_world_gate_traffic::router())
+        .merge(crate::api_kill_mails::router());
 
     let auth_routes = crate::api_sessions::router(sessions.clone());
 

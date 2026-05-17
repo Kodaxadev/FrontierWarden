@@ -1,6 +1,7 @@
 mod api;
 mod api_attestations;
 mod api_auth;
+mod api_kill_mails;
 mod api_challenges;
 mod api_common;
 mod api_eve;
