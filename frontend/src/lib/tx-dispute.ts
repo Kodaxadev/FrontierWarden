@@ -1,5 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { makeSuiJsonRpcClient } from './sui-object-fetcher';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -35,11 +35,6 @@ function requiredEnv(key: ConfigKey): string {
   return value;
 }
 
-function suiNetwork() {
-  return (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
-    'mainnet' | 'testnet' | 'devnet' | 'localnet';
-}
-
 function oracleRegistryRef(tx: Transaction, mutable: boolean) {
   return tx.sharedObjectRef({
     objectId: requiredEnv('VITE_ORACLE_REGISTRY_ID'),
@@ -65,7 +60,7 @@ function bytes(value: string): number[] {
  * encodes the initial_shared_version needed for mutable shared object refs.
  */
 async function fetchChallengeSharedVersion(
-  rpcClient: SuiJsonRpcClient,
+  rpcClient: ReturnType<typeof makeSuiJsonRpcClient>,
   challengeId: string,
 ): Promise<number> {
   const obj = await rpcClient.getObject({
@@ -123,11 +118,7 @@ export function buildCreateChallengeTx(args: CreateChallengeArgs): Transaction {
  * not tx.object(), to avoid TypeMismatch errors on direct wallet signing.
  */
 export async function buildVoteChallengeTx(args: VoteChallengeArgs): Promise<Transaction> {
-  const network = suiNetwork();
-  const rpcClient = new SuiJsonRpcClient({
-    url: getJsonRpcFullnodeUrl(network),
-    network,
-  });
+  const rpcClient = makeSuiJsonRpcClient();
 
   const initialSharedVersion = await fetchChallengeSharedVersion(rpcClient, args.challengeId);
 
@@ -153,11 +144,7 @@ export async function buildVoteChallengeTx(args: VoteChallengeArgs): Promise<Tra
  * not tx.object(), to avoid TypeMismatch errors on direct wallet signing.
  */
 export async function buildResolveChallengeTx(args: ResolveChallengeArgs): Promise<Transaction> {
-  const network = suiNetwork();
-  const rpcClient = new SuiJsonRpcClient({
-    url: getJsonRpcFullnodeUrl(network),
-    network,
-  });
+  const rpcClient = makeSuiJsonRpcClient();
 
   const initialSharedVersion = await fetchChallengeSharedVersion(rpcClient, args.challengeId);
 

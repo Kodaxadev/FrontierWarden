@@ -53,9 +53,10 @@ export interface OperatorGateAuthorityState {
   warnings: string[];
 }
 
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+
 const STILLNESS_WORLD_PACKAGE_ID =
   "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c";
-const TESTNET_RPC_URL = "https://fullnode.testnet.sui.io:443";
 
 export const EMPTY_CONNECTED_AUTHORITY: OperatorGateAuthorityState = {
   status: "checking_character",
@@ -111,7 +112,11 @@ function worldPackageId(): string {
 }
 
 function rpcUrl(): string {
-  return envValue("VITE_SUI_RPC_URL") ?? TESTNET_RPC_URL;
+  const override = envValue("VITE_SUI_RPC_URL");
+  if (override) return override;
+  const network = (envValue("VITE_SUI_NETWORK") ?? "testnet") as
+    "mainnet" | "testnet" | "devnet" | "localnet";
+  return getJsonRpcFullnodeUrl(network);
 }
 
 export function buildPlayerProfileType(packageId = worldPackageId()): string {

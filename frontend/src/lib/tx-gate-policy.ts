@@ -5,8 +5,8 @@
 // and passed as Inputs.ObjectRef / Inputs.SharedObjectRef.
 
 import { toBase64 } from '@mysten/bcs';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
+import { makeSuiJsonRpcClient } from './sui-object-fetcher';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -53,12 +53,7 @@ export async function buildGatePolicyUpdateTxKind(
     throw new Error('gate policy tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
-  const suiNetwork = (import.meta.env.VITE_SUI_NETWORK ?? 'testnet') as
-    'mainnet' | 'testnet' | 'devnet' | 'localnet';
-  const rpcClient = new SuiJsonRpcClient({
-    url:     getJsonRpcFullnodeUrl(suiNetwork),
-    network: suiNetwork,
-  });
+  const rpcClient = makeSuiJsonRpcClient();
 
   // Resolve AdminCap version/digest from chain.
   const adminCapObject = await rpcClient.getObject({
