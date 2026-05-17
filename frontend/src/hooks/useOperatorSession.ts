@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useCurrentWallet, useDAppKit } from '@mysten/dapp-kit-react';
 import {
   createOperatorSession,
   requestOperatorNonce,
@@ -10,10 +10,16 @@ const STORAGE_KEY = 'fw_operator_session_v1';
 
 type SessionStatus = 'idle' | 'signing' | 'active' | 'error';
 
+export type SessionScheme = 'ed25519' | 'zklogin' | 'unknown';
+
 interface StoredSession {
   address: string;
   token: string;
   expiresAt: number;
+  /** Signature scheme detected from the flag byte of the signed message. */
+  scheme: SessionScheme;
+  /** Display name of the wallet used to create this session. */
+  walletName?: string;
 }
 
 export interface OperatorSessionState {
@@ -21,6 +27,13 @@ export interface OperatorSessionState {
   address: string | null;
   error: string | null;
   expiresAt: number | null;
+  scheme: SessionScheme | null;
+  /** True when scheme is 'unknown' (session predates scheme tracking). */
+  isLegacySession: boolean;
+  /** Wallet name stored at session creation time. */
+  sessionWalletName: string | null;
+  /** Name of the currently connected wallet. */
+  currentWalletName: string | null;
   status: SessionStatus;
   token: string | null;
 }
@@ -29,15 +42,37 @@ function nowSeconds() {
   return Math.floor(Date.now() / 1000);
 }
 
+/**
+ * Detect signature scheme from the first byte of the Base64-encoded signature.
+ * 0x00 = Ed25519, 0x05 = zkLogin. Anything else = unknown.
+ */
+function schemeFromSignature(signature: string): SessionScheme {
+  try {
+    const bytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0));
+    const flag = bytes[0];
+    if (flag === 0x00) return 'ed25519';
+    if (flag === 0x05) return 'zklogin';
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 function readStoredSession(): StoredSession | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredSession;
-    if (!parsed.token || !parsed.address || parsed.expiresAt <= nowSeconds()) {
-      return null;
-    }
-    return parsed;
+    const parsed = JSON.parse(raw) as Partial<StoredSession>;
+    if (!parsed.token || !parsed.address || !parsed.expiresAt) return null;
+    if (parsed.expiresAt <= nowSeconds()) return null;
+    return {
+      address: parsed.address,
+      token: parsed.token,
+      expiresAt: parsed.expiresAt,
+      // Tolerate old sessions that predate scheme tracking.
+      scheme: parsed.scheme ?? 'unknown',
+      walletName: parsed.walletName,
+    };
   } catch {
     return null;
   }
@@ -60,6 +95,7 @@ function humanise(err: unknown): string {
 
 export function useOperatorSession() {
   const account = useCurrentAccount();
+  const currentWallet = useCurrentWallet();
   const dAppKit = useDAppKit();
   const [session, setSession] = useState<StoredSession | null>(() => {
     const stored = readStoredSession();
@@ -76,6 +112,9 @@ export function useOperatorSession() {
     setError(null);
   }, []);
 
+  // Guard: clear session on address mismatch or expiry.
+  // Wallet/scheme mismatch is surfaced in UI rather than auto-cleared,
+  // because we cannot determine the new wallet's scheme until it signs.
   useEffect(() => {
     if (!session) return;
     if (session.expiresAt <= nowSeconds()) {
@@ -107,10 +146,12 @@ export function useOperatorSession() {
         signature: signed.signature,
       });
 
-      const stored = {
+      const stored: StoredSession = {
         address: next.address,
         token: next.token,
         expiresAt: next.expires_at,
+        scheme: schemeFromSignature(signed.signature),
+        walletName: currentWallet?.name,
       };
       writeStoredSession(stored);
       setSession(stored);
@@ -121,16 +162,22 @@ export function useOperatorSession() {
       setError(humanise(err));
       setStatus('error');
     }
-  }, [account, dAppKit]);
+  }, [account, currentWallet, dAppKit]);
+
+  const currentWalletName = currentWallet?.name ?? null;
 
   const state = useMemo<OperatorSessionState>(() => ({
     accountAddress: account?.address ?? null,
     address: session?.address ?? null,
     error,
     expiresAt: session?.expiresAt ?? null,
+    scheme: session?.scheme ?? null,
+    isLegacySession: session?.scheme === 'unknown',
+    sessionWalletName: session?.walletName ?? null,
+    currentWalletName,
     status,
     token: session?.token ?? null,
-  }), [account?.address, error, session, status]);
+  }), [account?.address, currentWalletName, error, session, status]);
 
   return {
     authenticate,

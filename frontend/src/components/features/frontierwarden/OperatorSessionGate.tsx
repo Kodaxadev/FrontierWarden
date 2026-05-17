@@ -3,6 +3,7 @@ import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { useWallets } from '@mysten/dapp-kit-react';
 import type { UiWallet } from '@wallet-standard/ui';
 import { useOperatorSession } from '../../../hooks/useOperatorSession';
+import type { SessionScheme } from '../../../hooks/useOperatorSession';
 
 interface Props {
   children: ReactNode;
@@ -25,6 +26,12 @@ function expiryText(expiresAt: number | null) {
   });
 }
 
+const SCHEME_LABEL: Record<SessionScheme, string> = {
+  ed25519: 'Ed25519',
+  zklogin: 'zkLogin',
+  unknown: 'Legacy',
+};
+
 export function OperatorSessionGate({ children }: Props) {
   const wallets = useWallets();
   const { authenticate, clearSession, isAuthenticated, state } = useOperatorSession();
@@ -34,6 +41,13 @@ export function OperatorSessionGate({ children }: Props) {
     ? { sortFn: (a: UiWallet, b: UiWallet) => Number(isEveWallet(b)) - Number(isEveWallet(a)) }
     : {};
   const connectLabel = 'CONNECT WALLET';
+
+  // True when the session was created with a different wallet than is currently connected.
+  const walletMismatch =
+    isAuthenticated &&
+    state.sessionWalletName !== null &&
+    state.currentWalletName !== null &&
+    state.sessionWalletName !== state.currentWalletName;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -55,7 +69,28 @@ export function OperatorSessionGate({ children }: Props) {
         {isAuthenticated ? (
           <>
             <span>Operator {short(state.address)}</span>
+            {state.scheme && (
+              <span style={{ color: state.isLegacySession ? 'var(--c-amber, #f59e0b)' : undefined }}>
+                {SCHEME_LABEL[state.scheme]}
+                {state.isLegacySession && ' ⚠'}
+              </span>
+            )}
+            {state.sessionWalletName && (
+              <span style={{ color: walletMismatch ? 'var(--c-amber, #f59e0b)' : undefined }}>
+                {walletMismatch ? `${state.sessionWalletName} ≠ ${state.currentWalletName}` : state.sessionWalletName}
+              </span>
+            )}
             <span>Session expires {expiryText(state.expiresAt)}</span>
+            {(state.isLegacySession || walletMismatch) && (
+              <button
+                className="c-link"
+                disabled={state.status === 'signing'}
+                onClick={async () => { clearSession(); await authenticate(); }}
+                style={{ color: 'var(--c-amber, #f59e0b)' }}
+              >
+                {state.status === 'signing' ? 'SIGNING...' : 'RE-SIGN SESSION'}
+              </button>
+            )}
             <button className="c-link" onClick={clearSession}>Lock</button>
           </>
         ) : (
