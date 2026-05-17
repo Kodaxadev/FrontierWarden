@@ -436,10 +436,29 @@ Two classified error codes surface in the UI via `SigningFailureGuide`:
 Both show a **TRY AGAIN** button in the operator panels. Test with a
 direct-key Ed25519 wallet where possible to avoid the prover dependency.
 
-**Operator session verification:**
-`/auth/nonce` and `/auth/session` accept Ed25519 signatures only. zkLogin,
-secp256k1, and secp256r1 are not currently supported in the backend
-session path.
+**Operator session verification (zkLogin support added 2026-05-16):**
+`/auth/nonce` and `/auth/session` now accept both Ed25519 (flag byte `0x00`)
+and EVE Vault / zkLogin signatures (flag byte `0x05`). zkLogin verification
+is delegated to the Sui GraphQL `verifySignature` query rather than performed
+locally.
+
+Config:
+- `EFREP_SUI_GRAPHQL_URL` — Sui GraphQL endpoint (default:
+  `https://graphql.testnet.sui.io/`). Must use `https://`; any other URL
+  scheme is rejected at startup (SSRF guard).
+
+Error behavior:
+- `success: false` or GraphQL errors (e.g. issuer rejected, expired proof)
+  → 401 `wallet signature verification failed`
+- Sui GraphQL unreachable or timeout → 503; operator must request a new nonce
+  and retry (nonce is consumed before verification in the current design)
+
+secp256k1 (`0x01`), secp256r1 (`0x02`), multisig (`0x03`), and passkey
+(`0x06`) remain rejected with an opaque 401.
+
+Implementation: `indexer/src/zklogin_verifier.rs` + `api_sessions.rs`
+Research: `Documents/ZKLOGIN_SESSION_AUTH_RESEARCH.md` on branch
+`codex/zklogin-session-auth-verify-signature-spike`
 
 **World event cursor vs FW protocol cursor:**
 These are separate indexer cursors. FW protocol events (gate_config,
