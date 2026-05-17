@@ -12,6 +12,7 @@ mod api_reputation;
 mod api_request_log;
 mod api_sessions;
 mod api_trust;
+mod zklogin_verifier;
 mod api_world_gate_traffic;
 mod api_world_gates;
 

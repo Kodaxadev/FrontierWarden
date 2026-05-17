@@ -12,6 +12,8 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+use crate::zklogin_verifier::{ZkLoginError, ZkLoginVerifier};
+
 const NONCE_TTL: Duration = Duration::from_secs(300);
 const SESSION_TTL: Duration = Duration::from_secs(3600);
 
@@ -22,9 +24,10 @@ pub fn router(session_state: SessionState) -> Router<PgPool> {
         .layer(Extension(session_state))
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct SessionState {
     inner: Arc<Mutex<SessionStore>>,
+    verifier: Arc<ZkLoginVerifier>,
 }
 
 #[derive(Default)]
@@ -66,7 +69,7 @@ struct SessionRequest {
     signature: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct SessionResponse {
     address: String,
     token: String,
@@ -75,7 +78,21 @@ struct SessionResponse {
 
 impl SessionState {
     pub fn new() -> Self {
-        Self::default()
+        let verifier = ZkLoginVerifier::from_env()
+            .expect("EFREP_SUI_GRAPHQL_URL is invalid — must use https://");
+        Self {
+            inner: Arc::new(Mutex::new(SessionStore::default())),
+            verifier: Arc::new(verifier),
+        }
+    }
+
+    #[cfg(test)]
+    fn with_verifier_url(url: String) -> Self {
+        let verifier = ZkLoginVerifier::new(url).expect("invalid test verifier URL");
+        Self {
+            inner: Arc::new(Mutex::new(SessionStore::default())),
+            verifier: Arc::new(verifier),
+        }
     }
 
     #[allow(dead_code)] // reserved for future session-protected route middleware
@@ -118,36 +135,17 @@ impl SessionState {
         })
     }
 
-    fn create_session(
+    async fn create_session(
         &self,
         req: SessionRequest,
     ) -> Result<SessionResponse, (StatusCode, &'static str)> {
+        // Nonce is consumed before verification (v1 replay-safety design).
+        // If zkLogin verification fails or the verifier is unavailable, the
+        // operator must request a new nonce. See ZKLOGIN_SESSION_AUTH_RESEARCH.md.
         self.consume_nonce(&req)?;
 
-        verify_personal_message(&req.message, &req.signature, &req.address).map_err(|err| {
-            let sig_bytes = general_purpose::STANDARD
-                .decode(&req.signature)
-                .unwrap_or_default();
-            let scheme_byte = sig_bytes.first().copied();
-            let derived_addr = if sig_bytes.len() == 97 {
-                sui_address(sig_bytes[0], &sig_bytes[65..97])
-            } else {
-                format!("n/a (sig_len={})", sig_bytes.len())
-            };
-            tracing::warn!(
-                scheme = signature_scheme_label(&req.signature),
-                sig_len = sig_bytes.len(),
-                scheme_byte = ?scheme_byte,
-                derived_addr = %derived_addr,
-                expected_addr = %req.address,
-                error = %err,
-                "operator session signature verification failed"
-            );
-            (
-                StatusCode::UNAUTHORIZED,
-                "wallet signature verification failed",
-            )
-        })?;
+        verify_personal_message(&req.message, &req.signature, &req.address, &self.verifier)
+            .await?;
 
         let token = random_token(32);
         let expires_at = unix_now() + SESSION_TTL.as_secs();
@@ -208,8 +206,90 @@ async fn create_session(
     let address =
         normalize_sui_address(&req.address).ok_or((StatusCode::BAD_REQUEST, "invalid address"))?;
     Ok(Json(
-        session_state.create_session(SessionRequest { address, ..req })?,
+        session_state
+            .create_session(SessionRequest { address, ..req })
+            .await?,
     ))
+}
+
+/// Dispatch to Ed25519 (0x00) or zkLogin (0x05) verification.
+/// Any other scheme byte → opaque 401 (same error text as a bad signature).
+async fn verify_personal_message(
+    message: &str,
+    signature: &str,
+    address: &str,
+    verifier: &ZkLoginVerifier,
+) -> Result<(), (StatusCode, &'static str)> {
+    let sig_bytes = general_purpose::STANDARD
+        .decode(signature)
+        .unwrap_or_default();
+
+    match sig_bytes.first().copied() {
+        Some(0x00) => verify_personal_message_ed25519(message, signature, address).map_err(|err| {
+            tracing::warn!(
+                scheme = "ed25519",
+                sig_len = sig_bytes.len(),
+                derived_addr = %if sig_bytes.len() == 97 {
+                    sui_address(0, &sig_bytes[65..97])
+                } else {
+                    format!("n/a (sig_len={})", sig_bytes.len())
+                },
+                expected_addr = %address,
+                error = %err,
+                "operator session signature verification failed"
+            );
+            (StatusCode::UNAUTHORIZED, "wallet signature verification failed")
+        }),
+
+        Some(0x05) => verify_personal_message_zklogin(message, signature, address, verifier).await,
+
+        _ => {
+            tracing::warn!(
+                scheme = signature_scheme_label(signature),
+                expected_addr = %address,
+                "operator session: unsupported signature scheme"
+            );
+            Err((
+                StatusCode::UNAUTHORIZED,
+                "wallet signature verification failed",
+            ))
+        }
+    }
+}
+
+async fn verify_personal_message_zklogin(
+    message: &str,
+    signature: &str,
+    address: &str,
+    verifier: &ZkLoginVerifier,
+) -> Result<(), (StatusCode, &'static str)> {
+    match verifier.verify(message, signature, address).await {
+        Ok(()) => Ok(()),
+        Err(ZkLoginError::AuthFailed(reason)) => {
+            tracing::warn!(
+                scheme = "zklogin",
+                reason = %reason,
+                address = %address,
+                "operator session zkLogin verification failed"
+            );
+            Err((
+                StatusCode::UNAUTHORIZED,
+                "wallet signature verification failed",
+            ))
+        }
+        Err(ZkLoginError::Unavailable(reason)) => {
+            tracing::error!(
+                scheme = "zklogin",
+                reason = %reason,
+                address = %address,
+                "Sui GraphQL zkLogin verifier unavailable"
+            );
+            Err((
+                StatusCode::SERVICE_UNAVAILABLE,
+                "zkLogin verification service temporarily unavailable",
+            ))
+        }
+    }
 }
 
 fn verify_personal_message_ed25519(
@@ -229,12 +309,6 @@ fn verify_personal_message_ed25519(
     let digest = personal_message_digest(message.as_bytes())?;
     verifying_key.verify(&digest, &sig)?;
     Ok(())
-}
-
-/// Only Ed25519 (Sui flag byte 0x00) is supported for operator sessions.
-/// secp256k1, secp256r1, zkLogin, and passkey schemes are not accepted.
-fn verify_personal_message(message: &str, signature: &str, address: &str) -> anyhow::Result<()> {
-    verify_personal_message_ed25519(message, signature, address)
 }
 
 fn personal_message_digest(message: &[u8]) -> anyhow::Result<[u8; 32]> {
@@ -323,6 +397,9 @@ fn unix_now() -> u64 {
 mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
+    use serde_json::json;
+
+    // ── Ed25519 path (existing behavior, unchanged) ────────────────────────────
 
     #[test]
     fn verifies_ed25519_personal_message() -> anyhow::Result<()> {
@@ -348,7 +425,6 @@ mod tests {
         let address = sui_address(0, &pubkey);
         let message = "FrontierWarden operator session";
 
-        // All-zero signature bytes — not a valid signature for this key
         let mut serialized = vec![0u8];
         serialized.extend_from_slice(&[0u8; 64]);
         serialized.extend_from_slice(&pubkey);
@@ -408,5 +484,131 @@ mod tests {
     fn bcs_vector_uses_uleb_length_prefix() {
         assert_eq!(bcs_vector(b"abc"), vec![3, b'a', b'b', b'c']);
         assert_eq!(uleb128(128), vec![128, 1]);
+    }
+
+    // ── Scheme dispatch ────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn unsupported_scheme_returns_401() {
+        let state = SessionState::new();
+        let nonce_resp = state
+            .insert_nonce(format!("0x{}", "a".repeat(64)))
+            .unwrap();
+
+        // secp256k1 (0x01) is not supported
+        let mut bad_sig = vec![0x01u8];
+        bad_sig.extend_from_slice(&[0u8; 96]);
+        let sig_b64 = general_purpose::STANDARD.encode(&bad_sig);
+
+        let req = SessionRequest {
+            address: nonce_resp.address,
+            nonce: nonce_resp.nonce,
+            message: nonce_resp.message,
+            signature: sig_b64,
+        };
+        let err = state.create_session(req).await.unwrap_err();
+        assert_eq!(err.0, StatusCode::UNAUTHORIZED);
+    }
+
+    // ── zkLogin dispatch (mock verifier server) ────────────────────────────────
+
+    async fn spawn_mock_graphql(body: serde_json::Value) -> String {
+        use axum::{routing::post, Json, Router};
+        use tokio::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        tokio::spawn(async move {
+            let app = Router::new().route(
+                "/",
+                post(move || {
+                    let b = body.clone();
+                    async move { Json(b) }
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        format!("http://127.0.0.1:{port}")
+    }
+
+    fn fake_zklogin_sig() -> String {
+        // Minimal 0x05-flagged blob; actual proof bytes are validated by the
+        // fullnode, not locally — this tests dispatch only.
+        let mut sig = vec![0x05u8];
+        sig.extend_from_slice(&[0u8; 63]);
+        general_purpose::STANDARD.encode(sig)
+    }
+
+    fn session_req_with_sig(nonce_resp: &NonceResponse, sig: String) -> SessionRequest {
+        SessionRequest {
+            address: nonce_resp.address.clone(),
+            nonce: nonce_resp.nonce.clone(),
+            message: nonce_resp.message.clone(),
+            signature: sig,
+        }
+    }
+
+    #[tokio::test]
+    async fn zklogin_success_issues_session_token() {
+        let url = spawn_mock_graphql(json!({
+            "data": { "verifySignature": { "success": true } }
+        }))
+        .await;
+        let state = SessionState::with_verifier_url(url);
+        let nonce = state
+            .insert_nonce(format!("0x{}", "b".repeat(64)))
+            .unwrap();
+        let req = session_req_with_sig(&nonce, fake_zklogin_sig());
+        let resp = state.create_session(req).await.unwrap();
+        assert!(!resp.token.is_empty());
+        assert_eq!(resp.address, nonce.address);
+    }
+
+    #[tokio::test]
+    async fn zklogin_auth_failure_returns_401() {
+        let url = spawn_mock_graphql(json!({
+            "data": { "verifySignature": { "success": false } }
+        }))
+        .await;
+        let state = SessionState::with_verifier_url(url);
+        let nonce = state
+            .insert_nonce(format!("0x{}", "c".repeat(64)))
+            .unwrap();
+        let req = session_req_with_sig(&nonce, fake_zklogin_sig());
+        let err = state.create_session(req).await.unwrap_err();
+        assert_eq!(err.0, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn zklogin_graphql_errors_return_401() {
+        let url = spawn_mock_graphql(json!({
+            "errors": [{ "message": "Issuer not supported" }]
+        }))
+        .await;
+        let state = SessionState::with_verifier_url(url);
+        let nonce = state
+            .insert_nonce(format!("0x{}", "d".repeat(64)))
+            .unwrap();
+        let req = session_req_with_sig(&nonce, fake_zklogin_sig());
+        let err = state.create_session(req).await.unwrap_err();
+        assert_eq!(err.0, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn zklogin_verifier_unavailable_returns_503() {
+        // Nothing listening on this port → connection refused → 503.
+        let port = {
+            let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            l.local_addr().unwrap().port()
+        };
+        let state = SessionState::with_verifier_url(format!("http://127.0.0.1:{port}"));
+        let nonce = state
+            .insert_nonce(format!("0x{}", "e".repeat(64)))
+            .unwrap();
+        let req = session_req_with_sig(&nonce, fake_zklogin_sig());
+        let err = state.create_session(req).await.unwrap_err();
+        assert_eq!(err.0, StatusCode::SERVICE_UNAVAILABLE);
     }
 }
