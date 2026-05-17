@@ -177,7 +177,7 @@ function mapKills(rows: AttestationFeedRow[], identityMap: IdentityEnrichmentMap
       id: shortId(row.attestation_id),
       t: row.issued_at,
       victim: victimName ?? shortId(row.subject),
-      victimWallet: shortId(row.subject),
+      victimWallet: victimName ? shortId(row.subject) : undefined,
       victimCorp: identity?.tribe_name ?? undefined,
       ship: 'Kill attestation',
       system: 'unknown',
