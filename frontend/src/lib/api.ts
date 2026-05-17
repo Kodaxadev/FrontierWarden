@@ -373,3 +373,15 @@ export const fetchKillMails = (filter: KillMailsFilter = {}): Promise<KillMailLi
   const qs = params.toString() ? `?${params.toString()}` : '';
   return get(`/kill-mails${qs}`);
 };
+
+export const fetchCharacterKills = (
+  address: string,
+  limit = 10,
+): Promise<KillMailListResponse> =>
+  get(`/world/characters/${encodeURIComponent(address)}/kills?limit=${limit}`);
+
+export const fetchCharacterLosses = (
+  address: string,
+  limit = 10,
+): Promise<KillMailListResponse> =>
+  get(`/world/characters/${encodeURIComponent(address)}/losses?limit=${limit}`);

@@ -9,6 +9,7 @@ import type { FwData } from '../fw-data';
 import type { EveIdentity } from '../../../../types/api.types';
 import { fetchEveIdentity } from '../../../../lib/api';
 import { useProfileCreate } from '../../../../hooks/useProfileCreate';
+import { CombatEvidencePanel } from '../CombatEvidencePanel';
 
 // Tier thresholds: score >= threshold → tier name
 const TIER_BANDS = [
@@ -115,6 +116,7 @@ export function ReputationView({ data, live = false, loading = false, error = nu
   const friendlyKills = data.kills.filter(k => k.friendly === true).length;
 
   return (
+    <>
     <div className="c-rep-grid">
 
       {/* ── Left col ──────────────────────────────── */}
@@ -296,5 +298,9 @@ export function ReputationView({ data, live = false, loading = false, error = nu
       </div>
 
     </div>
+
+    {/* Combat evidence — full width below the two-column dossier grid */}
+    <CombatEvidencePanel address={identityAddr} />
+    </>
   );
 }
