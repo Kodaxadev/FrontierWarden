@@ -24,7 +24,7 @@ pub async fn create_pool(cfg: &DatabaseConfig) -> Result<PgPool> {
 async fn init_indexer_state(pool: &PgPool) -> Result<()> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS indexer_state (
-            key        VARCHAR(64) PRIMARY KEY,
+            key        TEXT        PRIMARY KEY,
             value      TEXT        NOT NULL,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )",

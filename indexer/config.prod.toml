@@ -24,10 +24,11 @@ default_counterparty_schema = "TRIBE_STANDING"
 enabled = true
 world_api_base = "https://world-api-stillness.live.tech.evefrontier.com"
 graphql_url = "https://graphql.testnet.sui.io/graphql"
-world_package_id = "0xPLACEHOLDER"
-world_pkg_original_id = "0xPLACEHOLDER"
-world_pkg_published_at = "0xPLACEHOLDER"
+# world_package_id, world_pkg_original_id, world_pkg_published_at intentionally
+# omitted — must be set via Railway env vars EFREP_EVE_WORLD_PACKAGE_ID,
+# EFREP_WORLD_PKG_ORIGINAL_ID, EFREP_WORLD_PKG_PUBLISHED_AT.
+# The indexer refuses to start if these are missing or contain PLACEHOLDER.
 world_tenant = "stillness"
 world_start_checkpoint = 308264360
 fw_gate_extension_typename = ""
-player_profile_type = "0xPLACEHOLDER"
+# player_profile_type must be set via EFREP_EVE_PLAYER_PROFILE_TYPE env var.

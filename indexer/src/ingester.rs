@@ -350,7 +350,10 @@ async fn restore_world_gate_topology_cursors(
 
 #[cfg(test)]
 mod tests {
-    use super::{cursor_key, TRACKED_MODULES, WORLD_GATE_JUMP_EVENTS, WORLD_GATE_TOPOLOGY_EVENTS};
+    use super::{
+        cursor_key, TRACKED_MODULES, WORLD_GATE_EXTENSION_EVENTS, WORLD_GATE_JUMP_EVENTS,
+        WORLD_GATE_TOPOLOGY_EVENTS,
+    };
 
     #[test]
     fn tracks_operational_protocol_modules() {
@@ -380,5 +383,34 @@ mod tests {
                 "event '{event}' must not appear in both topology and jump event lists"
             );
         }
+    }
+
+    #[test]
+    fn world_event_type_never_contains_placeholder() {
+        let pkg = "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c";
+        for event in WORLD_GATE_EXTENSION_EVENTS
+            .iter()
+            .chain(WORLD_GATE_TOPOLOGY_EVENTS)
+            .chain(WORLD_GATE_JUMP_EVENTS)
+        {
+            let event_type = format!("{pkg}::gate::{event}");
+            assert!(
+                !event_type.contains("PLACEHOLDER"),
+                "event type contains PLACEHOLDER: {event_type}"
+            );
+        }
+    }
+
+    #[test]
+    fn world_event_cursor_key_exceeds_old_varchar64_limit() {
+        // Demonstrates why the indexer_state.key column must be TEXT, not VARCHAR(64).
+        let pkg = "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c";
+        let event_type = format!("{pkg}::gate::ExtensionAuthorizedEvent");
+        let key = format!("cursor:world:{event_type}");
+        assert!(
+            key.len() > 64,
+            "expected cursor key > 64 chars, got {} chars: {key}",
+            key.len()
+        );
     }
 }
