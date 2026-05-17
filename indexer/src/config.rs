@@ -10,6 +10,8 @@ pub struct Config {
     pub indexer: IndexerConfig,
     pub trust: TrustConfig,
     pub eve: Option<EveConfig>,
+    #[serde(default)]
+    pub kill_mails: KillMailsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -59,6 +61,51 @@ impl Default for TrustConfig {
 impl TrustConfig {
     fn default_bounty_schema_str() -> String {
         "TRIBE_STANDING".into()
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KillMailsConfig {
+    /// Set to true to start the kill mail poller. Default false.
+    pub enabled: bool,
+    /// GET endpoint returning kill mail JSON array.
+    #[serde(default = "KillMailsConfig::default_source_url")]
+    pub source_url: String,
+    /// Environment tag written to world_kill_mails.environment.
+    #[serde(default = "KillMailsConfig::default_environment")]
+    pub environment: String,
+    /// Milliseconds between poll cycles when no new kills were found.
+    #[serde(default = "KillMailsConfig::default_poll_interval_ms")]
+    pub poll_interval_ms: u64,
+    /// Records per page (offset pagination).
+    #[serde(default = "KillMailsConfig::default_page_size")]
+    pub page_size: u64,
+}
+
+impl Default for KillMailsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            source_url: Self::default_source_url(),
+            environment: Self::default_environment(),
+            poll_interval_ms: Self::default_poll_interval_ms(),
+            page_size: Self::default_page_size(),
+        }
+    }
+}
+
+impl KillMailsConfig {
+    fn default_source_url() -> String {
+        "https://api.alpha-strike.space/incident".into()
+    }
+    fn default_environment() -> String {
+        "stillness".into()
+    }
+    fn default_poll_interval_ms() -> u64 {
+        30_000
+    }
+    fn default_page_size() -> u64 {
+        200
     }
 }
 
