@@ -67,6 +67,7 @@ pub struct EveConfig {
     pub enabled: bool,
     pub world_api_base: String,
     pub graphql_url: String,
+    #[serde(default)]
     pub world_package_id: String,
     #[serde(default)]
     pub world_pkg_original_id: String,
@@ -76,6 +77,7 @@ pub struct EveConfig {
     pub world_tenant: String,
     #[serde(default)]
     pub world_start_checkpoint: u64,
+    #[serde(default)]
     pub player_profile_type: String,
     #[serde(default = "EveConfig::default_fw_gate_auth_witness")]
     pub fw_gate_auth_witness: String,
@@ -148,11 +150,8 @@ impl Config {
             if let Ok(s) = std::env::var("EFREP_EVE_PLAYER_PROFILE_TYPE") {
                 eve.player_profile_type = s;
             }
-            if eve.world_pkg_original_id.is_empty() {
-                eve.world_pkg_original_id = eve.world_package_id.clone();
-            }
-            if eve.world_pkg_published_at.is_empty() {
-                eve.world_pkg_published_at = eve.world_package_id.clone();
+            if eve.enabled {
+                validate_world_pkg_ids(eve)?;
             }
         }
         // Env var override for database max connections
@@ -176,6 +175,31 @@ impl Config {
     }
 }
 
+/// Reject placeholder or empty world package IDs at startup so the indexer
+/// never subscribes to `0xPLACEHOLDER::gate::*` event filters.
+fn validate_world_pkg_ids(eve: &EveConfig) -> Result<()> {
+    for (name, val) in [
+        ("world_pkg_original_id", &eve.world_pkg_original_id),
+        ("world_pkg_published_at", &eve.world_pkg_published_at),
+    ] {
+        anyhow::ensure!(
+            !val.is_empty(),
+            "EVE config: {name} must be set — add EFREP_WORLD_PKG_ORIGINAL_ID / EFREP_WORLD_PKG_PUBLISHED_AT env vars"
+        );
+        anyhow::ensure!(
+            !val.contains("PLACEHOLDER"),
+            "EVE config: {name} is still a placeholder value ({val}) — set EFREP_WORLD_PKG_ORIGINAL_ID / EFREP_WORLD_PKG_PUBLISHED_AT"
+        );
+        anyhow::ensure!(
+            val.starts_with("0x")
+                && val.len() == 66
+                && val[2..].chars().all(|c| c.is_ascii_hexdigit()),
+            "EVE config: {name} must be a 0x-prefixed 64-hex-char Sui address, got: {val}"
+        );
+    }
+    Ok(())
+}
+
 fn resolve_database_url(value: &str) -> Result<String> {
     if let Some(env_key) = value.strip_prefix("env:") {
         return std::env::var(env_key)
@@ -192,4 +216,59 @@ fn resolve_database_url(value: &str) -> Result<String> {
     }
 
     Ok(value.to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const REAL_ADDR: &str =
+        "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c";
+
+    fn eve_with(original_id: &str, published_at: &str) -> EveConfig {
+        EveConfig {
+            enabled: true,
+            world_pkg_original_id: original_id.into(),
+            world_pkg_published_at: published_at.into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn accepts_real_addresses() {
+        assert!(validate_world_pkg_ids(&eve_with(REAL_ADDR, REAL_ADDR)).is_ok());
+    }
+
+    #[test]
+    fn rejects_placeholder_original_id() {
+        let err = validate_world_pkg_ids(&eve_with("0xPLACEHOLDER", REAL_ADDR)).unwrap_err();
+        assert!(err.to_string().contains("placeholder"), "{err}");
+    }
+
+    #[test]
+    fn rejects_placeholder_published_at() {
+        let err = validate_world_pkg_ids(&eve_with(REAL_ADDR, "0xPLACEHOLDER")).unwrap_err();
+        assert!(err.to_string().contains("placeholder"), "{err}");
+    }
+
+    #[test]
+    fn rejects_empty_original_id() {
+        let err = validate_world_pkg_ids(&eve_with("", REAL_ADDR)).unwrap_err();
+        assert!(err.to_string().contains("must be set"), "{err}");
+    }
+
+    #[test]
+    fn rejects_malformed_address() {
+        let err = validate_world_pkg_ids(&eve_with("not-an-address", REAL_ADDR)).unwrap_err();
+        assert!(err.to_string().contains("0x-prefixed"), "{err}");
+    }
+
+    #[test]
+    fn rejects_truncated_address() {
+        // Only 32 hex chars, not 64.
+        let err =
+            validate_world_pkg_ids(&eve_with("0x28b497559d65ab320d9da4613bf2498d", REAL_ADDR))
+                .unwrap_err();
+        assert!(err.to_string().contains("0x-prefixed"), "{err}");
+    }
 }
