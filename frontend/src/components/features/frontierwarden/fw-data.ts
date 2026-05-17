@@ -41,6 +41,10 @@ export interface FwKill {
   system: string; lux: number; attackers: number;
   hash: string; verified: boolean; friendly?: boolean;
   issuer?: string;
+  /** Raw wallet address of the victim (0x-prefixed). */
+  victimWallet?: string;
+  /** Corporation/tribe name from EVE identity, if resolved. */
+  victimCorp?: string;
 }
 
 export interface FwContract {
