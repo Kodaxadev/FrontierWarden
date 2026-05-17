@@ -106,7 +106,9 @@ Notes:
 | Wallet popup reached | ⬜ | ⬜ | ⬜ |
 | No valibot errors | ⬜ | ⬜ | ⬜ |
 
-Notes:
+Notes: Script confirmed World Gate `0x019f5307…` returns `owner_cap_id`, `linked_gate_id`,
+`key.item_id`, `key.tenant` identically from both sources. `initialSharedVersion` comes from
+the shared object ownership data returned by `mapGqlOwner` — confirmed matching (owner ✅).
 
 ---
 
@@ -163,7 +165,38 @@ Notes:
 
 ---
 
-## Shadow Log Summary (Stage 1 — local shadow)
+## Script Smoke Results — `node scripts/gql-smoke-compare.mjs`
+
+Run: 2026-05-17 against `https://fullnode.testnet.sui.io:443` vs `https://graphql.testnet.sui.io/graphql`.
+
+| Object | Label | Type | Owner | Fields | Notes |
+|---|---|---|---|---|---|
+| `0x7b10f2ee…` | GatePolicy (Shared) | ✅ | ✅ | ⚠ encoding diff | D1 UID, D2 schema_id base64 |
+| `0xcbe4f3a7…` | OracleRegistry (Shared) | ✅ | ✅ | ⚠ encoding diff | D1 UID, D3 council/oracles table wrapper |
+| `0x7b4c0652…` | Attestation (AddressOwner) | ✅ | ✅ | ⚠ encoding diff | D1 UID, D2 schema_id base64 |
+| `0x019f5307…` | World Gate (Shared) | ✅ | ✅ | ⚠ encoding diff | D1 UID, D3 key/location/metadata/status struct; D2 location_hash |
+
+**Semantic result: 4/4 — no `✗ semantic mismatch` on objectId/type/owner/version/digest.**
+
+### D3 improvement: `parseGate` key field access
+
+`World Gate.key` in GraphQL is flat `{ item_id, tenant }` vs JSON-RPC wrapped
+`{ type, fields: { item_id, tenant } }`. This means in GraphQL mode `parseGate`
+reads `key.item_id` and `key.tenant` directly from the top-level key object,
+which works correctly. In JSON-RPC mode `asRecord(fields.key)` returns the
+outer wrapper and `key.item_id` is undefined — the parser falls back to
+`fields.item_id` which is also undefined for this object. GraphQL mode is
+strictly better for gate key field extraction; no regression.
+
+### `parseGate.status` — both modes return null
+
+JSON-RPC: `status = { type, fields: { status: { type, variant: "ONLINE", fields: {} } } }` — not a string.
+GraphQL: `status = { status: { "@variant": "ONLINE" } }` — not a string.
+`stringValue(fields.status)` returns null in both cases. The status field is informational only.
+
+---
+
+## Shadow Log Summary (Stage 1 — local shadow, browser)
 
 Run `npm --prefix frontend run dev` with `VITE_SUI_OBJECT_FETCHER_MODE=shadow`.
 Open DevTools → Console → filter `sui-object-fetcher`.
@@ -187,11 +220,12 @@ the full encoding difference catalogue (D1–D4).
 
 | Stage | Result | Date | Notes |
 |---|---|---|---|
-| 1 — local shadow | ⬜ PASS / ⬜ FAIL / ⬜ PENDING | | |
-| 2 — local graphql | ⬜ PASS / ⬜ FAIL / ⬜ PENDING | | |
-| 3 — preview graphql | ⬜ PASS / ⬜ FAIL / ⬜ PENDING | | |
-| 4 — prod shadow | ⬜ PASS / ⬜ FAIL / ⬜ PENDING | | |
-| 5 — prod graphql | ⬜ PASS / ⬜ FAIL / ⬜ PENDING | | |
+| 1a — script smoke (4 testnet objects) | ✅ PASS | 2026-05-17 | 4/4 type+owner match; fields diffs are all D1–D4 encoding |
+| 1b — local shadow (browser + wallet) | ⬜ PENDING | | PlayerProfile/Character/OwnerCap/Gate — requires testnet wallet session |
+| 2 — local graphql | ⬜ PENDING | | Blocked on 1b |
+| 3 — preview graphql | ⬜ PENDING | | Blocked on 2 |
+| 4 — prod shadow | ⬜ PENDING | | Blocked on 3 |
+| 5 — prod graphql | ⬜ PENDING | | Blocked on 4 |
 
 **Production GraphQL default:** set `VITE_SUI_OBJECT_FETCHER_MODE=graphql` in Vercel production
 env only after stage 4 (prod shadow) passes with no `✗` entries and all operator flows confirmed.
