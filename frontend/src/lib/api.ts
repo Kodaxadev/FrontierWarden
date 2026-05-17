@@ -36,6 +36,7 @@ import type {
   WorldGateJumpsResponse,
   WorldGateActivityResponse,
   WorldCharacterJumpsResponse,
+  KillMailListResponse,
 } from '../types/api.types';
 import { createTrustkit } from './trustkit';
 import type { TrustEvaluateRequest, TrustEvaluateResponse } from '../types/api.types';
@@ -356,3 +357,19 @@ export const fetchCharacterJumps = (
   limit = 20,
 ): Promise<WorldCharacterJumpsResponse> =>
   get(`/world/characters/${encodeURIComponent(characterId)}/jumps?limit=${limit}`);
+
+// ── Kill Mails ────────────────────────────────────────────────────────────────
+// Native EVE Frontier combat telemetry — separate from SHIP_KILL attestations.
+
+export interface KillMailsFilter {
+  limit?:  number;
+  cursor?: string;
+}
+
+export const fetchKillMails = (filter: KillMailsFilter = {}): Promise<KillMailListResponse> => {
+  const params = new URLSearchParams();
+  if (filter.limit  != null) params.set('limit',  String(filter.limit));
+  if (filter.cursor != null) params.set('cursor', filter.cursor);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return get(`/kill-mails${qs}`);
+};

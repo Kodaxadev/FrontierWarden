@@ -444,3 +444,31 @@ export interface WorldCharacterJumpsResponse {
   jumps:        WorldGateJumpItem[];
   total:        number;
 }
+
+// ── Native Kill Mails ─────────────────────────────────────────────────────────
+// Combat telemetry from the alpha-strike community API.
+// Separate from SHIP_KILL attestations (oracle/trust evidence).
+
+export interface KillMailItem {
+  killMailId:       number;
+  sourceId:         number;
+  environment:      string;
+  killerName:       string | null;
+  killerAddress:    string | null;
+  killerTribe:      string | null;
+  victimName:       string | null;
+  victimAddress:    string | null;
+  victimTribe:      string | null;
+  solarSystemId:    number | null;
+  solarSystemName:  string | null;
+  lossType:         string | null;
+  killTimestamp:    string | null;
+  indexedAt:        string;
+}
+
+export interface KillMailListResponse {
+  items:      KillMailItem[];
+  total:      number;
+  nextCursor: string | null;
+  dataNote:   string;
+}
