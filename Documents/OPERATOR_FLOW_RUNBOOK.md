@@ -1,6 +1,6 @@
 # FrontierWarden Operator Flow Runbook
 
-Last updated: 2026-05-10
+Last updated: 2026-05-17
 
 This document is the end-to-end operator runbook for the FrontierWarden
 testnet demo. It covers the full flow from GatePolicy discovery to
@@ -435,6 +435,56 @@ Two classified error codes surface in the UI via `SigningFailureGuide`:
 
 Both show a **TRY AGAIN** button in the operator panels. Test with a
 direct-key Ed25519 wallet where possible to avoid the prover dependency.
+
+**Operator session storage and live smoke (updated 2026-05-17):**
+Operator sessions are stored in `localStorage` under the key
+`fw_operator_session_v1`:
+
+```json
+{
+  "address":    "0xabff3b...",
+  "token":      "<bearer token>",
+  "expiresAt":  1747612800,
+  "scheme":     "zklogin",
+  "walletName": "EVE Vault"
+}
+```
+
+`scheme` is detected from the first byte of the signed message:
+`0x00` → `ed25519`, `0x05` → `zklogin`, otherwise `unknown`.
+Sessions created before 2026-05-17 have `scheme: "unknown"` (legacy).
+
+**UI indicators:**
+
+| Indicator | Meaning |
+|---|---|
+| `zkLogin` badge (no warning) | Session was created with EVE Vault — zkLogin path exercised |
+| `Ed25519` badge | Session was created with a direct-key Ed25519 wallet |
+| `Legacy ⚠` amber badge | Session predates scheme tracking; scheme unknown |
+| `WalletA ≠ WalletB` amber text | Connected wallet differs from the one used at session creation |
+| **RE-SIGN SESSION** amber button | Appears on legacy or wallet-mismatch sessions; click to force a fresh auth flow |
+
+**To force a fresh /auth/nonce → /auth/session flow (live smoke):**
+
+Option A — click **RE-SIGN SESSION** if it appears in the header bar.
+
+Option B — clear manually via DevTools:
+```
+DevTools → Application → Local Storage → https://frontierwarden.kodaxa.dev
+→ delete fw_operator_session_v1 → refresh page → connect wallet → click SIGN SESSION
+```
+
+Option C — one-liner in the browser console:
+```js
+localStorage.removeItem('fw_operator_session_v1'); location.reload();
+```
+
+After completing the fresh auth with EVE Vault, Railway logs should show:
+```
+POST /auth/nonce  status=200
+POST /auth/session status=200
+```
+and the header bar should show `zkLogin` (no warning).
 
 **Operator session verification (zkLogin support added 2026-05-16):**
 `/auth/nonce` and `/auth/session` now accept both Ed25519 (flag byte `0x00`)
