@@ -103,7 +103,7 @@ impl ZkLoginVerifier {
 
         // Top-level GraphQL errors array takes precedence.
         if let Some(errors) = parsed.get("errors") {
-            if errors.as_array().map_or(false, |a| !a.is_empty()) {
+            if errors.as_array().is_some_and(|a| !a.is_empty()) {
                 return Err(ZkLoginError::AuthFailed(errors.to_string()));
             }
         }
