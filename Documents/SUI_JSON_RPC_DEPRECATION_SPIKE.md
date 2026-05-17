@@ -307,10 +307,13 @@ Locate all JSON-RPC usage, classify by criticality, document replacement candida
 
 **Status (2026-05-17): Shadow infrastructure LIVE — owner parity confirmed, pending live wallet exercise.**
 
-Shadow mode was added in PR #46 (`codex/sui-object-fetcher-graphql-shadow`) and validated
-in `codex/sui-object-fetcher-shadow-smoke-doc`. The GraphQL path fires fire-and-forget
-alongside every `fetchSuiObjectRaw` and `fetchOwnedObjectsByType` call when
-`VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true` is set in a dev build.
+Shadow mode was added in PR #46 (`codex/sui-object-fetcher-graphql-shadow`), validated
+in `codex/sui-object-fetcher-shadow-smoke-doc`, and made configurable in
+`codex/sui-object-fetcher-graphql-mode`. The active source is selected by
+`VITE_SUI_OBJECT_FETCHER_MODE=jsonrpc|graphql|shadow` (default: `jsonrpc`). In `shadow`
+mode the GraphQL path fires fire-and-forget alongside every `fetchSuiObjectRaw` and
+`fetchOwnedObjectsByType` call. In `graphql` mode GraphQL is the live return path.
+The legacy `VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true` still maps to `shadow`.
 
 **Schema bugs found and fixed during smoke testing:**
 - `AddressOwner.owner { address }` was wrong — corrected to `AddressOwner.address { address }`

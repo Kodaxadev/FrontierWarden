@@ -3,14 +3,29 @@
 **Date:** 2026-05-17
 **Branch:** `codex/sui-object-fetcher-shadow-smoke-doc`
 **Preceded by:** PR #46 (`codex/sui-object-fetcher-graphql-shadow`) — added shadow infrastructure
+**Updated by:** PR #49 (`codex/sui-object-fetcher-graphql-mode`) — added `VITE_SUI_OBJECT_FETCHER_MODE` switch
 **Scope:** Validate GraphQL object-fetch path against JSON-RPC before Phase 2 cutover
+
+---
+
+## Mode Switch
+
+`VITE_SUI_OBJECT_FETCHER_MODE` controls the active object source (default: `jsonrpc`):
+
+| Value | Behaviour |
+|---|---|
+| `jsonrpc` | JSON-RPC only (default). |
+| `shadow` | JSON-RPC returned; GraphQL fires in background and semantic-compares. Use for smoke testing. |
+| `graphql` | GraphQL is the active return path. Use only after shadow confirms parity. |
+
+The legacy `VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true` flag still works and maps to `shadow` mode.
 
 ---
 
 ## Shadow Mode Summary
 
-`VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true` fires parallel GraphQL calls in dev builds
-fire-and-forget alongside every `fetchSuiObjectRaw` and `fetchOwnedObjectsByType` call.
+`VITE_SUI_OBJECT_FETCHER_MODE=shadow` fires parallel GraphQL calls fire-and-forget alongside
+every `fetchSuiObjectRaw` and `fetchOwnedObjectsByType` call.
 JSON-RPC remains the returned value; the GraphQL path is read-only.
 
 **Shadow comparison is semantic, not raw-JSON-equal.** Results are compared field by field
@@ -203,7 +218,7 @@ be addressed separately in Phase 2 of the deprecation plan.
 
 1. Run `npm --prefix frontend run dev` with `.env.local` containing:
    ```
-   VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true
+   VITE_SUI_OBJECT_FETCHER_MODE=shadow
    VITE_SUI_NETWORK=testnet
    VITE_PKG_ID=0x31199a56010e6177482b97fa18ddb391f55ac7049275396e98e6a1337cc283c1
    VITE_ORACLE_REGISTRY_ID=0xcbe4f3a7bdfdcdb3035ccb091729285c5265cfd14e79207145cbde3953912688
