@@ -305,16 +305,40 @@ Locate all JSON-RPC usage, classify by criticality, document replacement candida
 
 **Goal:** Replace `SuiJsonRpcClient.getObject` with GraphQL in `lib/sui-object-fetcher.ts`.
 
-- Implement `suiObjectFetcherGraphQL()` alongside existing `suiObjectFetcherRpc()`
-- Run both and compare response shapes in development (feature-flagged or env-switched)
-- Adapt response parsers — `asMoveObject.contents.json` → current `data.content.fields` shape
-- Validate that the valibot constraint still holds (pre-fetch remains separate from `tx.build()`)
-- Replace `suix_getOwnedObjects` raw calls in `operator-gate-authority.ts`
-- This phase requires no indexer changes
+**Status (2026-05-17): Shadow infrastructure LIVE — owner parity confirmed, pending live wallet exercise.**
 
-**Tests to add:**
-- Snapshot test: given a known object ID, both implementations return structurally equivalent data
-- Type-check the GraphQL response shape against `SuiObjectData` fields used by each tx builder
+Shadow mode was added in PR #46 (`codex/sui-object-fetcher-graphql-shadow`) and validated
+in `codex/sui-object-fetcher-shadow-smoke-doc`. The GraphQL path fires fire-and-forget
+alongside every `fetchSuiObjectRaw` and `fetchOwnedObjectsByType` call when
+`VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true` is set in a dev build.
+
+**Schema bugs found and fixed during smoke testing:**
+- `AddressOwner.owner { address }` was wrong — corrected to `AddressOwner.address { address }`
+- `Parent` type does not exist in Sui GraphQL — corrected to `ObjectOwner { address { address } }`
+- `ConsensusAddressOwner` was missing — added, maps to JSON-RPC `AddressOwner` shape
+
+**Structural encoding differences (documented in `SUI_OBJECT_FETCHER_GRAPHQL_SHADOW_SMOKE.md`):**
+- `id: UID` → `{ "id": "0x..." }` (JSON-RPC) vs `"0x..."` (GraphQL) — `idValue()` handles both
+- `vector<u8>` → byte array (JSON-RPC) vs base64 string (GraphQL) — not parsed by operators
+- Nested struct → `{ type, fields: {...} }` (JSON-RPC) vs flat `{...}` (GraphQL) — fallbacks in parsers
+- The shadow log will always show `✗ mismatch` for objects with these fields — this is expected
+
+**Cutover is safe to proceed after:** live wallet session confirms no value-level scalar
+mismatches for PlayerProfile, Character, OwnerCap, and Gate object types. See
+`Documents/SUI_OBJECT_FETCHER_GRAPHQL_SHADOW_SMOKE.md` for the live exercise checklist.
+
+**Remaining Phase 2 work (not yet shadow-covered):**
+- `SuiJsonRpcClient.getObject()` calls in all 7 tx builders — these return `SuiObjectResponse`
+  (not `SuiObjectData`) and require a separate GraphQL replacement path
+- Replace those call sites in tx builders once `fetchSuiObjectGraphQL` is cutover and confirmed
+
+Previous plan:
+- ~~Implement `suiObjectFetcherGraphQL()` alongside existing `suiObjectFetcherRpc()`~~ ✅ done
+- ~~Run both and compare response shapes in development~~ ✅ shadow infrastructure live
+- Adapt response parsers — already handled by existing `idValue()`/`asRecord()` fallbacks ✅
+- Validate that the valibot constraint still holds — pre-fetch remains separate from `tx.build()` ✅
+- ~~Replace `suix_getOwnedObjects` raw calls in `operator-gate-authority.ts`~~ ✅ done (PR #45)
+- This phase requires no indexer changes ✅
 
 ### Phase 3 — Migrate event ingestion (indexer)
 

@@ -191,10 +191,11 @@ const GQL_GET_OBJECT = `
         contents { json type { repr } }
       }
       owner {
-        ... on AddressOwner { owner { address } __typename }
+        ... on AddressOwner { address { address } __typename }
+        ... on ObjectOwner  { address { address } __typename }
         ... on Shared { initialSharedVersion __typename }
         ... on Immutable { __typename }
-        ... on Parent { parent { address } __typename }
+        ... on ConsensusAddressOwner { address { address } __typename }
       }
     }
   }
@@ -212,10 +213,11 @@ const GQL_GET_OWNED_OBJECTS = `
             contents { json type { repr } }
           }
           owner {
-            ... on AddressOwner { owner { address } __typename }
+            ... on AddressOwner { address { address } __typename }
+            ... on ObjectOwner  { address { address } __typename }
             ... on Shared { initialSharedVersion __typename }
             ... on Immutable { __typename }
-            ... on Parent { parent { address } __typename }
+            ... on ConsensusAddressOwner { address { address } __typename }
           }
         }
         pageInfo { hasNextPage endCursor }
@@ -228,9 +230,8 @@ const GQL_GET_OWNED_OBJECTS = `
 
 interface GqlObjectOwner {
   __typename?: string;
-  owner?: { address: string };
-  initialSharedVersion?: number;
-  parent?: { address: string };
+  address?: { address: string };   // AddressOwner, ObjectOwner, ConsensusAddressOwner
+  initialSharedVersion?: number;   // Shared
 }
 
 interface GqlMoveContents {
@@ -287,13 +288,14 @@ function mapGqlOwner(owner: GqlObjectOwner | null | undefined): unknown {
   if (!owner) return null;
   switch (owner.__typename) {
     case 'AddressOwner':
-      return owner.owner ? { AddressOwner: owner.owner.address } : null;
+    case 'ConsensusAddressOwner':
+      return owner.address?.address ? { AddressOwner: owner.address.address } : null;
+    case 'ObjectOwner':
+      return owner.address?.address ? { ObjectOwner: owner.address.address } : null;
     case 'Shared':
       return owner.initialSharedVersion != null
         ? { Shared: { initial_shared_version: owner.initialSharedVersion } }
         : null;
-    case 'Parent':
-      return owner.parent ? { ObjectOwner: owner.parent.address } : null;
     case 'Immutable':
       return 'Immutable';
     default:
