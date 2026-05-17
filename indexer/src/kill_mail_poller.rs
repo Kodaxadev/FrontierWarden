@@ -95,8 +95,7 @@ async fn poll_once(
     for row in &new_rows {
         let kill_time = row
             .time_stamp
-            .map(|ts| chrono::DateTime::from_timestamp(ts, 0))
-            .flatten()
+            .and_then(|ts| chrono::DateTime::from_timestamp(ts, 0))
             .map(|dt| dt.with_timezone(&chrono::Utc));
 
         let raw_json = serde_json::to_value(serde_json::json!({
@@ -230,8 +229,7 @@ pub async fn backfill_if_needed(cfg: &KillMailsConfig, pool: &PgPool) -> Result<
         for row in &rows {
             let kill_time = row
                 .time_stamp
-                .map(|ts| chrono::DateTime::from_timestamp(ts, 0))
-                .flatten()
+                .and_then(|ts| chrono::DateTime::from_timestamp(ts, 0))
                 .map(|dt| dt.with_timezone(&chrono::Utc));
 
             let raw_json = serde_json::to_value(serde_json::json!({
