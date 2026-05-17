@@ -1,7 +1,8 @@
 // KillboardView — native EVE Frontier kill mail feed
 //
 // Primary source: GET /kill-mails (native combat telemetry)
-// Secondary signal: ATTESTED badge when a matching SHIP_KILL attestation exists
+// Secondary signal: ATTESTED badge when a related SHIP_KILL attestation covers the same victim address.
+// Conservative match — does not mean this exact kill mail was verified by the oracle.
 //
 // Kill mails are combat telemetry — not trust scores and not reputation judgments.
 // SHIP_KILL attestations are a separate oracle/trust evidence layer.
@@ -59,7 +60,7 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         marginBottom: 20,
       }}>
         Native kill mails are combat telemetry, not reputation judgments.
-        SHIP_KILL attestations are a separate oracle/trust evidence layer — shown as ATTESTED badges when present.
+        SHIP_KILL attestations are a separate oracle/trust evidence layer — ATTESTED indicates a related attestation covers the same victim address, not that this exact kill mail was verified.
       </div>
 
       {/* Poller-not-yet-running notice */}
