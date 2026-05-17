@@ -5,7 +5,7 @@
 ///
 /// Config:
 ///   EFREP_SUI_GRAPHQL_URL — override the Sui GraphQL endpoint.
-///   Default: https://graphql.testnet.sui.io/
+///   Default: https://graphql.testnet.sui.io/graphql
 ///
 /// SSRF guard: only https:// URLs are accepted (plus http://localhost /
 /// http://127.0.0.1 for local dev and tests).
@@ -13,7 +13,7 @@ use base64::{engine::general_purpose, Engine as _};
 use serde_json::json;
 use std::time::Duration;
 
-const DEFAULT_GRAPHQL_URL: &str = "https://graphql.testnet.sui.io/";
+const DEFAULT_GRAPHQL_URL: &str = "https://graphql.testnet.sui.io/graphql";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 // Single-line query; avoids multiline string indentation noise in the JSON body.
