@@ -21,6 +21,12 @@ path = "src/bin/sync_world_gates.rs"
 name = "run_migration"
 path = "src/bin/run_migration.rs"
 
+# Dev-only spike: tests Sui GraphQL verifySignature against a live endpoint.
+# Not deployed. Remove when verifySignature integration lands in api_sessions.rs.
+[[bin]]
+name = "verify_signature_spike"
+path = "src/bin/verify_signature_spike.rs"
+
 [lib]
 name = "efrep_indexer"
 path = "src/lib.rs"
