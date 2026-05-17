@@ -1,95 +1,259 @@
 # FrontierWarden
 
-FrontierWarden is a proof-backed trust decision service for EVE Frontier tools.
+![FrontierWarden hero](media/readme/frontierwarden-hero.png)
 
-It answers one high-consequence question:
+**Proof-backed trust, reputation, and credit-risk infrastructure for EVE Frontier operators.**
 
-```text
-Should this pilot pass this gate, and what proof supports that decision?
-```
+FrontierWarden helps EVE Frontier tools answer high-consequence questions with evidence instead of guesswork:
 
-FrontierWarden is designed to be a trust backend that other EVE Frontier tools
-can call for reputation-backed decisions.
+> Should this pilot pass this gate?
+> Should this counterparty receive credit?
+> Is this reputation signal backed by proof?
+> What evidence supports this decision?
 
-## Live Status
+FrontierWarden is not a generic killboard, leaderboard, or social score. It is a **trust decision backend** for EVE Frontier tools, tribes, markets, gate operators, bounty boards, and logistics systems.
 
-Status as of 2026-05-07:
+It turns indexed on-chain activity, attestations, kill mails, gate events, and operator policy into explainable trust decisions.
 
-- Frontend demo is live at [frontierwarden.kodaxa.dev](https://frontierwarden.kodaxa.dev).
-- Rust indexer/API is live on Railway and serves indexed Sui testnet state.
-- Gas station service is live on Railway and reports `ready`.
-- Supabase/Postgres is the backing database for indexed protocol state.
-- Active environment is Stillness/testnet.
-- Fresh binding-ready package:
-  `0xb43fcd4e383efcb9af8c6d7b621958153dd92876da0e769b2167c2ccf409abfa`.
-- Active GatePolicy:
-  `0x7b10f2ee46602382ad8b5a1716f7282a3f6db53b4b6346f85ec27b8308353807`.
-- Active GateAdminCap:
-  `0x7876d36be78743903085fb0e32e56fa82424fbc6f0ee4997e9a237a14b2253a3`.
-- Bound world Gate:
-  `0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c`.
-- Current binding state is `BOUND`, not `BINDING VERIFIED`; FrontierWarden
-  world Gate extension evidence is absent. Binding proves
-  `GatePolicy -> world_gate_id`; extension authorization proves
-  `world_gate_id -> extension TypeName`; verified requires both.
-- Trust Decision API v1 is live for:
-  - `gate_access`
-  - `counterparty_risk`
-  - `bounty_trust`
-- Gate Intel loads live testnet gates from the Railway API.
-- Sponsored gate-passage transactions build in the browser and reach wallet
-  signing through the gas station handoff.
-- Some wallet sessions can still fail at wallet signing when zkLogin proof
-  fetching fails. That is a live caveat, not a claim of final gate-passage
-  execution for every wallet session.
-- Browser operator sessions use wallet-signed session tokens.
-- No public frontend API secrets are allowed. Values prefixed with `VITE_` are
-  public build-time configuration only.
+---
 
-## Operational Proofs
+## What FrontierWarden Does
 
-Key protocol flows are verified on Sui testnet and tracked in the
-[Operational Proof Log](./PROOF_LOG.md).
+![Proof-backed trust engine](media/readme/trust-engine.png)
 
-| Flow | Transaction Digest | Status |
-|---|---|---|
-| Gate Policy Update | `G4fGxvg...hrTvsC` | Indexed |
-| Toll Withdrawal | `CAJWpnW...5voud` | Indexed |
-| GatePolicy world Gate binding | `BzYVxe3z4x1fXZNnrkPXdHn7HwTsShgwqrUqKPk7o3TC` | BOUND, not VERIFIED |
+FrontierWarden combines four layers:
 
-The proof log does not by itself prove that every wallet type can complete final
-gate-passage execution. zkLogin wallet sessions may still fail if the wallet
-cannot fetch a zkLogin proof during signing.
+1. **Protocol evidence**
+   Sui Move events, attestations, vouches, schemas, fraud challenges, gate policy state, and world-gate events.
 
-Key docs:
+2. **Indexed projections**
+   A Rust indexer/API projects Sui testnet and EVE Frontier state into fast queryable views.
 
-- [Trust API](./Documents/TRUST_API.md)
-- [Security Model](./SECURITY.md)
-- [Railway/Vercel Runbook](./Documents/DEPLOYMENT_RAILWAY_VERCEL.md)
-- [Testnet Notes](./Documents/TESTNET_NOTES.md)
+3. **Proof bundles**
+   Trust decisions return evidence: schemas, attestations, transaction digests, gate bindings, killmail context, and warning flags.
 
-## For EVE Tool Builders
+4. **Tenant policy**
+   Each tribe/operator decides what trust means in their own political and economic context.
 
-If you are building EVE Frontier tools such as tribe consoles, gate control,
-route planners, bounty boards, or cargo/counterparty tools, treat FrontierWarden
-as a remote trust engine:
-
-- Evaluate gate access with `POST /v1/cradleos/gate/evaluate` or
-  `POST /v1/trust/evaluate`.
-- Evaluate counterparty and bounty trust with `POST /v1/trust/evaluate`.
-- Display the returned proof bundle instead of asking users to trust a black-box
-  score.
-- Keep your own UX and controls; FrontierWarden answers high-consequence trust
-  questions with indexed protocol evidence.
-
-## Trust Decision API
-
-Core endpoints:
+The result is a system where tools can ask:
 
 ```http
 POST /v1/trust/evaluate
-POST /v1/trust/explain
-POST /v1/cradleos/gate/evaluate
+```
+
+and receive a decision plus supporting proof.
+
+---
+
+## Why It Matters
+
+EVE Frontier is not just about ships. It is about **coordination under risk**.
+
+Tribes, markets, haulers, gate owners, bounty issuers, and lenders all need better answers to questions like:
+
+- Is this pilot trusted by my tribe?
+- Has this counterparty defaulted before?
+- Is this gate policy backed by real on-chain state?
+- Is this combat history relevant, or just noise?
+- Can I show users why a decision happened?
+- Can my tribe apply its own rules without handing control to a central platform?
+
+FrontierWarden exists to make those decisions **transparent, explainable, and tenant-controlled**.
+
+---
+
+## Core Use Cases
+
+| Use Case | What FrontierWarden Provides |
+| --- | --- |
+| Gate access | Allow, toll, or deny decisions based on standing attestations and gate policy |
+| Reputation profiles | Indexed trust history, attestations, vouches, challenges, and evidence |
+| Credit risk | Counterparty and lending context backed by proof bundles |
+| Killmail context | Native killmail telemetry as dossier evidence, not automatic reputation |
+| Tribe/operator policy | Tenant-scoped interpretation of trust signals |
+| Tool integrations | Remote Trust API and local TypeScript SDK |
+
+---
+
+## Gate Binding: BOUND vs BINDING VERIFIED
+
+![BOUND vs BINDING VERIFIED](media/readme/bound-vs-binding-verified.png)
+
+FrontierWarden makes an important distinction:
+
+| State | Meaning |
+| --- | --- |
+| `BOUND` | A FrontierWarden `GatePolicy` points at a world Gate ID |
+| `BINDING VERIFIED` | The world Gate has authorized the FrontierWarden extension on-chain |
+
+A gate is not fully verified just because a policy references it.
+Verification requires both:
+
+```text
+GatePolicy -> world_gate_id
+world_gate_id -> FrontierWardenAuth extension authorization
+```
+
+This prevents FrontierWarden from overclaiming control over gates it does not own.
+
+---
+
+## Tenant-Owned Authority Model
+
+![Tenant authority model](media/readme/tenant-authority-model.png)
+
+FrontierWarden is infrastructure. It does **not** assume the site owner controls every gate.
+
+Each tribe or operator controls its own:
+
+- `GatePolicy`
+- `GateAdminCap`
+- world Gate authority
+- trust settings
+- policy interpretation
+- political relationships
+- access rules
+
+The separation is deliberate:
+
+| Capability | Controlled By | Purpose |
+| --- | --- | --- |
+| `GateAdminCap` | Tenant/operator | Manage FrontierWarden gate policy |
+| `OwnerCap<Gate>` | World Gate owner | Authorize extensions on the actual Gate |
+| FrontierWarden API | Platform infrastructure | Index evidence and evaluate trust decisions |
+
+The site owner provides infrastructure, not universal gate ownership.
+
+---
+
+## Combat Evidence Is Not Reputation
+
+![Combat evidence model](media/readme/combat-evidence-model.png)
+
+FrontierWarden now supports native EVE Frontier killmail telemetry, but killmails do **not** automatically change reputation.
+
+The model is:
+
+```text
+Native killmail        = what happened
+SHIP_KILL attestation  = oracle/trust interpretation
+Tenant policy          = what it means
+Reputation/credit impact = explicit audited outcome
+```
+
+A kill can mean different things to different operators:
+
+- Positive if the victim is a tenant enemy
+- Negative if the victim is an ally
+- Neutral if the operator does not care about combat activity
+- Relevant to credit only if tenant policy says so
+
+FrontierWarden keeps combat data as **evidence**, not global morality.
+
+---
+
+## Current Live Status
+
+FrontierWarden is live on Stillness/testnet.
+
+| Component | Status |
+| --- | --- |
+| Frontend operator console | Live |
+| Rust indexer/API | Live on Railway |
+| Supabase/Postgres projections | Live |
+| Gas station | Live |
+| Trust Decision API v1 | Live |
+| Native killmail poller/API | Live |
+| EVE Vault / zkLogin operator session auth | Supported |
+| World-gate binding state | `BOUND`, not yet `BINDING VERIFIED` |
+
+Current active Stillness/testnet objects:
+
+```text
+Fresh binding-ready package:
+0xb43fcd4e383efcb9af8c6d7b621958153dd92876da0e769b2167c2ccf409abfa
+
+Active GatePolicy:
+0x7b10f2ee46602382ad8b5a1716f7282a3f6db53b4b6346f85ec27b8308353807
+
+Active GateAdminCap:
+0x7876d36be78743903085fb0e32e56fa82424fbc6f0ee4997e9a237a14b2253a3
+
+Bound world Gate:
+0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c
+```
+
+Current binding state:
+
+```text
+BOUND
+not BINDING VERIFIED
+```
+
+The indexer is ready to observe `BINDING VERIFIED` once the world Gate owner authorizes `FrontierWardenAuth` for the bound Gate.
+
+---
+
+## Architecture
+
+![System architecture](media/readme/system-architecture.png)
+
+FrontierWarden is split into five major layers:
+
+| Layer | Components |
+| --- | --- |
+| Protocol | Sui Move modules for profiles, schemas, attestations, vouches, lending, fraud challenges, and reputation gates |
+| Indexer/API | Rust event ingester and Axum REST API |
+| Database | Supabase/Postgres indexed projections |
+| Frontend | React/Vite operator console |
+| SDK | Local TypeScript TrustKit client for integrations |
+
+Repository layout:
+
+```text
+sources/          Sui Move protocol modules
+indexer/          Rust indexer and REST API
+frontend/         React/Vite operator console
+sdk/trustkit/     TypeScript client for external tools
+Documents/        Architecture, API, runbooks, smoke results
+media/readme/     README images and diagrams
+```
+
+---
+
+## Protocol Modules
+
+| Module | Purpose |
+| --- | --- |
+| `schema_registry.move` | Register and deprecate attestation schemas |
+| `oracle_registry.move` | Register staked oracles and authorize schemas |
+| `profile.move` | Maintain player reputation profiles and score cache |
+| `attestation.move` | Issue and revoke subject attestations |
+| `vouch.move` | Stake-backed social collateral |
+| `lending.move` | Reputation and vouch-backed loan mechanics |
+| `fraud_challenge.move` | Challenge and resolve fraudulent attestations |
+| `reputation_gate.move` | Gate allow/toll/deny policy from standing attestations |
+| `singleton.move` | Item-level singleton attestations |
+| `system_sdk.move` | SDK-facing helpers for system integrations |
+
+---
+
+## Trust Decision API
+
+FrontierWarden exposes a proof-backed Trust API for external tools.
+
+Core endpoint:
+
+```http
+POST /v1/trust/evaluate
+```
+
+Supported actions:
+
+```text
+gate_access
+counterparty_risk
+bounty_trust
 ```
 
 Example request:
@@ -123,132 +287,142 @@ Example response shape:
 }
 ```
 
-Current live smoke behavior:
+The important part is the `proof` bundle. FrontierWarden should never ask users to trust a black-box score.
 
-- A pilot with `TRIBE_STANDING` score `750` against threshold `500` returns
-  `ALLOW_FREE`.
-- A pilot with no standing proof returns `DENY_NO_STANDING_ATTESTATION` until it
-  receives valid standing proof.
+Full API contract:
 
-Full API contract: [Documents/TRUST_API.md](./Documents/TRUST_API.md).
+```text
+Documents/TRUST_API.md
+Documents/INTEGRATION_GUIDE.md
+Documents/KILLMAIL_API.md
+```
+
+---
+
+## Native Killmail API
+
+FrontierWarden exposes native EVE Frontier killmail telemetry.
+
+```http
+GET /kill-mails?limit=&cursor=
+GET /kill-mails/:id
+GET /world/characters/:address/kills?limit=&cursor=
+GET /world/characters/:address/losses?limit=&cursor=
+GET /world/systems/:system_id/kills?limit=&cursor=
+```
+
+Killmails are used as combat evidence in dossiers. They are **not** automatic trust decisions.
+
+---
+
+## For EVE Frontier Tool Builders
+
+Use FrontierWarden when your tool needs a trust decision with proof.
+
+Good integration targets:
+
+- Tribe dashboards
+- Gate control consoles
+- Route planners
+- Cargo and hauling boards
+- Bounty systems
+- Lending and credit tools
+- Reputation overlays
+- Market/counterparty screens
+
+Recommended pattern:
+
+```text
+Your app keeps the UX.
+FrontierWarden evaluates trust.
+Your app displays the proof bundle.
+Your operator decides what to do.
+```
+
+---
 
 ## Demo Safety
 
-This is a Sui testnet demo. No mainnet deployment has occurred.
+This is pre-mainnet software running on Sui testnet / EVE Frontier Stillness.
+Do not treat this as audited mainnet infrastructure.
 
-The public frontend contains only public configuration such as URLs, package
-IDs, object IDs, and network labels. Do not put API keys, database URLs, private
-keys, sponsor secrets, or partner tokens in `VITE_*` variables. Vite exposes
-`VITE_*` variables to client-side code after bundling; see the official Vite
-environment variable docs:
-[vite.dev/guide/env-and-mode](https://vite.dev/guide/env-and-mode).
+Important constraints:
 
-Protected operations must stay behind the appropriate server-side controls:
+- No mainnet deployment has occurred.
+- Public frontend config must never contain secrets.
+- `VITE_*` values are public build-time variables.
+- Server-side API keys and database credentials must stay server-side.
+- Sponsored transaction flows require server-side validation and budget controls.
+- Operator browser access uses wallet-signed session tokens.
+- Public read/evaluate routes should be rate-limited.
+- Combat telemetry must not become a bulk targeting export.
 
-- Operator browser access uses short-lived wallet session tokens.
-- Rust API partner gates use server-only `EFREP_API_KEY` where enabled.
-- Gas station sponsorship is constrained by origin controls, transaction
-  validation, budget caps, and server-side secrets.
-- Oracle issuing routes require server-side authorization.
-- Public read/evaluate routes are unauthenticated but should be rate-limited.
+See:
 
-## Architecture
-
-```mermaid
-flowchart LR
-  Move["Sui Move Protocol"] --> Indexer["Railway Rust Indexer/API"]
-  Indexer --> DB["Supabase / Postgres"]
-  DB --> API["Trust API v1"]
-  API --> UI["Vercel FrontierWarden Console"]
-  API --> Tools["EVE Frontier Tools"]
-  UI --> Gas["Railway Gas Station"]
-  Gas --> Move
+```text
+SECURITY.md
+Documents/RAILWAY_VERCEL_RUNBOOK.md
+Documents/OPERATOR_FLOW_RUNBOOK.md
 ```
 
-Main layers:
-
-- `sources/`: Sui Move modules for profiles, schemas, oracles, attestations,
-  vouches, lending, fraud challenges, and reputation gates.
-- `indexer/`: Rust event ingester and Axum REST API.
-- `frontend/`: React/Vite operator console.
-- `sdk/trustkit/`: local TypeScript client for external integrations.
-- `Documents/`: operational notes and API docs.
-
-## Protocol Modules
-
-| Module | Purpose |
-|---|---|
-| `schema_registry.move` | Register and deprecate attestation schemas. |
-| `oracle_registry.move` | Register staked oracles and authorize schemas. |
-| `profile.move` | Maintain player reputation profiles and score cache. |
-| `attestation.move` | Issue and revoke subject attestations. |
-| `vouch.move` | Stake-backed social collateral. |
-| `lending.move` | Reputation and vouch-backed loan mechanics. |
-| `fraud_challenge.move` | Challenge and resolve fraudulent attestations. |
-| `reputation_gate.move` | Gate allow/toll/deny policy from standing attestations. |
-| `singleton.move` | Item-level singleton attestations. |
-| `system_sdk.move` | SDK-facing helpers for system integrations. |
+---
 
 ## Quick Start
 
-Prerequisites:
-
-- Sui CLI
-- Node.js 18+
-- Rust toolchain
-- Postgres/Supabase database for the indexer
-
-Install dependencies:
+Prerequisites: Sui CLI · Node.js 18+ · Rust toolchain · Postgres/Supabase database
 
 ```bash
+# Install dependencies
 npm install
-cd frontend
-npm install
-```
+cd frontend && npm install
 
-Run Move tests:
-
-```bash
+# Move tests
 sui move test --build-env testnet
+
+# Frontend checks
+npm --prefix frontend run typecheck
+npm --prefix frontend run build
+
+# Rust checks
+cargo build
+cargo test
 ```
 
-## Security
+---
 
-This is pre-mainnet software. Known pre-mainnet limitations are tracked
-privately. Do not deploy to mainnet without an audit.
+## Key Documentation
 
-Before production:
+| Document | Purpose |
+| --- | --- |
+| `Documents/TRUST_API.md` | Trust API contract |
+| `Documents/INTEGRATION_GUIDE.md` | Builder quickstart |
+| `Documents/KILLMAIL_API.md` | Native killmail endpoints |
+| `Documents/ADR_KILLMAILS_AS_TRUST_EVIDENCE.md` | Killmail evidence model |
+| `Documents/TENANT_COMBAT_POLICY_DESIGN.md` | Tenant-scoped combat policy design |
+| `Documents/OPERATOR_FLOW_RUNBOOK.md` | Operator flow and live smoke notes |
+| `Documents/KILLMAIL_PRODUCTION_SMOKE.md` | Native killmail production smoke |
+| `SECURITY.md` | Security model and disclosure policy |
 
-- Complete a Move security review.
-- Keep secrets out of all `VITE_*` frontend variables.
-- Enable server-side API gates where needed.
-- Enable `EFREP_RATE_LIMIT_PER_MINUTE` and deployment-level rate limits.
-- Use wallet-signed operator sessions for browser access.
-- Expand observability and deploy behind gateway-level rate limits.
-- Verify EVE/EVT payment coin type before replacing SUI test flows.
-- Keep database credentials out of committed config.
-
-See [SECURITY.md](./SECURITY.md) for the security model and disclosure policy.
+---
 
 ## License
 
-FrontierWarden / Sui TrustKit is licensed under the Business Source License 1.1
-(BSL).
+FrontierWarden / Sui TrustKit is licensed under the Business Source License 1.1.
 
-- Non-commercial use: you may use, modify, and redistribute the software for
-  non-commercial purposes.
-- Commercial use: production commercial use requires a separate commercial
-  license from Kodaxadev.
-- Data protection: this license does not grant rights to proprietary data or
-  datasets processed by the system. Unauthorized scraping or extraction of
-  reputation data is prohibited.
+- Non-commercial use is allowed.
+- Production commercial use requires a separate commercial license from Kodaxadev.
+- This license does not grant rights to proprietary data or datasets processed by the system.
+- Unauthorized scraping or extraction of reputation data is prohibited.
+- The software converts to the Apache License, Version 2.0 on April 29, 2030.
 
-The software will automatically convert to the Apache License, Version 2.0 on
-April 29, 2030.
+See `LICENSE` for the full text.
 
-See [LICENSE](./LICENSE) for the full text.
+---
 
 ## Contact
 
-For commercial licensing, security disclosures, or integration support, contact
-Kodaxadev at Justin.DavisWE@icloud.com.
+For commercial licensing, security disclosures, or integration support, contact Kodaxadev:
+
+```text
+Justin.DavisWE@icloud.com
+```
