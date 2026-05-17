@@ -44,24 +44,40 @@ fw_gate_auth_witness = "FrontierWardenAuth"
 fw_gate_extension_typename = ""
 player_profile_type = "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c::character::PlayerProfile"
 
-# ── Utopia sandbox preset (commented) ─────────────────────────────────────────
-# To switch to Utopia, replace the [eve] section above with:
+# ── Utopia dev environment (restarted 2026 — IDs TBD) ─────────────────────────
+# Utopia is the preferred full-flow smoke environment: Gate ownership is easier
+# to obtain than on Stillness, enabling BINDING VERIFIED end-to-end testing.
+#
+# WARNING: The package IDs below are PRE-RESTART and are likely stale.
+# Verify current IDs from the Utopia world API or Sui testnet after restart.
+# See Documents/UTOPIA_DEV_ENVIRONMENT_READINESS.md for the full runbook.
+#
+# DO NOT run a Utopia-configured indexer against the Stillness production DB.
+# Use a separate database (separate Railway service or local Postgres).
 #
 # [eve]
 # enabled = true
-# world_api_base = "https://world-api-utopia.uat.pub.evefrontier.com"
+# world_api_base = "https://world-api-utopia.uat.pub.evefrontier.com"  # TBD after restart
 # graphql_url = "https://graphql.testnet.sui.io/graphql"
-# world_package_id = "0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75"
-# player_profile_type = "0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75::character::PlayerProfile"
+# world_package_id    = "TBD"  # was 0xd12a70c...f75 pre-restart — reverify
+# world_pkg_original_id = "TBD"
+# world_pkg_published_at = "TBD"
+# world_tenant = "utopia"
+# world_start_checkpoint = 0  # TBD — first Utopia world event checkpoint after restart
+# player_profile_type = "TBD::character::PlayerProfile"
+# fw_gate_auth_witness = "FrontierWardenAuth"  # stable — same across packages
+# fw_gate_extension_typename = "TBD::reputation_gate::FrontierWardenAuth"  # depends on Utopia FW pkg ID
 #
-# Environment variable overrides (optional):
+# Required env vars for a Utopia Railway service (all TBD until verified):
 #   EFREP_EVE_WORLD_API_BASE
 #   EFREP_EVE_GRAPHQL_URL
 #   EFREP_EVE_WORLD_PACKAGE_ID
 #   EFREP_WORLD_PKG_ORIGINAL_ID
 #   EFREP_WORLD_PKG_PUBLISHED_AT
-#   EFREP_WORLD_TENANT
+#   EFREP_WORLD_TENANT=utopia
 #   EFREP_WORLD_START_CHECKPOINT
 #   EFREP_FW_GATE_AUTH_WITNESS
 #   EFREP_FW_GATE_EXTENSION_TYPENAME
+#   EFREP_EVE_PLAYER_PROFILE_TYPE
+#   DATABASE_URL  (must point to a Utopia-only database, NOT Stillness production)
 #   EFREP_EVE_PLAYER_PROFILE_TYPE
