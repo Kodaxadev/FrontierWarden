@@ -53,7 +53,11 @@ export interface OperatorGateAuthorityState {
   warnings: string[];
 }
 
-import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import {
+  SuiObjectData,
+  fetchOwnedObjectsByType,
+  fetchSuiObjectRaw,
+} from './sui-object-fetcher';
 
 const STILLNESS_WORLD_PACKAGE_ID =
   "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c";
@@ -74,49 +78,12 @@ export const WALLET_NOT_CONNECTED_AUTHORITY: OperatorGateAuthorityState = {
   status: "wallet_not_connected",
 };
 
-interface JsonRpcSuccess<T> {
-  result: T;
-  error?: never;
-}
-
-interface JsonRpcFailure {
-  result?: never;
-  error: { message?: string; code?: number };
-}
-
-type JsonRpcResponse<T> = JsonRpcSuccess<T> | JsonRpcFailure;
-
-interface SuiOwnedObjectsPage {
-  data?: SuiObjectEnvelope[];
-  nextCursor?: string | null;
-  hasNextPage?: boolean;
-}
-
-interface SuiObjectEnvelope {
-  data?: SuiObjectData;
-}
-
-interface SuiObjectData {
-  objectId?: string;
-  type?: string;
-  owner?: unknown;
-  content?: { fields?: unknown };
-}
-
 function envValue(key: string): string | undefined {
   return (import.meta.env as Record<string, string | undefined>)[key];
 }
 
 function worldPackageId(): string {
   return envValue("VITE_EVE_WORLD_PACKAGE_ID") ?? STILLNESS_WORLD_PACKAGE_ID;
-}
-
-function rpcUrl(): string {
-  const override = envValue("VITE_SUI_RPC_URL");
-  if (override) return override;
-  const network = (envValue("VITE_SUI_NETWORK") ?? "testnet") as
-    "mainnet" | "testnet" | "devnet" | "localnet";
-  return getJsonRpcFullnodeUrl(network);
 }
 
 export function buildPlayerProfileType(packageId = worldPackageId()): string {
@@ -166,63 +133,6 @@ function addressOwner(owner: unknown): string | null {
   const record = asRecord(owner);
   const addressOwnerValue = record.AddressOwner;
   return typeof addressOwnerValue === "string" ? addressOwnerValue : null;
-}
-
-async function suiRpc<T>(method: string, params: unknown[]): Promise<T> {
-  const response = await fetch(rpcUrl(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-  });
-  if (!response.ok) {
-    throw new Error(
-      `Sui RPC ${method} -> ${response.status} ${response.statusText}`,
-    );
-  }
-
-  const body = (await response.json()) as JsonRpcResponse<T>;
-  if (body.error)
-    throw new Error(body.error.message ?? `Sui RPC ${method} failed`);
-  return body.result;
-}
-
-async function listOwnedObjects(
-  owner: string,
-  type: string,
-): Promise<SuiObjectData[]> {
-  const objects: SuiObjectData[] = [];
-  let cursor: string | null = null;
-
-  do {
-    const page: SuiOwnedObjectsPage = await suiRpc<SuiOwnedObjectsPage>(
-      "suix_getOwnedObjects",
-      [
-        owner,
-        {
-          filter: { StructType: type },
-          options: { showContent: true, showOwner: true, showType: true },
-        },
-        cursor,
-        50,
-      ],
-    );
-    objects.push(
-      ...((page.data ?? [])
-        .map((envelope: SuiObjectEnvelope) => envelope.data)
-        .filter(Boolean) as SuiObjectData[]),
-    );
-    cursor = page.hasNextPage ? (page.nextCursor ?? null) : null;
-  } while (cursor);
-
-  return objects;
-}
-
-async function getObject(objectId: string): Promise<SuiObjectData | null> {
-  const envelope = await suiRpc<SuiObjectEnvelope>("sui_getObject", [
-    objectId,
-    { showContent: true, showOwner: true, showType: true },
-  ]);
-  return envelope.data ?? null;
 }
 
 function parsePlayerProfile(
@@ -315,7 +225,7 @@ export async function discoverOperatorGateAuthority(
   const profileType = buildPlayerProfileType();
   const ownerCapType = buildGateOwnerCapType();
   const warnings: string[] = [];
-  const profileObjects = await listOwnedObjects(walletAddress, profileType);
+  const profileObjects = await fetchOwnedObjectsByType(walletAddress, profileType);
   const playerProfiles = profileObjects
     .map(parsePlayerProfile)
     .filter(Boolean) as OperatorPlayerProfileCandidate[];
@@ -336,7 +246,7 @@ export async function discoverOperatorGateAuthority(
     await Promise.all(
       characterIds.map(async (characterId) => {
         try {
-          return parseCharacter(await getObject(characterId));
+          return parseCharacter(await fetchSuiObjectRaw(characterId));
         } catch (err) {
           warnings.push(
             `Character ${characterId}: ${err instanceof Error ? err.message : "query failed"}`,
@@ -358,7 +268,7 @@ export async function discoverOperatorGateAuthority(
 
   const walletCapObjects =
     characters.length > 0
-      ? await listOwnedObjects(walletAddress, ownerCapType)
+      ? await fetchOwnedObjectsByType(walletAddress, ownerCapType)
       : [];
   const walletCaps = walletCapObjects
     .map((object) => parseOwnerCap(object, "wallet", walletAddress))
@@ -366,7 +276,7 @@ export async function discoverOperatorGateAuthority(
   const characterCapsNested = await Promise.all(
     characters.map(async (character) => {
       try {
-        const capObjects = await listOwnedObjects(
+        const capObjects = await fetchOwnedObjectsByType(
           character.objectId,
           ownerCapType,
         );
@@ -393,7 +303,7 @@ export async function discoverOperatorGateAuthority(
         ownerCaps.map(async (cap) => {
           if (!cap.authorizedObjectId) return null;
           try {
-            return parseGate(await getObject(cap.authorizedObjectId));
+            return parseGate(await fetchSuiObjectRaw(cap.authorizedObjectId));
           } catch (err) {
             warnings.push(
               `Gate ${cap.authorizedObjectId}: ${err instanceof Error ? err.message : "query failed"}`,
