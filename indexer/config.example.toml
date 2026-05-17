@@ -26,6 +26,7 @@ poll_interval_ms = 2000
 # Fields: victim_name, killer_name, victim/killer tribe, solar_system, loss_type, kill_time
 # Set enabled = true to start ingestion. Disabled by default.
 # On first run (cursor = 0) the poller backfills the full kill history (~4,800 records).
+# Env override: EFREP_KILL_MAILS_ENABLED=true  (overrides this field at runtime, e.g. Railway)
 [kill_mails]
 enabled = false
 source_url = "https://api.alpha-strike.space/incident"

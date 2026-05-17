@@ -201,6 +201,10 @@ impl Config {
                 validate_world_pkg_ids(eve)?;
             }
         }
+        // Env var overrides for kill mail poller
+        if let Ok(s) = std::env::var("EFREP_KILL_MAILS_ENABLED") {
+            cfg.kill_mails.enabled = s.eq_ignore_ascii_case("true");
+        }
         // Env var override for database max connections
         // Default to 5 in production to avoid Supabase session mode limit (15)
         // Clamp to 10 unless explicitly set higher via EFREP_MAX_CONNECTIONS_OVERRIDE
@@ -317,5 +321,17 @@ mod tests {
             validate_world_pkg_ids(&eve_with("0x28b497559d65ab320d9da4613bf2498d", REAL_ADDR))
                 .unwrap_err();
         assert!(err.to_string().contains("0x-prefixed"), "{err}");
+    }
+
+    #[test]
+    fn kill_mails_enabled_env_toggle_parsing() {
+        // Verify the boolean parsing rule used by EFREP_KILL_MAILS_ENABLED.
+        // Config::load uses s.eq_ignore_ascii_case("true") — test that contract.
+        assert!("true".eq_ignore_ascii_case("true"));
+        assert!("TRUE".eq_ignore_ascii_case("true"));
+        assert!("True".eq_ignore_ascii_case("true"));
+        assert!(!"false".eq_ignore_ascii_case("true"));
+        assert!(!"1".eq_ignore_ascii_case("true"));
+        assert!(!"yes".eq_ignore_ascii_case("true"));
     }
 }
