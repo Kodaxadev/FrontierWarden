@@ -2,20 +2,13 @@
 // resolution, and owned-object listing lives here. No other file should build
 // raw RPC fetch calls or construct a SuiJsonRpcClient directly.
 //
-// Three fetch paths share the same URL source logic:
-//   1. SuiJsonRpcClient — tx builders: .getObject() / .getCoins()
-//   2. Raw JSON-RPC fetch — operator-gate-authority: suix_getOwnedObjects / sui_getObject
-//   3. GraphQL fetch (shadow/Phase 2) — parallel GraphQL calls for parity validation
+// JSON-RPC is the source of truth. GraphQL shadow fires in parallel (dev only)
+// via VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true; warns on semantic mismatches.
 //
-// JSON-RPC is the current source of truth.
-// GraphQL is additive: enabled only via VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true (dev builds).
+// Phase 2 cutover: flip fetchSuiObjectRaw / fetchOwnedObjectsByType to GraphQL
+// variants once shadow confirms parity. See SUI_JSON_RPC_DEPRECATION_SPIKE.md.
 //
-// Phase 2 cutover: once shadow logs confirm parity, flip fetchSuiObjectRaw and
-// fetchOwnedObjectsByType to call the GraphQL variants and remove JSON-RPC.
-// See Documents/SUI_JSON_RPC_DEPRECATION_SPIKE.md.
-//
-// tx.build() constraint: MUST be called without a client. Do not pass any
-// SuiJsonRpcClient or GraphQL client into tx.build(). See tx-check-passage.ts.
+// tx.build() constraint: no client in tx.build(). See tx-check-passage.ts.
 
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 
@@ -49,10 +42,10 @@ export function makeSuiJsonRpcClient(): SuiJsonRpcClient {
 
 // ── Raw JSON-RPC wire types ───────────────────────────────────────────────────
 // Exported so operator-gate-authority.ts parsers do not redeclare them.
-// Shapes match the Sui JSON-RPC 2.0 sui_getObject / suix_getOwnedObjects responses.
-
 export interface SuiObjectData {
   objectId?: string;
+  version?: string;
+  digest?: string;
   type?: string;
   owner?: unknown;
   content?: { fields?: unknown };
@@ -307,6 +300,8 @@ function mapGqlObject(node: GqlObject): SuiObjectData | null {
   if (!node.address) return null;
   return {
     objectId: node.address,
+    version: node.version != null ? String(node.version) : undefined,
+    digest: node.digest,
     type: node.asMoveObject?.contents?.type?.repr,
     owner: mapGqlOwner(node.owner),
     content: node.asMoveObject?.contents?.json != null
@@ -352,16 +347,54 @@ export async function fetchOwnedObjectsByTypeGraphQL(
 }
 
 // ── Shadow comparison (dev only) ──────────────────────────────────────────────
+// Semantic: warns on objectId/type/owner/version/digest mismatches only.
+// Expected encoding differences (UID wrapper, vector<u8> base64, nested struct
+// flattening) surface as content.fields inequality — logged at debug only.
 
-function shadowLog(label: string, rpc: unknown, gql: unknown): void {
-  const rpcJson = JSON.stringify(rpc);
-  const gqlJson = JSON.stringify(gql);
-  if (rpcJson === gqlJson) {
-    console.debug(`[sui-object-fetcher] ✓ shadow match: ${label}`);
+const _P = '[sui-object-fetcher]';
+
+function _diff(a: unknown, b: unknown, key: string): string[] {
+  return JSON.stringify(a) !== JSON.stringify(b) ? [key] : [];
+}
+
+function _shadowSingle(label: string, rpc: SuiObjectData | null, gql: SuiObjectData | null): void {
+  if (!rpc && !gql) { console.debug(`${_P} ✓ null: ${label}`); return; }
+  if (!rpc || !gql) { console.warn(`${_P} ✗ null mismatch: ${label}`, { rpc, gql }); return; }
+  const d = [
+    ..._diff(rpc.objectId, gql.objectId, 'objectId'),
+    ..._diff(rpc.type,     gql.type,     'type'),
+    ...(rpc.version && gql.version ? _diff(rpc.version, gql.version, 'version') : []),
+    ...(rpc.digest  && gql.digest  ? _diff(rpc.digest,  gql.digest,  'digest')  : []),
+    ..._diff(rpc.owner,    gql.owner,    'owner'),
+  ];
+  if (d.length) {
+    console.warn(`${_P} ✗ semantic mismatch [${d.join(',')}]: ${label}`, { rpc, gql });
   } else {
-    console.warn(`[sui-object-fetcher] ✗ shadow mismatch: ${label}`, {
-      rpc,
-      graphql: gql,
-    });
+    const enc = JSON.stringify(rpc.content?.fields) !== JSON.stringify(gql.content?.fields);
+    console.debug(`${_P} ${enc ? '✓ semantic match (encoding diff)' : '✓ match'}: ${label}`);
   }
+}
+
+function _shadowArray(label: string, rpc: SuiObjectData[], gql: SuiObjectData[]): void {
+  const rIds = new Set(rpc.map(o => o.objectId).filter((id): id is string => !!id));
+  const gIds = new Set(gql.map(o => o.objectId).filter((id): id is string => !!id));
+  const missing = [...rIds].filter(id => !gIds.has(id));
+  const extra   = [...gIds].filter(id => !rIds.has(id));
+  if (missing.length || extra.length) { console.warn(`${_P} ✗ set mismatch: ${label}`, { missing, extra }); return; }
+  let warned = false;
+  for (const ro of rpc) {
+    const go = gql.find(g => g.objectId === ro.objectId);
+    if (!go) continue;
+    const d = [..._diff(ro.type, go.type, 'type'), ..._diff(ro.owner, go.owner, 'owner')];
+    if (d.length) { console.warn(`${_P} ✗ semantic mismatch [${d.join(',')}]: ${label}[${ro.objectId?.slice(0, 10)}…]`, { rpc: ro, gql: go }); warned = true; }
+  }
+  if (!warned) {
+    const enc = rpc.some(ro => { const go = gql.find(g => g.objectId === ro.objectId); return !!go && JSON.stringify(ro.content?.fields) !== JSON.stringify(go.content?.fields); });
+    console.debug(`${_P} ${enc ? '✓ semantic match (encoding diffs)' : '✓ match'}: ${label} (${rpc.length})`);
+  }
+}
+
+function shadowLog(label: string, rpc: SuiObjectData | SuiObjectData[] | null, gql: SuiObjectData | SuiObjectData[] | null): void {
+  if (Array.isArray(rpc) && Array.isArray(gql)) _shadowArray(label, rpc, gql);
+  else if (!Array.isArray(rpc) && !Array.isArray(gql)) _shadowSingle(label, rpc, gql);
 }
