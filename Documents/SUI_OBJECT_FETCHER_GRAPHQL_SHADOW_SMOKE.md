@@ -11,8 +11,23 @@
 
 `VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true` fires parallel GraphQL calls in dev builds
 fire-and-forget alongside every `fetchSuiObjectRaw` and `fetchOwnedObjectsByType` call.
-Results are compared by `JSON.stringify` and logged to console. JSON-RPC remains the
-returned value; the GraphQL path is read-only and never affects production behavior.
+JSON-RPC remains the returned value; the GraphQL path is read-only.
+
+**Shadow comparison is semantic, not raw-JSON-equal.** Results are compared field by field
+(`objectId`, `type`, `owner`, `version`, `digest`). Expected structural encoding differences
+(`content.fields` serialization) are logged at `console.debug` only, not warned.
+
+### Semantic comparison rules
+
+| Field | How compared | Mismatch action |
+|---|---|---|
+| `objectId` | Exact string equality | `console.warn ✗ semantic mismatch` |
+| `type` | Exact string equality | `console.warn ✗ semantic mismatch` |
+| `owner` | `JSON.stringify` of normalized shape | `console.warn ✗ semantic mismatch` |
+| `version` | String equality (when both present) | `console.warn ✗ semantic mismatch` |
+| `digest` | String equality (when both present) | `console.warn ✗ semantic mismatch` |
+| `content.fields` | `JSON.stringify` inequality detected | `console.debug ✓ semantic match (encoding diff)` |
+| Object set (array calls) | objectId set equality | `console.warn ✗ set mismatch` |
 
 ---
 
@@ -151,16 +166,18 @@ When running with `VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true`, expect:
 
 | Log entry | Meaning |
 |---|---|
-| `✓ shadow match: fetchSuiObjectRaw(0x...)` | Full JSON equality — rare for complex objects |
-| `✗ shadow mismatch: fetchSuiObjectRaw(0x...)` | Structural encoding difference (D1–D4 above). Open DevTools → expand `rpc` and `graphql` objects → verify the _values_ are semantically equivalent |
-| `shadow GraphQL error (object):` | Network error or GraphQL endpoint unavailable — harmless, JSON-RPC result returned |
+| `✓ match: fetchSuiObjectRaw(0x...)` | Full structural equality — unlikely for complex objects |
+| `✓ semantic match (encoding diff): fetchSuiObjectRaw(0x...)` | objectId/type/owner/version/digest all match; only `content.fields` differs due to encoding. **Normal — not a problem.** |
+| `✓ semantic match (encoding diffs): fetchOwnedObjectsByType(…) (N)` | Same as above for an N-object array |
+| `✗ semantic mismatch [objectId,type,owner]: fetchSuiObjectRaw(0x...)` | Real divergence — investigate before cutover |
+| `✗ set mismatch: fetchOwnedObjectsByType(…) {missing:[…], extra:[…]}` | GQL returned a different object set — investigate before cutover |
+| `shadow GraphQL error (object/owned):` in `console.warn` | Network error or GQL endpoint unavailable — JSON-RPC result returned unchanged |
 
-**Expected baseline:** any object with `id: UID`, `vector<u8>`, or nested structs will show
-`✗ shadow mismatch`. This is expected behavior and NOT a regression signal.
+**Expected baseline:** all objects with `id: UID`, `vector<u8>`, or nested struct fields
+will log `✓ semantic match (encoding diff)`. This is normal, expected behavior.
 
-A mismatch that should trigger investigation: any case where the key scalar fields
-differ — e.g. a `character_id`, `owner_cap_id`, `authorized_object_id`, `linked_gate_id`
-string value differs between `rpc` and `graphql` in the mismatch log.
+**Actionable signal:** any entry with `✗` — especially `objectId`, `type`, or `owner`
+field differences — warrants investigation before Phase 2 cutover.
 
 ---
 
