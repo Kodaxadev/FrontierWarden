@@ -2,11 +2,10 @@
 // resolution, and owned-object listing lives here. No other file should build
 // raw RPC fetch calls or construct a SuiJsonRpcClient directly.
 //
-// JSON-RPC is the source of truth. GraphQL shadow fires in parallel (dev only)
-// via VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true; warns on semantic mismatches.
-//
-// Phase 2 cutover: flip fetchSuiObjectRaw / fetchOwnedObjectsByType to GraphQL
-// variants once shadow confirms parity. See SUI_JSON_RPC_DEPRECATION_SPIKE.md.
+// Active source: VITE_SUI_OBJECT_FETCHER_MODE=jsonrpc|graphql|shadow (default: jsonrpc).
+// graphql: experimental — use only after live wallet smoke confirms parity.
+// shadow: returns JSON-RPC result; fires semantic GQL comparison in background.
+// See SUI_JSON_RPC_DEPRECATION_SPIKE.md for cutover plan.
 //
 // tx.build() constraint: no client in tx.build(). See tx-check-passage.ts.
 
@@ -22,7 +21,6 @@ function suiNetwork(): SuiNetworkType {
 
 // Returns the Sui JSON-RPC URL for the current network.
 // VITE_SUI_RPC_URL overrides if set (for custom endpoints or local nodes).
-// TODO: Remove when GraphQL migration is complete.
 export function suiRpcUrl(): string {
   const override = (import.meta.env as Record<string, string | undefined>).VITE_SUI_RPC_URL;
   return override ?? getJsonRpcFullnodeUrl(suiNetwork());
@@ -32,7 +30,6 @@ export function suiRpcUrl(): string {
 
 // Returns a SuiJsonRpcClient for object and coin pre-resolution by tx builders.
 // Must NOT be passed into tx.build() — see tx-check-passage.ts for the constraint.
-// TODO: Replace with GraphQL client at Phase 2 cutover.
 export function makeSuiJsonRpcClient(): SuiJsonRpcClient {
   return new SuiJsonRpcClient({
     url: suiRpcUrl(),
@@ -67,8 +64,6 @@ interface JsonRpcEnvelope<T> {
 }
 
 // Internal raw JSON-RPC fetch. Uses suiRpcUrl() so URL derivation is centralised.
-// TODO: Replace body of this function with GraphQL fetch at Phase 2 cutover.
-// See Documents/SUI_JSON_RPC_DEPRECATION_SPIKE.md.
 async function suiRpc<T>(method: string, params: unknown[]): Promise<T> {
   const response = await fetch(suiRpcUrl(), {
     method: 'POST',
@@ -86,14 +81,13 @@ async function suiRpc<T>(method: string, params: unknown[]): Promise<T> {
 // ── JSON-RPC public helpers (current source of truth) ────────────────────────
 
 // Fetch all owned objects of a specific struct type, paginating automatically.
-// When VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true (dev only), fires a parallel
-// GraphQL call and logs any response mismatches to the console.
-// TODO: Swap implementation to fetchOwnedObjectsByTypeGraphQL at Phase 2 cutover.
-// See Documents/SUI_JSON_RPC_DEPRECATION_SPIKE.md.
+// In shadow/graphql mode, delegates to or compares against the GraphQL path.
 export async function fetchOwnedObjectsByType(
   owner: string,
   type: string,
 ): Promise<SuiObjectData[]> {
+  const mode = objectFetcherMode();
+  if (mode === 'graphql') return fetchOwnedObjectsByTypeGraphQL(owner, type);
   const objects: SuiObjectData[] = [];
   let cursor: string | null = null;
   do {
@@ -110,7 +104,7 @@ export async function fetchOwnedObjectsByType(
     cursor = page.hasNextPage ? (page.nextCursor ?? null) : null;
   } while (cursor);
 
-  if (shadowEnabled()) {
+  if (mode === 'shadow') {
     fetchOwnedObjectsByTypeGraphQL(owner, type)
       .then(gql => shadowLog(`fetchOwnedObjectsByType(${type})`, objects, gql))
       .catch(err => console.warn('[sui-object-fetcher] shadow GraphQL error (owned):', err));
@@ -120,18 +114,17 @@ export async function fetchOwnedObjectsByType(
 }
 
 // Fetch a single object by ID with content, owner, and type fields populated.
-// When VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true (dev only), fires a parallel
-// GraphQL call and logs any response mismatches to the console.
-// TODO: Swap implementation to fetchSuiObjectGraphQL at Phase 2 cutover.
-// See Documents/SUI_JSON_RPC_DEPRECATION_SPIKE.md.
+// In shadow/graphql mode, delegates to or compares against the GraphQL path.
 export async function fetchSuiObjectRaw(objectId: string): Promise<SuiObjectData | null> {
+  const mode = objectFetcherMode();
+  if (mode === 'graphql') return fetchSuiObjectGraphQL(objectId);
   const envelope = await suiRpc<SuiObjectEnvelope>('sui_getObject', [
     objectId,
     { showContent: true, showOwner: true, showType: true },
   ]);
   const result = envelope.data ?? null;
 
-  if (shadowEnabled()) {
+  if (mode === 'shadow') {
     fetchSuiObjectGraphQL(objectId)
       .then(gql => shadowLog(`fetchSuiObjectRaw(${objectId})`, result, gql))
       .catch(err => console.warn('[sui-object-fetcher] shadow GraphQL error (object):', err));
@@ -141,8 +134,7 @@ export async function fetchSuiObjectRaw(objectId: string): Promise<SuiObjectData
 }
 
 // ── GraphQL config ────────────────────────────────────────────────────────────
-// Phase 2 replacement path. JSON-RPC remains default until parity is confirmed.
-// See Documents/SUI_JSON_RPC_DEPRECATION_SPIKE.md, Phase 2.
+// Phase 2 replacement path. Set VITE_SUI_OBJECT_FETCHER_MODE=graphql to activate.
 
 // Mysten-hosted GraphQL endpoints per network.
 const GQL_ENDPOINTS: Record<SuiNetworkType, string> = {
@@ -159,14 +151,14 @@ export function suiGraphqlUrl(): string {
   return override ?? (GQL_ENDPOINTS[suiNetwork()] ?? GQL_ENDPOINTS.testnet);
 }
 
-// Shadow mode: enabled only in Vite dev builds with the flag set to 'true'.
-// Never active in production builds.
-function shadowEnabled(): boolean {
-  return (
-    import.meta.env.DEV === true &&
-    (import.meta.env as Record<string, string | undefined>)
-      .VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL === 'true'
-  );
+type ObjectFetcherMode = 'jsonrpc' | 'graphql' | 'shadow';
+
+function objectFetcherMode(): ObjectFetcherMode {
+  const env = (import.meta.env as Record<string, string | undefined>);
+  const explicit = env.VITE_SUI_OBJECT_FETCHER_MODE as ObjectFetcherMode | undefined;
+  if (explicit === 'graphql' || explicit === 'shadow') return explicit;
+  if (import.meta.env.DEV && env.VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL === 'true') return 'shadow';
+  return 'jsonrpc';
 }
 
 // ── GraphQL query strings ─────────────────────────────────────────────────────
@@ -310,10 +302,8 @@ function mapGqlObject(node: GqlObject): SuiObjectData | null {
   };
 }
 
-// ── GraphQL public helpers (Phase 2 replacement path) ────────────────────────
-// These are the future sources of truth. Currently used only in shadow mode.
-// Once shadow logs confirm parity, swap fetchSuiObjectRaw and
-// fetchOwnedObjectsByType to delegate here.
+// ── GraphQL public helpers ────────────────────────────────────────────────────
+// Active sources of truth in graphql mode; shadow-compared in shadow mode.
 
 export async function fetchSuiObjectGraphQL(objectId: string): Promise<SuiObjectData | null> {
   const data = await suiGql<{ object?: GqlObject | null }>(
