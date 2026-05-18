@@ -21,6 +21,7 @@ import {
   validateSponsorResponse,
   type SponsoredTrace,
 } from '../lib/sponsored-diagnostics';
+import { makeActionRecorder, recordAction } from '../lib/fw-action-telemetry';
 
 export type SponsoredStep =
   | 'idle'
@@ -81,10 +82,16 @@ export function useSponsoredTransaction() {
     flow = 'sponsored_transaction',
   }: ExecuteSponsoredArgs) => {
     if (!account) {
+      const ts = Date.now();
+      recordAction({ ts, flow: 'sponsored', label: flow, phase: 'started', walletName: walletName(wallet) });
+      recordAction({ ts, flow: 'sponsored', label: flow, phase: 'failed', errorClass: 'wallet_not_connected', walletName: walletName(wallet) });
       const next = { step: 'error' as const, digest: null, error: 'Wallet not connected.', trace: null };
       setState(next);
       return next;
     }
+
+    const record = makeActionRecorder('sponsored', flow, walletName(wallet));
+    record('started');
 
     let phase: SponsoredStep = 'idle';
     let trace = createSponsoredTrace({
@@ -103,6 +110,7 @@ export function useSponsoredTransaction() {
       phase = 'building';
       setTracedState('building');
       const txKindBytes = await build();
+      record('build_ok');
       trace = sanitizeTrace({
         ...trace,
         step: 'build.kind.ok',
@@ -116,6 +124,7 @@ export function useSponsoredTransaction() {
 
       phase = 'sponsoring';
       setTracedState('sponsoring', { step: 'sponsor.request.sent' });
+      record('sponsor_request');
       debugLog('[SPONSORED_TX] step=sponsoring calling sponsor API', {
         traceId: trace.traceId,
         walletName: trace.walletName,
@@ -129,6 +138,7 @@ export function useSponsoredTransaction() {
           sender: account.address,
           gasBudget,
         });
+        record('sponsor_ok');
         trace = sanitizeTrace({
           ...trace,
           step: 'sponsor.response.received',
@@ -154,6 +164,7 @@ export function useSponsoredTransaction() {
           errorClass: classifySponsoredError(message),
           errorMessage: message,
         });
+        record('sponsor_failed', classifySponsoredError(message));
         throw new Error(`sponsor_api_failed: ${message}`);
       }
 
@@ -195,9 +206,11 @@ export function useSponsoredTransaction() {
         signTransactionInput: trace.signTransactionInput,
       });
 
+      record('wallet_sign_requested');
       let signed: { signature: string; bytes?: string } | null = null;
       try {
         signed = await dAppKit.signTransaction({ transaction: tx });
+        record('wallet_sign_ok');
         trace = sanitizeTrace({ ...trace, step: 'wallet.sign.ok' });
         debugLog('[SPONSORED_TX] step=dappkit_sign done', {
           signedKeys: signed ? Object.keys(signed) : 'null',
@@ -211,6 +224,7 @@ export function useSponsoredTransaction() {
           errorClass: classifySponsoredError(message),
           errorMessage: message,
         });
+        record('wallet_sign_failed', classifySponsoredError(message));
         throw new Error(`dappkit_sign_transaction_failed: ${message}`);
       }
 
@@ -220,6 +234,7 @@ export function useSponsoredTransaction() {
 
       phase = 'executing';
       setTracedState('executing', { step: 'execute.requested' });
+      record('execute_requested');
       debugLog('[SPONSORED_TX] step=execute calling client.core.executeTransaction', {
         clientType: (client as unknown as { constructor: { name: string } }).constructor.name,
         txBytesType: trace.txBytesType,
@@ -232,6 +247,7 @@ export function useSponsoredTransaction() {
           transaction: fromBase64(txBytes),
           signatures: [sponsorSignature, signed.signature],
         });
+        record('execute_ok');
         trace = sanitizeTrace({
           ...trace,
           step: 'execute.ok',
@@ -248,6 +264,7 @@ export function useSponsoredTransaction() {
           errorClass: classifySponsoredError(message),
           errorMessage: message,
         });
+        record('execute_failed', classifySponsoredError(message));
         throw new Error(`execute_transaction_failed: ${message}`);
       }
 
@@ -263,9 +280,11 @@ export function useSponsoredTransaction() {
           errorClass: classifySponsoredError(message),
           errorMessage: message,
         });
+        record('execute_failed', classifySponsoredError(message));
         throw new Error(message);
       }
 
+      record('done');
       const next = { step: 'done' as const, digest: result.Transaction.digest, error: null, trace };
       setState(next);
       return next;
@@ -276,6 +295,7 @@ export function useSponsoredTransaction() {
         errorClass: trace.errorClass ?? classifySponsoredError(message),
         errorMessage: trace.errorMessage ?? message,
       });
+      record('failed', trace.errorClass ?? classifySponsoredError(message));
       const next = { step: 'error' as const, digest: null, error: message, trace };
       setState(next);
       return next;

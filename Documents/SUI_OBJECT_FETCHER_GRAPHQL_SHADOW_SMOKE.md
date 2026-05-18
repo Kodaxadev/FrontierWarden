@@ -24,17 +24,35 @@ The legacy `VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true` flag still works and ma
 
 ## Telemetry Coverage Map
 
-The browser telemetry inspector (`window.__suiFetcherTelemetry`) covers **two distinct frontend paths**:
+Three layers of browser-local telemetry, each with its own inspector:
 
-| Path | Function | Telemetry counters | Fires from |
+| Layer | Inspector | What it covers | Fires from |
 |---|---|---|---|
-| Operator discovery | `fetchOwnedObjectsByType`, `fetchSuiObjectRaw` | `fetch total`, `shadow total`, mismatch breakdown | `useOperatorGateAuthority` hook (Policy / Gates tabs) |
-| Tx-builder JSON-RPC | `makeSuiJsonRpcClient(label)` → proxied `getObject` / `getCoins` | `tx-client created`, `tx-method total` (by method + by label), `errors` | Every PTB builder before `tx.build()` |
+| **Action path** | `window.__fwActionTelemetry` | Sponsored & direct-sign wallet flows: started / build / sponsor / wallet sign / execute / done / failed | `useSponsoredTransaction`, `useVouchActions`, `useDisputeActions` — guaranteed to fire on every button click that reaches the hook (even before wallet is connected) |
+| **Tx-builder JSON-RPC** | `window.__suiFetcherTelemetry` (tx-client counters) | `makeSuiJsonRpcClient(label)` proxied `getObject` / `getCoins` | Inside `build()` callback of sponsored tx builders — only after wallet+config checks pass |
+| **Operator discovery** | `window.__suiFetcherTelemetry` (fetch + shadow counters) | `fetchOwnedObjectsByType`, `fetchSuiObjectRaw`, semantic shadow comparison | `useOperatorGateAuthority` — only when operator panels mount with a connected wallet |
+
+**Why three layers?** Earlier production observation showed the tx-builder and discovery telemetry both stayed at zero across heavy UI exercise. Investigation found that those telemetry paths are downstream of gates (wallet connected, config present, sponsored build phase reached) — if any of those gates rejects, no telemetry fires and you can't tell whether the button didn't work or the user never finished clicking. The action-path telemetry sits at the very top of every hook, so `started` always increments on a click.
 
 **Not covered by browser telemetry** (and not migration-blocking for the frontend):
 
 - **`/eve/identity/{wallet}`** — backend (`efrep_indexer::eve_identity::client`) already uses Sui GraphQL server-side. Confirmed in Railway logs: `source="sui_graphql"`. The frontend hits this endpoint instead of Sui directly for character/profile lookup.
 - **Other `/api/*` endpoints** — Railway-backed; the indexer aggregates and serves cached projections.
+
+### Action telemetry: phases and labels
+
+| Phase | Sponsored | Direct |
+|---|---|---|
+| `started` | ✓ on entry to `execute()` | ✓ |
+| `build_ok` / `build_failed` | ✓ after `await build()` | ✓ |
+| `sponsor_request` / `sponsor_ok` / `sponsor_failed` | ✓ | — |
+| `wallet_sign_requested` / `wallet_sign_ok` / `wallet_sign_failed` | ✓ via `dAppKit.signTransaction` | ✓ via `dAppKit.signAndExecuteTransaction` |
+| `execute_requested` / `execute_ok` / `execute_failed` | ✓ via `client.core.executeTransaction` | ✓ implied from `signAndExecuteTransaction` result |
+| `done` / `failed` | ✓ terminal | ✓ terminal |
+
+`errorClass` reuses `SponsoredErrorClass` from `sponsored-diagnostics` plus `wallet_not_connected` and `config_missing` for the gate cases.
+
+Labels: `check_passage`, `update_gate_policy`, `bind_world_gate`, `authorize_fw_extension`, `submit_intel`, `transfer_gate_admin_cap`, `wallet_attestation_issue`, `withdraw_tolls`, `create_gate`, `bind_operator_world_gate`, `vouch-create`, `vouch-redeem`, `dispute-create`, `dispute-vote`, `dispute-resolve`. The sponsored label is whatever the caller passes as `flow` to `execute({ flow })`; the direct labels are hardcoded inside `useVouchActions` / `useDisputeActions`.
 
 Tx-builder labels in use:
 
