@@ -5,11 +5,19 @@
 // Active source: VITE_SUI_OBJECT_FETCHER_MODE=jsonrpc|graphql|shadow (default: jsonrpc).
 // graphql: experimental — use only after live wallet smoke confirms parity.
 // shadow: returns JSON-RPC result; fires semantic GQL comparison in background.
+// All fetch calls + shadow results recorded via ./sui-fetcher-telemetry.
+// Inspect from DevTools: window.__suiFetcherTelemetry.summary()
 // See SUI_JSON_RPC_DEPRECATION_SPIKE.md for cutover plan.
 //
 // tx.build() constraint: no client in tx.build(). See tx-check-passage.ts.
 
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import {
+  compareArray,
+  compareObject,
+  recordFetch,
+  recordShadowError,
+} from './sui-fetcher-telemetry';
 
 // ── Network helpers ───────────────────────────────────────────────────────────
 
@@ -87,27 +95,44 @@ export async function fetchOwnedObjectsByType(
   type: string,
 ): Promise<SuiObjectData[]> {
   const mode = objectFetcherMode();
-  if (mode === 'graphql') return fetchOwnedObjectsByTypeGraphQL(owner, type);
+  const start = Date.now();
+  if (mode === 'graphql') {
+    try {
+      const result = await fetchOwnedObjectsByTypeGraphQL(owner, type);
+      recordFetch({ ts: Date.now(), kind: 'owned', mode, label: type, durationMs: Date.now() - start, resultCount: result.length, ok: true });
+      return result;
+    } catch (err) {
+      recordFetch({ ts: Date.now(), kind: 'owned', mode, label: type, durationMs: Date.now() - start, resultCount: 0, ok: false });
+      throw err;
+    }
+  }
   const objects: SuiObjectData[] = [];
   let cursor: string | null = null;
-  do {
-    const page: SuiOwnedObjectsPage = await suiRpc<SuiOwnedObjectsPage>('suix_getOwnedObjects', [
-      owner,
-      {
-        filter: { StructType: type },
-        options: { showContent: true, showOwner: true, showType: true },
-      },
-      cursor,
-      50,
-    ]);
-    objects.push(...((page.data ?? []).map((e: SuiObjectEnvelope) => e.data).filter(Boolean) as SuiObjectData[]));
-    cursor = page.hasNextPage ? (page.nextCursor ?? null) : null;
-  } while (cursor);
+  try {
+    do {
+      const page: SuiOwnedObjectsPage = await suiRpc<SuiOwnedObjectsPage>('suix_getOwnedObjects', [
+        owner,
+        {
+          filter: { StructType: type },
+          options: { showContent: true, showOwner: true, showType: true },
+        },
+        cursor,
+        50,
+      ]);
+      objects.push(...((page.data ?? []).map((e: SuiObjectEnvelope) => e.data).filter(Boolean) as SuiObjectData[]));
+      cursor = page.hasNextPage ? (page.nextCursor ?? null) : null;
+    } while (cursor);
+    recordFetch({ ts: Date.now(), kind: 'owned', mode, label: type, durationMs: Date.now() - start, resultCount: objects.length, ok: true });
+  } catch (err) {
+    recordFetch({ ts: Date.now(), kind: 'owned', mode, label: type, durationMs: Date.now() - start, resultCount: 0, ok: false });
+    throw err;
+  }
 
   if (mode === 'shadow') {
+    const label = `fetchOwnedObjectsByType(${type})`;
     fetchOwnedObjectsByTypeGraphQL(owner, type)
-      .then(gql => shadowLog(`fetchOwnedObjectsByType(${type})`, objects, gql))
-      .catch(err => console.warn('[sui-object-fetcher] shadow GraphQL error (owned):', err));
+      .then((gql) => compareArray(label, 'owned', objects, gql))
+      .catch((err) => recordShadowError(label, 'owned', err));
   }
 
   return objects;
@@ -117,17 +142,36 @@ export async function fetchOwnedObjectsByType(
 // In shadow/graphql mode, delegates to or compares against the GraphQL path.
 export async function fetchSuiObjectRaw(objectId: string): Promise<SuiObjectData | null> {
   const mode = objectFetcherMode();
-  if (mode === 'graphql') return fetchSuiObjectGraphQL(objectId);
-  const envelope = await suiRpc<SuiObjectEnvelope>('sui_getObject', [
-    objectId,
-    { showContent: true, showOwner: true, showType: true },
-  ]);
-  const result = envelope.data ?? null;
+  const start = Date.now();
+  if (mode === 'graphql') {
+    try {
+      const result = await fetchSuiObjectGraphQL(objectId);
+      recordFetch({ ts: Date.now(), kind: 'object', mode, label: objectId, durationMs: Date.now() - start, resultCount: result ? 1 : 0, ok: true });
+      return result;
+    } catch (err) {
+      recordFetch({ ts: Date.now(), kind: 'object', mode, label: objectId, durationMs: Date.now() - start, resultCount: 0, ok: false });
+      throw err;
+    }
+  }
+  let result: SuiObjectData | null = null;
+  try {
+    const envelope = await suiRpc<SuiObjectEnvelope>('sui_getObject', [
+      objectId,
+      { showContent: true, showOwner: true, showType: true },
+    ]);
+    result = envelope.data ?? null;
+    recordFetch({ ts: Date.now(), kind: 'object', mode, label: objectId, durationMs: Date.now() - start, resultCount: result ? 1 : 0, ok: true });
+  } catch (err) {
+    recordFetch({ ts: Date.now(), kind: 'object', mode, label: objectId, durationMs: Date.now() - start, resultCount: 0, ok: false });
+    throw err;
+  }
 
   if (mode === 'shadow') {
+    const label = `fetchSuiObjectRaw(${objectId})`;
+    const captured = result;
     fetchSuiObjectGraphQL(objectId)
-      .then(gql => shadowLog(`fetchSuiObjectRaw(${objectId})`, result, gql))
-      .catch(err => console.warn('[sui-object-fetcher] shadow GraphQL error (object):', err));
+      .then((gql) => compareObject(label, 'object', captured, gql))
+      .catch((err) => recordShadowError(label, 'object', err));
   }
 
   return result;
@@ -336,55 +380,6 @@ export async function fetchOwnedObjectsByTypeGraphQL(
   return objects;
 }
 
-// ── Shadow comparison (dev only) ──────────────────────────────────────────────
-// Semantic: warns on objectId/type/owner/version/digest mismatches only.
-// Expected encoding differences (UID wrapper, vector<u8> base64, nested struct
-// flattening) surface as content.fields inequality — logged at debug only.
-
-const _P = '[sui-object-fetcher]';
-
-function _diff(a: unknown, b: unknown, key: string): string[] {
-  return JSON.stringify(a) !== JSON.stringify(b) ? [key] : [];
-}
-
-function _shadowSingle(label: string, rpc: SuiObjectData | null, gql: SuiObjectData | null): void {
-  if (!rpc && !gql) { console.debug(`${_P} ✓ null: ${label}`); return; }
-  if (!rpc || !gql) { console.warn(`${_P} ✗ null mismatch: ${label}`, { rpc, gql }); return; }
-  const d = [
-    ..._diff(rpc.objectId, gql.objectId, 'objectId'),
-    ..._diff(rpc.type,     gql.type,     'type'),
-    ...(rpc.version && gql.version ? _diff(rpc.version, gql.version, 'version') : []),
-    ...(rpc.digest  && gql.digest  ? _diff(rpc.digest,  gql.digest,  'digest')  : []),
-    ..._diff(rpc.owner,    gql.owner,    'owner'),
-  ];
-  if (d.length) {
-    console.warn(`${_P} ✗ semantic mismatch [${d.join(',')}]: ${label}`, { rpc, gql });
-  } else {
-    const enc = JSON.stringify(rpc.content?.fields) !== JSON.stringify(gql.content?.fields);
-    console.debug(`${_P} ${enc ? '✓ semantic match (encoding diff)' : '✓ match'}: ${label}`);
-  }
-}
-
-function _shadowArray(label: string, rpc: SuiObjectData[], gql: SuiObjectData[]): void {
-  const rIds = new Set(rpc.map(o => o.objectId).filter((id): id is string => !!id));
-  const gIds = new Set(gql.map(o => o.objectId).filter((id): id is string => !!id));
-  const missing = [...rIds].filter(id => !gIds.has(id));
-  const extra   = [...gIds].filter(id => !rIds.has(id));
-  if (missing.length || extra.length) { console.warn(`${_P} ✗ set mismatch: ${label}`, { missing, extra }); return; }
-  let warned = false;
-  for (const ro of rpc) {
-    const go = gql.find(g => g.objectId === ro.objectId);
-    if (!go) continue;
-    const d = [..._diff(ro.type, go.type, 'type'), ..._diff(ro.owner, go.owner, 'owner')];
-    if (d.length) { console.warn(`${_P} ✗ semantic mismatch [${d.join(',')}]: ${label}[${ro.objectId?.slice(0, 10)}…]`, { rpc: ro, gql: go }); warned = true; }
-  }
-  if (!warned) {
-    const enc = rpc.some(ro => { const go = gql.find(g => g.objectId === ro.objectId); return !!go && JSON.stringify(ro.content?.fields) !== JSON.stringify(go.content?.fields); });
-    console.debug(`${_P} ${enc ? '✓ semantic match (encoding diffs)' : '✓ match'}: ${label} (${rpc.length})`);
-  }
-}
-
-function shadowLog(label: string, rpc: SuiObjectData | SuiObjectData[] | null, gql: SuiObjectData | SuiObjectData[] | null): void {
-  if (Array.isArray(rpc) && Array.isArray(gql)) _shadowArray(label, rpc, gql);
-  else if (!Array.isArray(rpc) && !Array.isArray(gql)) _shadowSingle(label, rpc, gql);
-}
+// Shadow semantic comparison and console output now live in
+// `sui-fetcher-telemetry.ts`. This file only routes RPC vs GraphQL results
+// into compareObject / compareArray and records fetch-level timing/counts.
