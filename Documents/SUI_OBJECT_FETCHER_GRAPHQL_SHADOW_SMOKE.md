@@ -4,6 +4,7 @@
 **Branch:** `codex/sui-object-fetcher-shadow-smoke-doc`
 **Preceded by:** PR #46 (`codex/sui-object-fetcher-graphql-shadow`) — added shadow infrastructure
 **Updated by:** PR #49 (`codex/sui-object-fetcher-graphql-mode`) — added `VITE_SUI_OBJECT_FETCHER_MODE` switch
+**Updated by:** PR #54 (`codex/sponsored-action-path-telemetry`) — added browser-local action lifecycle telemetry
 **Scope:** Validate GraphQL object-fetch path against JSON-RPC before Phase 2 cutover
 
 ---
@@ -289,6 +290,72 @@ be addressed separately in Phase 2 of the deprecation plan.
 
 ## Parity Assessment
 
+### Production shadow result — 2026-05-18
+
+Production browser exercise produced valid evidence for two separate surfaces:
+
+```text
+Object-fetcher shadow parity:
+fetch total: 12 (shadow=12)
+exact: 6
+encoding-diff: 6
+mismatch: 0
+null-mismatch: 0
+set-mismatch: 0
+error: 0
+
+Tx-builder JSON-RPC observability:
+tx-client created: 6
+tx-method total: 7
+getObject: 6
+getCoins: 1
+errors: 0
+```
+
+Interpretation:
+
+- The object-fetcher adapter path is shadow-proven for the observed production
+  flows: `fetchOwnedObjectsByType` and `fetchSuiObjectRaw` produced zero
+  actionable divergence.
+- The tx-builder JSON-RPC path is observable and healthy in the exercised
+  flows, but it is still active. `VITE_SUI_OBJECT_FETCHER_MODE=graphql` does
+  not replace `makeSuiJsonRpcClient().getObject()` or `.getCoins()`.
+- Dispute vote/resolve does touch the instrumented tx-client path; earlier
+  assumptions that it did not were incorrect.
+
+Promotion gate:
+
+| Gate | Status |
+|---|---|
+| Script-level object smoke | Passed |
+| Browser object-fetcher shadow parity | Passed: 12 comparisons, 0 actionable mismatches |
+| Tx-builder JSON-RPC observability | Passed: 6 clients, 7 methods, 0 errors |
+| Action-path phase telemetry | Merged in PR #54; deploy/use for future top-level action tracing |
+| Tx-builder GraphQL replacement | Not implemented |
+| Full frontend JSON-RPC removal readiness | Not ready |
+
+Current status:
+
+```text
+Backend identity: GraphQL-backed and working.
+Object-fetcher adapter: shadow-proven with no actionable mismatches.
+Tx-builder JSON-RPC: active, observable, currently healthy.
+Action lifecycle telemetry: merged in PR #54; use after deploy for button-to-terminal tracing.
+Full JSON-RPC migration: not done because tx-builder getObject/getCoins remain.
+```
+
+Recommended next technical branch:
+
+```text
+codex/tx-builder-rpc-replacement-spike
+```
+
+Goal: determine how to replace `makeSuiJsonRpcClient()` usage. `getObject`
+appears GraphQL-replaceable; `getCoins` needs separate design because coin
+selection is not equivalent to object metadata lookup.
+
+---
+
 | Layer | Status |
 |---|---|
 | Owner variant mapping | ✅ Confirmed correct after bug fix (4/4 objects) |
@@ -296,12 +363,13 @@ be addressed separately in Phase 2 of the deprecation plan.
 | Scalar ID fields (objectId, addresses) | ✅ Same values — encoding wrapper difference only |
 | `vector<u8>` fields | ✅ Harmless — not parsed by operator flows |
 | Nested struct fields | ✅ Harmless for most parsers; GraphQL improves `parseGate` key field access |
-| Live wallet exercise (PlayerProfile/Character/OwnerCap/Gate) | ⏳ Pending — requires testnet wallet session |
+| Production browser shadow exercise | ✅ 12 comparisons, 0 actionable mismatches |
 
-**Recommendation:** Phase 2 cutover (swap `fetchSuiObjectRaw` and `fetchOwnedObjectsByType`
-to GraphQL implementations) is **safe to proceed** once live wallet shadow exercise confirms
-no value-level mismatches. The structural encoding differences are expected and documented.
-Owner fragments and mapper are now correct.
+**Recommendation:** Promote only the object-fetcher adapter surface with care.
+`VITE_SUI_OBJECT_FETCHER_MODE=graphql` is likely safe for the observed
+discovery/object-read path. Do not remove JSON-RPC globally: tx builders still
+use `makeSuiJsonRpcClient().getObject()` and `.getCoins()`, and need their own
+replacement plan.
 
 ---
 
