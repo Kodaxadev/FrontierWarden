@@ -63,7 +63,7 @@ export async function buildAuthorizeFWExtensionTxKind(
   const pkgId = requiredEnv('VITE_PKG_ID');
   const worldPkgPublishedAt = args.worldPackagePublishedAt ?? DEFAULT_WORLD_PKG_PUBLISHED_AT;
 
-  const rpcClient = makeSuiJsonRpcClient();
+  const rpcClient = makeSuiJsonRpcClient('tx-authorize-fw-extension');
 
   // Resolve the Gate object to confirm it exists and get its digest.
   const gateObject = await rpcClient.getObject({

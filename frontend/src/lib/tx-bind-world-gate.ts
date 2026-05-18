@@ -37,7 +37,7 @@ export async function buildBindWorldGateTxKind(
     throw new Error('bind world gate tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
-  const rpcClient = makeSuiJsonRpcClient();
+  const rpcClient = makeSuiJsonRpcClient('tx-bind-world-gate');
 
   const adminCapObject = await rpcClient.getObject({
     id: args.gateAdminCapId,

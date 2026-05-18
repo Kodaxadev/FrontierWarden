@@ -118,7 +118,7 @@ export function buildCreateChallengeTx(args: CreateChallengeArgs): Transaction {
  * not tx.object(), to avoid TypeMismatch errors on direct wallet signing.
  */
 export async function buildVoteChallengeTx(args: VoteChallengeArgs): Promise<Transaction> {
-  const rpcClient = makeSuiJsonRpcClient();
+  const rpcClient = makeSuiJsonRpcClient('tx-dispute-vote');
 
   const initialSharedVersion = await fetchChallengeSharedVersion(rpcClient, args.challengeId);
 
@@ -144,7 +144,7 @@ export async function buildVoteChallengeTx(args: VoteChallengeArgs): Promise<Tra
  * not tx.object(), to avoid TypeMismatch errors on direct wallet signing.
  */
 export async function buildResolveChallengeTx(args: ResolveChallengeArgs): Promise<Transaction> {
-  const rpcClient = makeSuiJsonRpcClient();
+  const rpcClient = makeSuiJsonRpcClient('tx-dispute-resolve');
 
   const initialSharedVersion = await fetchChallengeSharedVersion(rpcClient, args.challengeId);
 

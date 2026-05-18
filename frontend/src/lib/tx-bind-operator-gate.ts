@@ -46,7 +46,7 @@ export async function buildBindOperatorGateTxKind(
 ): Promise<string> {
   const pkgId = requiredEnv('VITE_PKG_ID');
 
-  const rpcClient = makeSuiJsonRpcClient();
+  const rpcClient = makeSuiJsonRpcClient('tx-bind-operator-gate');
 
   // Resolve GatePolicy initialSharedVersion from chain.
   const policyObject = await rpcClient.getObject({

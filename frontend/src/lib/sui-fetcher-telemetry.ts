@@ -1,14 +1,9 @@
-// sui-fetcher-telemetry.ts — durable, browser-local telemetry for the Sui
-// object fetcher adapter. Records every fetch call and every shadow comparison
-// into an in-memory ring buffer; persists the last N actionable mismatches to
-// localStorage so they survive page reload. Exposes window.__suiFetcherTelemetry
-// for inspection from DevTools.
-//
-// Constraints (load-bearing):
-// - No network ingestion. Browser-local only.
-// - No PII / secrets. Labels are objectId or struct-type strings.
-// - Telemetry never throws into the fetch path; record* swallow internal errors.
-// - Public API of sui-object-fetcher.ts is not affected.
+// sui-fetcher-telemetry.ts — browser-local telemetry for the Sui fetcher adapter.
+// Covers: (1) object/owned-object fetches with shadow comparison, (2) tx-builder
+// JSON-RPC client lifecycle and getObject/getCoins method calls.
+// Persists last N actionable shadow mismatches to localStorage across reload.
+// Inspector: window.__suiFetcherTelemetry.{summary,dump,reset,clearPersisted}.
+// Constraints: browser-local only; no PII/secrets; never throws into fetch path.
 
 import type { SuiObjectData } from './sui-object-fetcher';
 
@@ -48,17 +43,36 @@ export interface ShadowEvent {
   errorMessage?: string;
 }
 
+export type TxClientMethod = 'getObject' | 'getCoins';
+
+export interface TxClientEvent {
+  ts: number;
+  label: string;               // tx builder name, e.g. 'tx-check-passage'
+  event: 'client_created' | 'method_call';
+  method?: TxClientMethod;     // only on method_call
+  durationMs?: number;         // only on method_call
+  ok?: boolean;                // only on method_call
+  errorClass?: string;         // method_call failure (err.name)
+}
+
 interface Counters {
   fetchTotal: number;
   fetchByMode: Record<FetchMode, number>;
   shadowTotal: number;
   shadowByMatch: Record<ShadowMatch, number>;
+  // tx-builder JSON-RPC client telemetry
+  txClientCreated: number;
+  txClientByLabel: Record<string, number>;
+  txMethodTotal: number;
+  txMethodByMethod: Record<TxClientMethod, number>;
+  txMethodErrors: number;
 }
 
 export interface TelemetrySnapshot {
   counters: Counters;
   fetchEvents: FetchEvent[];
   shadowEvents: ShadowEvent[];
+  txClientEvents: TxClientEvent[];
   persistedMismatches: ShadowEvent[];
 }
 
@@ -71,6 +85,7 @@ const LS_KEY = 'sui-fetcher-telemetry-mismatches-v1';
 
 const fetchEvents: FetchEvent[] = [];
 const shadowEvents: ShadowEvent[] = [];
+const txClientEvents: TxClientEvent[] = [];
 
 const counters: Counters = {
   fetchTotal: 0,
@@ -84,6 +99,11 @@ const counters: Counters = {
     'set-mismatch': 0,
     error: 0,
   },
+  txClientCreated: 0,
+  txClientByLabel: {},
+  txMethodTotal: 0,
+  txMethodByMethod: { getObject: 0, getCoins: 0 },
+  txMethodErrors: 0,
 };
 
 function isDev(): boolean {
@@ -136,6 +156,31 @@ export function recordFetch(evt: FetchEvent): void {
     if (isDev()) {
       // eslint-disable-next-line no-console
       console.debug(`${TAG} fetch[${evt.mode}/${evt.kind}] ${evt.label} → ${evt.resultCount} in ${evt.durationMs}ms`);
+    }
+  } catch {
+    // never propagate
+  }
+}
+
+// Tx-builder JSON-RPC client telemetry. Never receives tx bytes, signatures, or keys.
+export function recordTxClient(evt: TxClientEvent): void {
+  try {
+    pushCapped(txClientEvents, evt);
+    if (evt.event === 'client_created') {
+      counters.txClientCreated += 1;
+      counters.txClientByLabel[evt.label] = (counters.txClientByLabel[evt.label] ?? 0) + 1;
+      if (isDev()) {
+        // eslint-disable-next-line no-console
+        console.debug(`${TAG} tx-client created: ${evt.label}`);
+      }
+      return;
+    }
+    counters.txMethodTotal += 1;
+    if (evt.method) counters.txMethodByMethod[evt.method] += 1;
+    if (evt.ok === false) counters.txMethodErrors += 1;
+    if (isDev()) {
+      // eslint-disable-next-line no-console
+      console.debug(`${TAG} tx-method ${evt.method} [${evt.label}] ${evt.ok ? 'ok' : 'err'} in ${evt.durationMs}ms`);
     }
   } catch {
     // never propagate
@@ -278,9 +323,15 @@ function snapshot(): TelemetrySnapshot {
       fetchByMode: { ...counters.fetchByMode },
       shadowTotal: counters.shadowTotal,
       shadowByMatch: { ...counters.shadowByMatch },
+      txClientCreated: counters.txClientCreated,
+      txClientByLabel: { ...counters.txClientByLabel },
+      txMethodTotal: counters.txMethodTotal,
+      txMethodByMethod: { ...counters.txMethodByMethod },
+      txMethodErrors: counters.txMethodErrors,
     },
     fetchEvents: [...fetchEvents],
     shadowEvents: [...shadowEvents],
+    txClientEvents: [...txClientEvents],
     persistedMismatches: readPersisted(),
   };
 }
@@ -288,6 +339,9 @@ function snapshot(): TelemetrySnapshot {
 function summary(): string {
   const s = snapshot();
   const c = s.counters;
+  const labels = Object.entries(c.txClientByLabel)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(' ') || '(none)';
   return [
     `fetch total: ${c.fetchTotal} (jsonrpc=${c.fetchByMode.jsonrpc} graphql=${c.fetchByMode.graphql} shadow=${c.fetchByMode.shadow})`,
     `shadow total: ${c.shadowTotal}`,
@@ -297,6 +351,8 @@ function summary(): string {
     `  null-mismatch:  ${c.shadowByMatch['null-mismatch']}`,
     `  set-mismatch:   ${c.shadowByMatch['set-mismatch']}`,
     `  error:          ${c.shadowByMatch.error}`,
+    `tx-client created: ${c.txClientCreated} (${labels})`,
+    `tx-method total:   ${c.txMethodTotal} (getObject=${c.txMethodByMethod.getObject} getCoins=${c.txMethodByMethod.getCoins}) errors=${c.txMethodErrors}`,
     `persisted mismatches: ${s.persistedMismatches.length}`,
   ].join('\n');
 }
@@ -304,10 +360,16 @@ function summary(): string {
 function reset(): void {
   fetchEvents.length = 0;
   shadowEvents.length = 0;
+  txClientEvents.length = 0;
   counters.fetchTotal = 0;
   counters.shadowTotal = 0;
+  counters.txClientCreated = 0;
+  counters.txClientByLabel = {};
+  counters.txMethodTotal = 0;
+  counters.txMethodErrors = 0;
   (Object.keys(counters.fetchByMode) as FetchMode[]).forEach((k) => { counters.fetchByMode[k] = 0; });
   (Object.keys(counters.shadowByMatch) as ShadowMatch[]).forEach((k) => { counters.shadowByMatch[k] = 0; });
+  (Object.keys(counters.txMethodByMethod) as TxClientMethod[]).forEach((k) => { counters.txMethodByMethod[k] = 0; });
 }
 
 function clearPersisted(): void {

@@ -22,6 +22,37 @@ The legacy `VITE_SUI_OBJECT_FETCHER_SHADOW_GRAPHQL=true` flag still works and ma
 
 ---
 
+## Telemetry Coverage Map
+
+The browser telemetry inspector (`window.__suiFetcherTelemetry`) covers **two distinct frontend paths**:
+
+| Path | Function | Telemetry counters | Fires from |
+|---|---|---|---|
+| Operator discovery | `fetchOwnedObjectsByType`, `fetchSuiObjectRaw` | `fetch total`, `shadow total`, mismatch breakdown | `useOperatorGateAuthority` hook (Policy / Gates tabs) |
+| Tx-builder JSON-RPC | `makeSuiJsonRpcClient(label)` → proxied `getObject` / `getCoins` | `tx-client created`, `tx-method total` (by method + by label), `errors` | Every PTB builder before `tx.build()` |
+
+**Not covered by browser telemetry** (and not migration-blocking for the frontend):
+
+- **`/eve/identity/{wallet}`** — backend (`efrep_indexer::eve_identity::client`) already uses Sui GraphQL server-side. Confirmed in Railway logs: `source="sui_graphql"`. The frontend hits this endpoint instead of Sui directly for character/profile lookup.
+- **Other `/api/*` endpoints** — Railway-backed; the indexer aggregates and serves cached projections.
+
+Tx-builder labels in use:
+
+| Label | File |
+|---|---|
+| `tx-authorize-fw-extension` | `tx-authorize-fw-extension.ts` |
+| `tx-bind-operator-gate` | `tx-bind-operator-gate.ts` |
+| `tx-bind-world-gate` | `tx-bind-world-gate.ts` |
+| `tx-check-passage` | `tx-check-passage.ts` |
+| `tx-dispute-vote` | `tx-dispute.ts` (`buildVoteChallengeTx`) |
+| `tx-dispute-resolve` | `tx-dispute.ts` (`buildResolveChallengeTx`) |
+| `tx-gate-policy` | `tx-gate-policy.ts` |
+| `tx-withdraw-tolls` | `tx-withdraw-tolls.ts` |
+
+`makeSuiJsonRpcClient()` without a label records as `unlabeled` — no callsites should produce that bucket; if `unlabeled > 0` in production, a new callsite was added without a label.
+
+---
+
 ## Shadow Mode Summary
 
 `VITE_SUI_OBJECT_FETCHER_MODE=shadow` fires parallel GraphQL calls fire-and-forget alongside

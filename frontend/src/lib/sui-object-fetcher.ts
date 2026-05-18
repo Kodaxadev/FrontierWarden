@@ -1,14 +1,7 @@
-// sui-object-fetcher.ts — Adapter layer: all Sui JSON-RPC construction, object
-// resolution, and owned-object listing lives here. No other file should build
-// raw RPC fetch calls or construct a SuiJsonRpcClient directly.
-//
-// Active source: VITE_SUI_OBJECT_FETCHER_MODE=jsonrpc|graphql|shadow (default: jsonrpc).
-// graphql: experimental — use only after live wallet smoke confirms parity.
-// shadow: returns JSON-RPC result; fires semantic GQL comparison in background.
-// All fetch calls + shadow results recorded via ./sui-fetcher-telemetry.
-// Inspect from DevTools: window.__suiFetcherTelemetry.summary()
-// See SUI_JSON_RPC_DEPRECATION_SPIKE.md for cutover plan.
-//
+// sui-object-fetcher.ts — Adapter for all Sui JSON-RPC object/owned reads.
+// VITE_SUI_OBJECT_FETCHER_MODE=jsonrpc|graphql|shadow (default jsonrpc).
+// Fetches + shadow + tx-client telemetry routed through sui-fetcher-telemetry.
+// Inspect: window.__suiFetcherTelemetry.summary(). See SUI_JSON_RPC_DEPRECATION_SPIKE.md.
 // tx.build() constraint: no client in tx.build(). See tx-check-passage.ts.
 
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
@@ -17,6 +10,8 @@ import {
   compareObject,
   recordFetch,
   recordShadowError,
+  recordTxClient,
+  type TxClientMethod,
 } from './sui-fetcher-telemetry';
 
 // ── Network helpers ───────────────────────────────────────────────────────────
@@ -27,8 +22,7 @@ function suiNetwork(): SuiNetworkType {
   return ((import.meta.env.VITE_SUI_NETWORK as string | undefined) ?? 'testnet') as SuiNetworkType;
 }
 
-// Returns the Sui JSON-RPC URL for the current network.
-// VITE_SUI_RPC_URL overrides if set (for custom endpoints or local nodes).
+// Sui JSON-RPC URL for current network; VITE_SUI_RPC_URL overrides if set.
 export function suiRpcUrl(): string {
   const override = (import.meta.env as Record<string, string | undefined>).VITE_SUI_RPC_URL;
   return override ?? getJsonRpcFullnodeUrl(suiNetwork());
@@ -36,17 +30,41 @@ export function suiRpcUrl(): string {
 
 // ── SuiJsonRpcClient (tx builder path) ───────────────────────────────────────
 
-// Returns a SuiJsonRpcClient for object and coin pre-resolution by tx builders.
-// Must NOT be passed into tx.build() — see tx-check-passage.ts for the constraint.
-export function makeSuiJsonRpcClient(): SuiJsonRpcClient {
-  return new SuiJsonRpcClient({
-    url: suiRpcUrl(),
-    network: suiNetwork(),
+// SuiJsonRpcClient for object/coin pre-resolution by tx builders. Must NOT enter tx.build().
+// `label` identifies the tx builder for telemetry (e.g. 'tx-check-passage').
+export function makeSuiJsonRpcClient(label: string = 'unlabeled'): SuiJsonRpcClient {
+  const client = new SuiJsonRpcClient({ url: suiRpcUrl(), network: suiNetwork() });
+  recordTxClient({ ts: Date.now(), label, event: 'client_created' });
+  return instrumentTxClient(client, label);
+}
+
+// Proxy getObject/getCoins; pass-through with bind(target) for everything else.
+const TX_METHODS: ReadonlySet<TxClientMethod> = new Set(['getObject', 'getCoins']);
+function instrumentTxClient(client: SuiJsonRpcClient, label: string): SuiJsonRpcClient {
+  return new Proxy(client, {
+    get(target, prop) {
+      const value = (target as unknown as Record<string | symbol, unknown>)[prop];
+      if (typeof prop === 'string' && TX_METHODS.has(prop as TxClientMethod) && typeof value === 'function') {
+        const orig = (value as (...args: unknown[]) => Promise<unknown>).bind(target);
+        return async function (...args: unknown[]) {
+          const start = Date.now();
+          const method = prop as TxClientMethod;
+          try {
+            const result = await orig(...args);
+            recordTxClient({ ts: Date.now(), label, event: 'method_call', method, durationMs: Date.now() - start, ok: true });
+            return result;
+          } catch (err) {
+            recordTxClient({ ts: Date.now(), label, event: 'method_call', method, durationMs: Date.now() - start, ok: false, errorClass: err instanceof Error ? err.name : 'unknown' });
+            throw err;
+          }
+        };
+      }
+      return typeof value === 'function' ? (value as (...a: unknown[]) => unknown).bind(target) : value;
+    },
   });
 }
 
-// ── Raw JSON-RPC wire types ───────────────────────────────────────────────────
-// Exported so operator-gate-authority.ts parsers do not redeclare them.
+// ── Raw JSON-RPC wire types (re-used by operator-gate-authority.ts parsers) ──
 export interface SuiObjectData {
   objectId?: string;
   version?: string;
@@ -88,8 +106,7 @@ async function suiRpc<T>(method: string, params: unknown[]): Promise<T> {
 
 // ── JSON-RPC public helpers (current source of truth) ────────────────────────
 
-// Fetch all owned objects of a specific struct type, paginating automatically.
-// In shadow/graphql mode, delegates to or compares against the GraphQL path.
+// Fetch all owned objects of a struct type. Shadow/graphql mode routes via GraphQL.
 export async function fetchOwnedObjectsByType(
   owner: string,
   type: string,
@@ -138,8 +155,7 @@ export async function fetchOwnedObjectsByType(
   return objects;
 }
 
-// Fetch a single object by ID with content, owner, and type fields populated.
-// In shadow/graphql mode, delegates to or compares against the GraphQL path.
+// Fetch a single object with content/owner/type. Shadow/graphql mode routes via GraphQL.
 export async function fetchSuiObjectRaw(objectId: string): Promise<SuiObjectData | null> {
   const mode = objectFetcherMode();
   const start = Date.now();
@@ -206,9 +222,7 @@ function objectFetcherMode(): ObjectFetcherMode {
 }
 
 // ── GraphQL query strings ─────────────────────────────────────────────────────
-// Query shapes from Documents/SUI_JSON_RPC_DEPRECATION_SPIKE.md, Phase 2.
-// `address` added to GetObject so the mapped SuiObjectData.objectId is available.
-// `type { repr }` and `owner` added to OwnedObjects nodes to match full SuiObjectData shape.
+// Shapes from SUI_JSON_RPC_DEPRECATION_SPIKE.md Phase 2. GetObject includes address+owner; owned nodes are MoveObjects.
 
 const GQL_GET_OBJECT = `
   query GetObject($id: SuiAddress!) {
@@ -230,9 +244,8 @@ const GQL_GET_OBJECT = `
   }
 `;
 
-// address.objects.nodes returns MoveObject[] directly — `contents` and `owner`
-// are top-level on each node. No `asMoveObject` cast (that's only on the
-// generic `Object` type used by GetObject for single lookups).
+// address.objects.nodes returns MoveObject[] — contents/owner are top-level,
+// no asMoveObject cast (that's only on the generic Object type from GetObject).
 const GQL_GET_OWNED_OBJECTS = `
   query OwnedObjects($owner: SuiAddress!, $type: String, $cursor: String) {
     address(address: $owner) {
@@ -312,9 +325,7 @@ async function suiGql<T>(
 }
 
 // ── GraphQL → SuiObjectData mapper ───────────────────────────────────────────
-// Maps GraphQL response shapes to the SuiObjectData wire format that
-// operator-gate-authority.ts parsers expect.
-// owner variants mirror JSON-RPC: { AddressOwner: "0x..." } | { Shared: { initial_shared_version: N } }
+// Owner variants mirror JSON-RPC: { AddressOwner: "0x..." } | { Shared: { initial_shared_version: N } }
 // content.fields mirrors JSON-RPC: the parsed Move fields object
 
 function mapGqlOwner(owner: GqlObjectOwner | null | undefined): unknown {
@@ -338,8 +349,7 @@ function mapGqlOwner(owner: GqlObjectOwner | null | undefined): unknown {
 
 function mapGqlObject(node: GqlObject): SuiObjectData | null {
   if (!node.address) return null;
-  // OwnedObjects path returns MoveObject nodes with `contents` directly.
-  // GetObject path returns `Object` with contents nested under asMoveObject.
+  // OwnedObjects: contents top-level on MoveObject. GetObject: nested under asMoveObject.
   const contents = node.contents ?? node.asMoveObject?.contents ?? null;
   return {
     objectId: node.address,
