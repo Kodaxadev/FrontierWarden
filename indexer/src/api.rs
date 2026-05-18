@@ -1,4 +1,4 @@
-use axum::http::{HeaderValue, Method};
+use axum::http::{header, HeaderValue, Method};
 use axum::{middleware, routing::get, Json, Router};
 use serde::Serialize;
 use sqlx::PgPool;
@@ -73,14 +73,17 @@ pub(crate) fn router_with_security(
 }
 
 fn cors_layer() -> CorsLayer {
+    let allowed_headers = [header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT];
+    let allowed_methods = [Method::GET, Method::POST, Method::OPTIONS];
+
     let allow_any = std::env::var("EFREP_CORS_ALLOW_ANY")
         .unwrap_or_default()
         .eq_ignore_ascii_case("true");
 
     if allow_any {
         return CorsLayer::new()
-            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-            .allow_headers(Any)
+            .allow_methods(allowed_methods)
+            .allow_headers(allowed_headers)
             .allow_origin(Any);
     }
 
@@ -96,8 +99,8 @@ fn cors_layer() -> CorsLayer {
         .filter_map(|o| o.parse().ok())
         .collect();
     CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers(Any)
+        .allow_methods(allowed_methods)
+        .allow_headers(allowed_headers)
         .allow_origin(allowed)
 }
 
