@@ -51,7 +51,7 @@ export async function buildWithdrawTollsTxKind(
     throw new Error('withdraw tolls tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
-  const rpcClient = makeSuiJsonRpcClient();
+  const rpcClient = makeSuiJsonRpcClient('tx-withdraw-tolls');
 
   // Resolve AdminCap version/digest from chain.
   const adminCapObject = await rpcClient.getObject({

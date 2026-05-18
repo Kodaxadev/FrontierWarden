@@ -116,7 +116,7 @@ export async function buildCheckPassageTxKind(
     const gatePolicyVersion = normalizeObjectVersion(requiredEnv('VITE_GATE_POLICY_VERSION'));
 
     step = 'rpcClient';
-    const rpcClient = makeSuiJsonRpcClient();
+    const rpcClient = makeSuiJsonRpcClient('tx-check-passage');
 
     devLog('[CHECK_PASSAGE] v5 step=start', { network: import.meta.env.VITE_SUI_NETWORK ?? 'testnet' });
 

@@ -53,7 +53,7 @@ export async function buildGatePolicyUpdateTxKind(
     throw new Error('gate policy tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
-  const rpcClient = makeSuiJsonRpcClient();
+  const rpcClient = makeSuiJsonRpcClient('tx-gate-policy');
 
   // Resolve AdminCap version/digest from chain.
   const adminCapObject = await rpcClient.getObject({
