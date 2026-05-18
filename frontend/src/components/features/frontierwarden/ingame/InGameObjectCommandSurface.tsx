@@ -2,45 +2,19 @@
 // for operators inside the EVE Frontier smart assembly frame.
 //
 // Reads assembly context from SmartObjectProvider, determines the object
-// type, and renders the appropriate screen placeholder. Full object-specific
-// behavior is implemented in later branches.
+// type, and renders the appropriate screen. Gate screen is implemented;
+// other types show placeholders.
 
 import { useSmartObject } from '@evefrontier/dapp-kit';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { assemblyToScreen, SCREEN_LABELS } from './ingame-object-types';
 import type { InGameScreen } from './ingame-object-types';
+import { AttOperatorBar } from './ingame-ui';
+import { GateObjectSurface } from './GateObjectSurface';
 
 const shortId = (value: string) =>
   value.length <= 14 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
-
-/** ATT. OPERATOR warning strip — matches EVE Frontier in-game visual language. */
-function AttOperatorBar({ tone, children }: { tone: 'blue' | 'amber' | 'crimson'; children: React.ReactNode }) {
-  const bg = tone === 'crimson'
-    ? 'rgba(255,85,104,0.14)'
-    : tone === 'amber'
-      ? 'rgba(245,158,11,0.14)'
-      : 'rgba(0,120,255,0.14)';
-  const color = tone === 'crimson'
-    ? 'var(--c-crimson, #ff5568)'
-    : tone === 'amber'
-      ? 'var(--c-amber, #f59e0b)'
-      : 'var(--c-hi, #00d2ff)';
-  return (
-    <div style={{
-      background: bg,
-      borderLeft: `3px solid ${color}`,
-      color,
-      fontSize: 11,
-      fontWeight: 700,
-      letterSpacing: 1.2,
-      padding: '10px 14px',
-      textTransform: 'uppercase',
-    }}>
-      {children}
-    </div>
-  );
-}
 
 /** Dense operator context strip for in-game mode. */
 function ContextStrip({ wallet, objectId, screen }: {
@@ -85,7 +59,7 @@ function ContextCell({ label, value, tone }: { label: string; value: string; ton
   );
 }
 
-/** Object screen placeholder — rendered per assembly type. */
+/** Object screen placeholder for types not yet implemented. */
 function ObjectScreenPlaceholder({ screen, objectId }: { screen: InGameScreen; objectId: string | null }) {
   return (
     <div style={{
@@ -104,7 +78,8 @@ function ObjectScreenPlaceholder({ screen, objectId }: { screen: InGameScreen; o
         {SCREEN_LABELS[screen]}
       </div>
       <div className="c-sub" style={{ marginBottom: 12 }}>
-        Object-specific controls for this screen are coming in branch <code>codex/gate-object-command-surface</code>.
+        Object-specific controls for this screen type are not yet implemented.
+        Use the full web command center for detailed operations.
       </div>
       {objectId && (
         <div className="c-kv">
@@ -173,8 +148,9 @@ export function InGameObjectCommandSurface() {
           </AttOperatorBar>
         )}
 
-        {/* Object screen */}
-        {!loading && !error && (
+        {/* Object screen — gate is implemented, others show placeholder */}
+        {!loading && !error && screen === 'gate' && <GateObjectSurface />}
+        {!loading && !error && screen !== 'gate' && (
           <ObjectScreenPlaceholder screen={screen} objectId={objectId} />
         )}
 
