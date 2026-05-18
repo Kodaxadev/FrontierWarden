@@ -98,16 +98,22 @@ pub async fn resolve_identity_via_graphql(
             };
 
             tracing::info!(
-                wallet = %wallet,
                 identity_status = identity_status,
-                player_profile_type = eve_cfg.player_profile_type,
+                has_profile = player_profile_object.is_some(),
+                has_character = character_id.is_some(),
+                has_tribe = tribe_id.is_some(),
+                has_tenant = tenant.is_some(),
+                source = "sui_graphql",
+                "EVE identity lookup complete"
+            );
+            tracing::debug!(
+                wallet = %wallet,
                 player_profile_object = ?player_profile_object,
                 character_id = ?character_id,
                 tribe_id = ?tribe_id,
                 character_name = ?character_name,
                 tenant = ?tenant,
-                source = "sui_graphql",
-                "EVE identity lookup complete"
+                "EVE identity lookup detail"
             );
 
             let fw_profile = resolve_fw_profile_id(pool, &wallet).await?;

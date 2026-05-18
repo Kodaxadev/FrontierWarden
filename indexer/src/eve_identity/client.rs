@@ -173,7 +173,7 @@ pub(crate) async fn fetch_character_object(
         .map(|s| s.to_string())
         .filter(|s| !s.is_empty());
 
-    tracing::info!(
+    tracing::debug!(
         character_id = character_id,
         tribe_id = ?tribe_id,
         tenant = ?tenant,
@@ -192,7 +192,7 @@ pub(crate) async fn fetch_character_object(
 }
 
 /// Diagnostic probe: tests minimal GraphQL queries to identify what the Sui GraphQL
-/// endpoint accepts. Logs results at info level for debugging.
+/// endpoint accepts. Logs at debug/trace; enable with RUST_LOG=eve_identity=debug.
 async fn graphql_compatibility_probe(
     client: &Client,
     graphql_url: &str,
@@ -205,7 +205,7 @@ async fn graphql_compatibility_probe(
         "variables": { "address": wallet }
     });
 
-    tracing::info!(wallet = wallet, graphql_url = graphql_url, body = %test_a, "GraphQL probe A: TestAddress");
+    tracing::debug!(wallet = wallet, graphql_url = graphql_url, "GraphQL probe A: TestAddress");
 
     let res = client
         .post(graphql_url)
@@ -224,7 +224,8 @@ async fn graphql_compatibility_probe(
         .to_string();
     let body_text = res.text().await?;
 
-    tracing::info!(http_status = status.as_u16(), content_type = ct, body = %body_text, "GraphQL probe A response");
+    tracing::debug!(http_status = status.as_u16(), content_type = ct, "GraphQL probe A response");
+    tracing::trace!(body = %body_text, "GraphQL probe A response body");
 
     if !status.is_success() {
         return Err(anyhow::anyhow!(
@@ -237,7 +238,7 @@ async fn graphql_compatibility_probe(
         "variables": { "address": wallet }
     });
 
-    tracing::info!(wallet = wallet, body = %test_b, "GraphQL probe B: GetOwnedObjects (no type filter)");
+    tracing::debug!(wallet = wallet, "GraphQL probe B: GetOwnedObjects (no type filter)");
 
     let res = client
         .post(graphql_url)
@@ -256,7 +257,8 @@ async fn graphql_compatibility_probe(
         .to_string();
     let body_text = res.text().await?;
 
-    tracing::info!(http_status = status.as_u16(), content_type = ct, body_preview = %body_text.chars().take(1024).collect::<String>(), "GraphQL probe B response");
+    tracing::debug!(http_status = status.as_u16(), content_type = ct, "GraphQL probe B response");
+    tracing::trace!(body_preview = %body_text.chars().take(1024).collect::<String>(), "GraphQL probe B response body");
 
     if !status.is_success() {
         return Err(anyhow::anyhow!(
@@ -272,7 +274,7 @@ async fn graphql_compatibility_probe(
         .and_then(|o| o.get("nodes"))
         .and_then(|n| n.as_array())
     {
-        tracing::info!(node_count = nodes.len(), "GraphQL probe B: found nodes");
+        tracing::debug!(node_count = nodes.len(), "GraphQL probe B: found nodes");
         for (i, node) in nodes.iter().enumerate() {
             if let Some(type_repr) = node
                 .get("contents")
@@ -280,7 +282,7 @@ async fn graphql_compatibility_probe(
                 .and_then(|t| t.get("repr"))
                 .and_then(|r| r.as_str())
             {
-                tracing::info!(
+                tracing::debug!(
                     node_index = i,
                     type_repr = type_repr,
                     "GraphQL probe B: type.repr"
@@ -309,7 +311,7 @@ pub(crate) async fn fetch_player_profile(
 
     match graphql_compatibility_probe(&client, graphql_url, wallet).await {
         Ok(reprs) => {
-            tracing::info!(wallet = wallet, type_reprs = ?reprs, "GraphQL compatibility probe complete");
+            tracing::debug!(wallet = wallet, type_reprs = ?reprs, "GraphQL compatibility probe complete");
         }
         Err(e) => {
             tracing::warn!(wallet = wallet, error = %e, "GraphQL compatibility probe failed — endpoint may be unreachable");
