@@ -33,6 +33,8 @@ export type ActionErrorClass =
   | SponsoredErrorClass
   | 'wallet_not_connected'
   | 'config_missing'
+  | 'challenge_not_shared'
+  | 'challenge_not_found'
   | 'unknown';
 
 export interface ActionEvent {
