@@ -5,7 +5,7 @@ import type { FwAlert } from './fw-data';
 const TABS: { id: FwTab; label: string }[] = [
   { id: 'onboarding', label: 'ONBOARDING'  },
   { id: 'sentinel',   label: 'NODE SENTINEL' },
-  { id: 'gates',      label: 'GATE INTEL'  },
+  { id: 'gates',      label: 'GATE OPS'    },
   { id: 'trust',      label: 'TRUST'       },
   { id: 'killboard',  label: 'KILLBOARD'   },
   { id: 'reputation', label: 'TRUST DOSSIER' },
