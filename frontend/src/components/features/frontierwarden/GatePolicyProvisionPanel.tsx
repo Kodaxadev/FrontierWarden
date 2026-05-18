@@ -120,9 +120,11 @@ export function GatePolicyProvisionPanel() {
         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
         gap: 18,
       }}>
-        <label>
+        <label htmlFor="provision-schema">
           <div className="c-policy__label">Schema ID</div>
           <input
+            id="provision-schema"
+            name="provision-schema"
             className="c-input"
             type="text"
             value={draftSchema}
@@ -130,9 +132,11 @@ export function GatePolicyProvisionPanel() {
             placeholder="TRIBE_STANDING"
           />
         </label>
-        <label>
+        <label htmlFor="provision-threshold">
           <div className="c-policy__label">Ally Threshold</div>
           <input
+            id="provision-threshold"
+            name="provision-threshold"
             className="c-input"
             inputMode="numeric"
             min={1}
@@ -142,9 +146,11 @@ export function GatePolicyProvisionPanel() {
             onChange={(e) => setDraftThreshold(Number(e.target.value))}
           />
         </label>
-        <label>
+        <label htmlFor="provision-toll">
           <div className="c-policy__label">Base Toll (MIST)</div>
           <input
+            id="provision-toll"
+            name="provision-toll"
             className="c-input"
             inputMode="numeric"
             min={0}

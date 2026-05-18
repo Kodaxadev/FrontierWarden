@@ -134,31 +134,37 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
-          <label>
+          <label htmlFor="dispute-attestation">
             <div className="c-policy__label">Attestation Object</div>
             <input
+              id="dispute-attestation"
+              name="dispute-attestation"
               className="c-input"
               value={attestationId}
               onChange={event => setAttestationId(event.target.value)}
               style={{ borderColor: attestationId && !attestationValid ? 'var(--c-crimson)' : '' }}
             />
           </label>
-          <label>
+          <label htmlFor="dispute-oracle">
             <div className="c-policy__label">Oracle Address</div>
             <input
+              id="dispute-oracle"
+              name="dispute-oracle"
               className="c-input"
               value={oracleAddress}
               onChange={event => setOracleAddress(event.target.value)}
               style={{ borderColor: oracleAddress && !oracleValid ? 'var(--c-crimson)' : '' }}
             />
           </label>
-          <label>
+          <label htmlFor="dispute-evidence">
             <div className="c-policy__label">Evidence Hash / Note</div>
-            <input className="c-input" value={evidence} onChange={event => setEvidence(event.target.value)} />
+            <input id="dispute-evidence" name="dispute-evidence" className="c-input" value={evidence} onChange={event => setEvidence(event.target.value)} />
           </label>
-          <label>
+          <label htmlFor="dispute-stake">
             <div className="c-policy__label">Stake (MIST)</div>
             <input
+              id="dispute-stake"
+              name="dispute-stake"
               className="c-input"
               type="number"
               min={MIN_CHALLENGE_STAKE}
@@ -200,9 +206,9 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
       }}>
         <div className="c-stat__label" style={{ marginBottom: 14 }}>Council Actions</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-end' }}>
-          <label style={{ flex: '1 1 260px' }}>
+          <label htmlFor="dispute-challenge" style={{ flex: '1 1 260px' }}>
             <div className="c-policy__label">Challenge</div>
-            <select className="c-input" value={selectedChallenge} onChange={event => setSelectedChallenge(event.target.value)}>
+            <select id="dispute-challenge" name="dispute-challenge" className="c-input" value={selectedChallenge} onChange={event => setSelectedChallenge(event.target.value)}>
               <option value="">Select challenge</option>
               {rows.map(row => (
                 <option key={row.challenge_id} value={row.challenge_id}>

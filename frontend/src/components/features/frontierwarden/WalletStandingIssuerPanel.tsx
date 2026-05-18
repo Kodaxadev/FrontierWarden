@@ -66,9 +66,11 @@ export function WalletStandingIssuerPanel() {
         gap: 12,
         marginBottom: 14,
       }}>
-        <label style={{ gridColumn: 'span 2' }}>
+        <label htmlFor="issuer-subject" style={{ gridColumn: 'span 2' }}>
           <div className="c-policy__label">Subject Address</div>
           <input
+            id="issuer-subject"
+            name="issuer-subject"
             className="c-input"
             placeholder="0x..."
             value={subject}
@@ -76,9 +78,11 @@ export function WalletStandingIssuerPanel() {
             style={{ borderColor: subject && !validAddress(subject) ? 'var(--c-crimson)' : '' }}
           />
         </label>
-        <label>
+        <label htmlFor="issuer-score">
           <div className="c-policy__label">Standing Score</div>
           <input
+            id="issuer-score"
+            name="issuer-score"
             className="c-input"
             type="number"
             min={0}
@@ -87,9 +91,11 @@ export function WalletStandingIssuerPanel() {
             onChange={event => setScore(Number(event.target.value))}
           />
         </label>
-        <label>
+        <label htmlFor="issuer-expiry">
           <div className="c-policy__label">Expiry (epochs)</div>
           <input
+            id="issuer-expiry"
+            name="issuer-expiry"
             className="c-input"
             type="number"
             min={1}
