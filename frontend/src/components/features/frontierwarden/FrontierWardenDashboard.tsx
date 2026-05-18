@@ -4,7 +4,9 @@
 import { useState } from 'react';
 import { FwHeader }           from './FwHeader';
 import { FwNav }              from './FwNav';
+import { OnboardingWizardShell } from './OnboardingWizardShell';
 import { OperatorContextBar } from './OperatorContextBar';
+import { useOperatorContextSignals } from './operator-context-signals';
 import { NodeSentinelView }   from './views/NodeSentinelView';
 import { GateIntelView }      from './views/GateIntelView';
 import { KillboardView }      from './views/KillboardView';
@@ -18,18 +20,19 @@ import { TrustConsoleView }   from './views/TrustConsoleView';
 import { useFrontierWardenData } from '../../../hooks/useFrontierWardenData';
 import { useDemoFallback } from '../../../hooks/useDemoFallback';
 
-export type FwTab = 'sentinel' | 'gates' | 'trust' | 'killboard' | 'reputation' | 'contracts' | 'policy' | 'oracle' | 'social' | 'disputes';
+export type FwTab = 'onboarding' | 'sentinel' | 'gates' | 'trust' | 'killboard' | 'reputation' | 'contracts' | 'policy' | 'oracle' | 'social' | 'disputes';
 
 export function FrontierWardenDashboard() {
   const [tab, setTab] = useState<FwTab>('sentinel');
   const { demoEnabled, toggleDemo } = useDemoFallback();
   const { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, eveIdentity, eveIdentityMap } = useFrontierWardenData({ demoEnabled });
+  const operatorSignals = useOperatorContextSignals(data, eveIdentity);
 
   return (
     <div className="c-shell">
       <FwHeader data={data} />
       <FwNav active={tab} onChange={setTab} alerts={data.alerts} />
-      <OperatorContextBar data={data} eveIdentity={eveIdentity} />
+      <OperatorContextBar signals={operatorSignals} />
       <div className="c-view">
         {/* Demo toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
@@ -43,6 +46,7 @@ export function FrontierWardenDashboard() {
           <span className="c-sub">{demoEnabled ? 'Mock data shown when live API returns no rows' : 'Only live indexer data — no fallback'}</span>
         </div>
 
+        {tab === 'onboarding' && <OnboardingWizardShell signals={operatorSignals} onNavigate={setTab} />}
         {tab === 'sentinel'   && <NodeSentinelView data={data} live={live} loading={loading} error={error} eveIdentity={eveIdentity} eveIdentityMap={eveIdentityMap} />}
         {tab === 'gates'      && <GateIntelView  data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
         {tab === 'trust'      && <TrustConsoleView data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
