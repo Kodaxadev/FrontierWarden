@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { useWallets } from '@mysten/dapp-kit-react';
@@ -8,6 +9,10 @@ import type { SessionScheme } from '../../../hooks/useOperatorSession';
 interface Props {
   children: ReactNode;
 }
+
+type OperatorSessionContextValue = ReturnType<typeof useOperatorSession>;
+
+const OperatorSessionContext = createContext<OperatorSessionContextValue | null>(null);
 
 const short = (value: string | null) =>
   value && value.length > 16 ? `${value.slice(0, 8)}...${value.slice(-6)}` : value ?? '-';
@@ -34,7 +39,8 @@ const SCHEME_LABEL: Record<SessionScheme, string> = {
 
 export function OperatorSessionGate({ children }: Props) {
   const wallets = useWallets();
-  const { authenticate, clearSession, isAuthenticated, state } = useOperatorSession();
+  const session = useOperatorSession();
+  const { authenticate, clearSession, isAuthenticated, state } = session;
   const filteredWallets = wallets.filter(isNotSlush);
   const eveWallets = filteredWallets.filter(isEveWallet);
   const modalOptions = eveWallets.length > 0
@@ -50,7 +56,8 @@ export function OperatorSessionGate({ children }: Props) {
     state.sessionWalletName !== state.currentWalletName;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <OperatorSessionContext.Provider value={session}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{
         borderBottom: '1px solid var(--c-border)',
         color: 'var(--c-mid)',
@@ -114,6 +121,15 @@ export function OperatorSessionGate({ children }: Props) {
         )}
       </div>
       {children}
-    </div>
+      </div>
+    </OperatorSessionContext.Provider>
   );
+}
+
+export function useOperatorSessionContext(): OperatorSessionContextValue {
+  const context = useContext(OperatorSessionContext);
+  if (!context) {
+    throw new Error('useOperatorSessionContext must be used within OperatorSessionGate');
+  }
+  return context;
 }

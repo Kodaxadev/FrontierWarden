@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { FwHeader }           from './FwHeader';
 import { FwNav }              from './FwNav';
+import { OperatorContextBar } from './OperatorContextBar';
 import { NodeSentinelView }   from './views/NodeSentinelView';
 import { GateIntelView }      from './views/GateIntelView';
 import { KillboardView }      from './views/KillboardView';
@@ -28,6 +29,7 @@ export function FrontierWardenDashboard() {
     <div className="c-shell">
       <FwHeader data={data} />
       <FwNav active={tab} onChange={setTab} alerts={data.alerts} />
+      <OperatorContextBar data={data} eveIdentity={eveIdentity} />
       <div className="c-view">
         {/* Demo toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
