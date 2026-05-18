@@ -54,6 +54,30 @@ function bytes(value: string): number[] {
   return Array.from(new TextEncoder().encode(trimmed));
 }
 
+export class ChallengeNotSharedError extends Error {
+  readonly challengeId: string;
+  readonly ownerSnapshot: unknown;
+
+  constructor(challengeId: string, owner: unknown) {
+    super(
+      `This challenge is not actionable because the on-chain FraudChallenge object is not shared or could not be resolved.`,
+    );
+    this.name = 'ChallengeNotSharedError';
+    this.challengeId = challengeId;
+    this.ownerSnapshot = owner;
+  }
+}
+
+export class ChallengeNotFoundError extends Error {
+  readonly challengeId: string;
+
+  constructor(challengeId: string) {
+    super(`This challenge object was not found on-chain. It may be stale, already consumed, or unavailable.`);
+    this.name = 'ChallengeNotFoundError';
+    this.challengeId = challengeId;
+  }
+}
+
 /**
  * Fetch the initialSharedVersion for a FraudChallenge shared object.
  * FraudChallenge is created via transfer::share_object — its owner field
@@ -68,7 +92,7 @@ async function fetchChallengeSharedVersion(
     options: { showBcs: false },
   });
   if (!obj?.data) {
-    throw new Error(`dispute tx: FraudChallenge object not found: ${challengeId}`);
+    throw new ChallengeNotFoundError(challengeId);
   }
   const owner = obj.data.owner;
   if (typeof owner === 'object' && owner !== null && 'Shared' in owner) {
@@ -76,9 +100,7 @@ async function fetchChallengeSharedVersion(
     const n = Number(v);
     if (Number.isFinite(n) && n > 0) return n;
   }
-  throw new Error(
-    `dispute tx: FraudChallenge ${challengeId} is not a shared object (owner: ${JSON.stringify(owner)})`,
-  );
+  throw new ChallengeNotSharedError(challengeId, owner);
 }
 
 export function missingDisputeConfig(): ConfigKey[] {

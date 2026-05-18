@@ -71,7 +71,9 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
   const attestationValid = /^0x[0-9a-fA-F]{64}$/.test(attestationId);
   const oracleValid = /^0x[0-9a-fA-F]{64}$/.test(oracleAddress);
   const canCreate = Boolean(account && attestationValid && oracleValid && evidence.trim() && stakeMist >= MIN_CHALLENGE_STAKE && !busy);
-  const canAct = Boolean(account && selectedChallenge && !busy);
+  const selectedRow = rows.find(r => r.challenge_id === selectedChallenge);
+  const selectedResolved = selectedRow?.resolved === true;
+  const canAct = Boolean(account && selectedChallenge && !busy && !selectedResolved);
 
   return (
     <>
@@ -219,8 +221,14 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
             RESOLVE
           </button>
         </div>
+        {selectedResolved && (
+          <div className="c-sub" style={{ marginTop: 10, color: 'var(--c-amber)' }}>
+            This challenge is already resolved. Vote and resolve actions are disabled.
+          </div>
+        )}
         <div className="c-sub" style={{ marginTop: 10 }}>
           Voting requires the connected wallet to be a council member. Resolving requires the challenge deadline to have passed.
+          If a challenge fails with "not actionable," the on-chain object may not be shared or may have been consumed.
         </div>
       </div>
 

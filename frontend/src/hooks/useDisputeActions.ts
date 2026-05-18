@@ -4,6 +4,8 @@ import {
   buildCreateChallengeTx,
   buildResolveChallengeTx,
   buildVoteChallengeTx,
+  ChallengeNotFoundError,
+  ChallengeNotSharedError,
   disputeConfigReady,
   missingDisputeConfig,
   type CreateChallengeArgs,
@@ -85,8 +87,14 @@ export function useDisputeActions() {
       setState(next);
       return next;
     } catch (err) {
-      const msg = humanise(err);
-      record('failed', classifySponsoredError(msg));
+      const errorClass =
+        err instanceof ChallengeNotSharedError ? 'challenge_not_shared' :
+        err instanceof ChallengeNotFoundError ? 'challenge_not_found' :
+        classifySponsoredError(humanise(err));
+      const msg = err instanceof ChallengeNotSharedError || err instanceof ChallengeNotFoundError
+        ? err.message
+        : humanise(err);
+      record('failed', errorClass);
       const next = { step: 'error' as const, digest: null, error: msg };
       setState(next);
       return next;
