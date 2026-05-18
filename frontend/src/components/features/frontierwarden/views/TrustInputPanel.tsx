@@ -46,16 +46,20 @@ export function TrustInputPanel({
       background: 'rgba(8,13,20,0.72)',
       padding: 26,
     }}>
-      <div className="c-stat__label">Subject Wallet</div>
+      <label className="c-stat__label" htmlFor="trust-subject">Subject Wallet</label>
       <input
+        id="trust-subject"
+        name="trust-subject"
         className="c-input"
         value={subject}
         onChange={event => setSubject(event.target.value)}
         spellCheck={false}
       />
 
-      <div className="c-stat__label" style={{ marginTop: 18 }}>Action</div>
+      <label className="c-stat__label" htmlFor="trust-action" style={{ marginTop: 18 }}>Action</label>
       <select
+        id="trust-action"
+        name="trust-action"
         className="c-input"
         value={action}
         onChange={event => setAction(event.target.value as TrustAction)}
@@ -68,8 +72,10 @@ export function TrustInputPanel({
 
       {action === 'gate_access' && (
         <>
-          <div className="c-stat__label" style={{ marginTop: 18 }}>Gate ID</div>
+          <label className="c-stat__label" htmlFor="trust-gate-id" style={{ marginTop: 18 }}>Gate ID</label>
           <input
+            id="trust-gate-id"
+            name="trust-gate-id"
             className="c-input"
             value={gateId}
             onChange={event => setGateId(event.target.value)}
@@ -80,8 +86,10 @@ export function TrustInputPanel({
 
       {(action === 'counterparty_risk' || action === 'bounty_trust') && (
         <>
-          <div className="c-stat__label" style={{ marginTop: 18 }}>Minimum Score</div>
+          <label className="c-stat__label" htmlFor="trust-minimum-score" style={{ marginTop: 18 }}>Minimum Score</label>
           <input
+            id="trust-minimum-score"
+            name="trust-minimum-score"
             className="c-input"
             type="number"
             value={minimumScore}
@@ -90,8 +98,10 @@ export function TrustInputPanel({
         </>
       )}
 
-      <div className="c-stat__label" style={{ marginTop: 18 }}>Schema</div>
+      <label className="c-stat__label" htmlFor="trust-schema" style={{ marginTop: 18 }}>Schema</label>
       <input
+        id="trust-schema"
+        name="trust-schema"
         className="c-input"
         value={schemaId}
         onChange={event => setSchemaId(event.target.value)}
