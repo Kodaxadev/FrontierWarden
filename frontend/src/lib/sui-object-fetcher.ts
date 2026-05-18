@@ -230,6 +230,9 @@ const GQL_GET_OBJECT = `
   }
 `;
 
+// address.objects.nodes returns MoveObject[] directly — `contents` and `owner`
+// are top-level on each node. No `asMoveObject` cast (that's only on the
+// generic `Object` type used by GetObject for single lookups).
 const GQL_GET_OWNED_OBJECTS = `
   query OwnedObjects($owner: SuiAddress!, $type: String, $cursor: String) {
     address(address: $owner) {
@@ -238,9 +241,7 @@ const GQL_GET_OWNED_OBJECTS = `
           address
           version
           digest
-          asMoveObject {
-            contents { json type { repr } }
-          }
+          contents { json type { repr } }
           owner {
             ... on AddressOwner { address { address } __typename }
             ... on ObjectOwner  { address { address } __typename }
@@ -272,7 +273,10 @@ interface GqlObject {
   address?: string;
   version?: string | number;
   digest?: string;
+  // GetObject (single, on `Object`): contents nested under asMoveObject cast.
+  // OwnedObjects (on `MoveObject`): contents directly on the node.
   asMoveObject?: { contents?: GqlMoveContents | null };
+  contents?: GqlMoveContents | null;
   owner?: GqlObjectOwner | null;
 }
 
@@ -334,15 +338,16 @@ function mapGqlOwner(owner: GqlObjectOwner | null | undefined): unknown {
 
 function mapGqlObject(node: GqlObject): SuiObjectData | null {
   if (!node.address) return null;
+  // OwnedObjects path returns MoveObject nodes with `contents` directly.
+  // GetObject path returns `Object` with contents nested under asMoveObject.
+  const contents = node.contents ?? node.asMoveObject?.contents ?? null;
   return {
     objectId: node.address,
     version: node.version != null ? String(node.version) : undefined,
     digest: node.digest,
-    type: node.asMoveObject?.contents?.type?.repr,
+    type: contents?.type?.repr,
     owner: mapGqlOwner(node.owner),
-    content: node.asMoveObject?.contents?.json != null
-      ? { fields: node.asMoveObject.contents.json }
-      : undefined,
+    content: contents?.json != null ? { fields: contents.json } : undefined,
   };
 }
 

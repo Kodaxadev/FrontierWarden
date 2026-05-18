@@ -13,6 +13,16 @@ const TEST_OBJECTS = [
   { id: "0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c", label: "World Gate (shared)" },
 ];
 
+// Known wallet → PlayerProfile type. Exercises the owned-objects path
+// (Address.objects.nodes returns MoveObject[] directly — no asMoveObject cast).
+const OWNED_TESTS = [
+  {
+    owner: "0xabff3b1b9c793cf42f64864b80190fd836ac68391860c0d27491f3ef2fb4430f",
+    type: "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c::character::PlayerProfile",
+    label: "PlayerProfile (gate admin wallet)",
+  },
+];
+
 // ── GraphQL introspection ─────────────────────────────────────────────────────
 
 async function introspectType(typeName) {
@@ -124,6 +134,84 @@ function mapGqlObject(node) {
   };
 }
 
+// ── Owned-objects fetch helpers ───────────────────────────────────────────────
+
+async function rpcGetOwnedObjects(owner, type) {
+  const all = [];
+  let cursor = null;
+  do {
+    const res = await fetch(RPC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0", id: 1, method: "suix_getOwnedObjects",
+        params: [owner, { filter: { StructType: type }, options: { showContent: true, showOwner: true, showType: true } }, cursor, 50],
+      }),
+    });
+    const body = await res.json();
+    if (body.error) throw new Error(`RPC error: ${body.error.message}`);
+    const page = body.result ?? {};
+    for (const env of page.data ?? []) if (env.data) all.push(env.data);
+    cursor = page.hasNextPage ? (page.nextCursor ?? null) : null;
+  } while (cursor);
+  return all;
+}
+
+// Mirror of GQL_GET_OWNED_OBJECTS in frontend/src/lib/sui-object-fetcher.ts.
+// `contents` is on MoveObject directly. No asMoveObject cast.
+const GQL_GET_OWNED = `
+  query OwnedObjects($owner: SuiAddress!, $type: String, $cursor: String) {
+    address(address: $owner) {
+      objects(filter: { type: $type }, after: $cursor, first: 50) {
+        nodes {
+          address version digest
+          contents { json type { repr } }
+          owner {
+            ... on AddressOwner { address { address } __typename }
+            ... on ObjectOwner  { address { address } __typename }
+            ... on Shared { initialSharedVersion __typename }
+            ... on Immutable { __typename }
+            ... on ConsensusAddressOwner { address { address } __typename }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+`;
+
+async function gqlGetOwnedObjects(owner, type) {
+  const all = [];
+  let cursor = null;
+  do {
+    const vars = { owner, type };
+    if (cursor) vars.cursor = cursor;
+    const res = await fetch(GQL_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: GQL_GET_OWNED, variables: vars }),
+    });
+    const body = await res.json();
+    if (body.errors?.length) throw new Error(`GQL error: ${body.errors.map(e => e.message).join('; ')}`);
+    const page = body.data?.address?.objects;
+    if (!page) break;
+    for (const node of page.nodes ?? []) all.push(node);
+    cursor = page.pageInfo?.hasNextPage ? (page.pageInfo.endCursor ?? null) : null;
+  } while (cursor);
+  return all;
+}
+
+function mapGqlOwnedNode(node) {
+  if (!node?.address) return null;
+  const contents = node.contents ?? node.asMoveObject?.contents ?? null;
+  return {
+    objectId: node.address,
+    type: contents?.type?.repr,
+    owner: mapGqlOwner(node.owner),
+    content: contents?.json != null ? { fields: contents.json } : undefined,
+  };
+}
+
 function extractRpcSuiObjectData(rpcObj) {
   if (!rpcObj) return null;
   return {
@@ -188,4 +276,45 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+// ── Owned-objects comparison ─────────────────────────────────────────────────
+
+async function compareOwned() {
+  console.log("\n=== Owned Object Comparisons ===\n");
+  for (const { owner, type, label } of OWNED_TESTS) {
+    console.log(`--- ${label} ---`);
+    console.log(`  owner: ${owner.slice(0, 10)}...`);
+    console.log(`  type:  ${type.split("::").slice(-2).join("::")}`);
+    try {
+      const [rpcList, gqlList] = await Promise.all([rpcGetOwnedObjects(owner, type), gqlGetOwnedObjects(owner, type)]);
+      const rpcIds = new Set(rpcList.map(o => o.objectId).filter(Boolean));
+      const gqlIds = new Set(gqlList.map(n => n.address).filter(Boolean));
+      const missing = [...rpcIds].filter(id => !gqlIds.has(id));
+      const extra   = [...gqlIds].filter(id => !rpcIds.has(id));
+      console.log(`  rpc count:    ${rpcList.length}`);
+      console.log(`  gql count:    ${gqlList.length}`);
+      console.log(`  set match:    ${missing.length === 0 && extra.length === 0}`);
+      if (missing.length) console.log(`    missing in gql: ${missing.length}`);
+      if (extra.length)   console.log(`    extra in gql:   ${extra.length}`);
+      // Per-object semantic check
+      let semanticMismatches = 0;
+      for (const ro of rpcList) {
+        const go = gqlList.find(n => n.address === ro.objectId);
+        if (!go) continue;
+        const rm = extractRpcSuiObjectData(ro);
+        const gm = mapGqlOwnedNode(go);
+        if (rm.type !== gm.type || JSON.stringify(rm.owner) !== JSON.stringify(gm.owner)) {
+          semanticMismatches += 1;
+          console.log(`    semantic mismatch on ${ro.objectId?.slice(0, 10)}…: rpc=${JSON.stringify({t: rm.type, o: rm.owner})} gql=${JSON.stringify({t: gm.type, o: gm.owner})}`);
+        }
+      }
+      console.log(`  semantic match: ${semanticMismatches === 0 ? "all" : `${rpcList.length - semanticMismatches}/${rpcList.length}`}`);
+    } catch (err) {
+      console.log("  ERROR:", err.message);
+    }
+    console.log();
+  }
+}
+
+main()
+  .then(compareOwned)
+  .catch(console.error);
