@@ -14,6 +14,7 @@
 import { toBase64 } from '@mysten/bcs';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
 import { makeSuiJsonRpcClient } from './sui-object-fetcher';
+import { resolveObjectRef } from './sui-tx-object-ref';
 
 // Active only in dev builds with VITE_DEBUG_TX=true.
 const devLog = import.meta.env.DEV && import.meta.env.VITE_DEBUG_TX === 'true'
@@ -158,19 +159,16 @@ export async function buildCheckPassageTxKind(
     devLog('[CHECK_PASSAGE] v5 step=gateArg ok');
 
     step = 'fetchAttestation';
-    const attestationObject = await rpcClient.getObject({
-      id:      normalizeObjectId(args.attestationObjectId),
-      options: { showBcs: false },
-    });
-    if (!attestationObject?.data) {
-      throw new Error(`failed to fetch attestation object ${args.attestationObjectId}`);
-    }
+    const attestationResolved = await resolveObjectRef(
+      normalizeObjectId(args.attestationObjectId),
+      'tx-check-passage',
+    );
 
     step = 'attestationRef';
     const attestationRef = {
-      objectId: normalizeObjectId(args.attestationObjectId),
-      version:  normalizeObjectVersion(attestationObject.data.version),
-      digest:   String(attestationObject.data.digest),
+      objectId: attestationResolved.objectId,
+      version:  normalizeObjectVersion(attestationResolved.version),
+      digest:   attestationResolved.digest,
     };
     devLog('[CHECK_PASSAGE] v5 step=attestationRef', {
       objectId: attestationRef.objectId,

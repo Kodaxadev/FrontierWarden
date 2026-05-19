@@ -15,7 +15,7 @@
 
 import { toBase64 } from '@mysten/bcs';
 import { Transaction } from '@mysten/sui/transactions';
-import { makeSuiJsonRpcClient } from './sui-object-fetcher';
+import { resolveObjectRef } from './sui-tx-object-ref';
 
 const CONFIG_KEYS = ['VITE_PKG_ID'] as const;
 type ConfigKey = typeof CONFIG_KEYS[number];
@@ -63,25 +63,11 @@ export async function buildAuthorizeFWExtensionTxKind(
   const pkgId = requiredEnv('VITE_PKG_ID');
   const worldPkgPublishedAt = args.worldPackagePublishedAt ?? DEFAULT_WORLD_PKG_PUBLISHED_AT;
 
-  const rpcClient = makeSuiJsonRpcClient('tx-authorize-fw-extension');
-
-  // Resolve the Gate object to confirm it exists and get its digest.
-  const gateObject = await rpcClient.getObject({
-    id: args.worldGateId,
-    options: { showBcs: false },
-  });
-  if (!gateObject?.data) {
-    throw new Error(`authorize fw extension tx: failed to fetch world Gate ${args.worldGateId}`);
-  }
-
-  // Resolve the OwnerCap to get its version/digest (for the Receiving reference).
-  const ownerCapObject = await rpcClient.getObject({
-    id: args.ownerCapId,
-    options: { showBcs: false },
-  });
-  if (!ownerCapObject?.data) {
-    throw new Error(`authorize fw extension tx: failed to fetch OwnerCap ${args.ownerCapId}`);
-  }
+  // Resolve Gate and OwnerCap from chain (mode-switched: jsonrpc/graphql/shadow).
+  // Gate is validated to exist; OwnerCap version/digest not used directly
+  // (tx.object handles resolution) but resolveObjectRef confirms existence.
+  await resolveObjectRef(args.worldGateId, 'tx-authorize-fw-extension');
+  await resolveObjectRef(args.ownerCapId, 'tx-authorize-fw-extension');
 
   const tx = new Transaction();
   tx.setSender(args.sender);
