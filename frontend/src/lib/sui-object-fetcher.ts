@@ -4,14 +4,12 @@
 // Inspect: window.__suiFetcherTelemetry.summary(). See SUI_JSON_RPC_DEPRECATION_SPIKE.md.
 // tx.build() constraint: no client in tx.build(). See tx-check-passage.ts.
 
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import {
   compareArray,
   compareObject,
   recordFetch,
   recordShadowError,
-  recordTxClient,
-  type TxClientMethod,
 } from './sui-fetcher-telemetry';
 
 // ── Network helpers ───────────────────────────────────────────────────────────
@@ -28,41 +26,12 @@ export function suiRpcUrl(): string {
   return override ?? getJsonRpcFullnodeUrl(suiNetwork());
 }
 
-// ── SuiJsonRpcClient (tx builder path) ───────────────────────────────────────
-
-// SuiJsonRpcClient for object/coin pre-resolution by tx builders. Must NOT enter tx.build().
-// `label` identifies the tx builder for telemetry (e.g. 'tx-check-passage').
-export function makeSuiJsonRpcClient(label: string = 'unlabeled'): SuiJsonRpcClient {
-  const client = new SuiJsonRpcClient({ url: suiRpcUrl(), network: suiNetwork() });
-  recordTxClient({ ts: Date.now(), label, event: 'client_created' });
-  return instrumentTxClient(client, label);
-}
-
-// Proxy getObject/getCoins; pass-through with bind(target) for everything else.
-const TX_METHODS: ReadonlySet<TxClientMethod> = new Set(['getObject', 'getCoins']);
-function instrumentTxClient(client: SuiJsonRpcClient, label: string): SuiJsonRpcClient {
-  return new Proxy(client, {
-    get(target, prop) {
-      const value = (target as unknown as Record<string | symbol, unknown>)[prop];
-      if (typeof prop === 'string' && TX_METHODS.has(prop as TxClientMethod) && typeof value === 'function') {
-        const orig = (value as (...args: unknown[]) => Promise<unknown>).bind(target);
-        return async function (...args: unknown[]) {
-          const start = Date.now();
-          const method = prop as TxClientMethod;
-          try {
-            const result = await orig(...args);
-            recordTxClient({ ts: Date.now(), label, event: 'method_call', method, durationMs: Date.now() - start, ok: true });
-            return result;
-          } catch (err) {
-            recordTxClient({ ts: Date.now(), label, event: 'method_call', method, durationMs: Date.now() - start, ok: false, errorClass: err instanceof Error ? err.name : 'unknown' });
-            throw err;
-          }
-        };
-      }
-      return typeof value === 'function' ? (value as (...a: unknown[]) => unknown).bind(target) : value;
-    },
-  });
-}
+// ── SuiJsonRpcClient (removed) ───────────────────────────────────────────────
+// makeSuiJsonRpcClient and instrumented proxy removed 2026-05-18.
+// All tx builders now use resolveObjectRef / resolvePaymentCoin from
+// sui-tx-object-ref.ts which routes through fetchSuiObjectRaw /
+// fetchOwnedObjectsByType (mode-switched: jsonrpc/graphql/shadow).
+// SuiJsonRpcClient import removed; getJsonRpcFullnodeUrl retained for suiRpcUrl().
 
 // ── Raw JSON-RPC wire types (re-used by operator-gate-authority.ts parsers) ──
 export interface SuiObjectData {

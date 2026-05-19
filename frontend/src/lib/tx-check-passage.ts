@@ -3,18 +3,17 @@
 // reputation_gate::check_passage signature:
 //   (gate: &mut GatePolicy, attestation: &Attestation, payment: Coin<SUI>, ctx)
 //
-// IMPORTANT: use SuiJsonRpcClient (not dapp-kit SuiGrpcClient) for object
-// resolution (getCoins, getObject). tx.build MUST be called without a client —
-// all args are pre-resolved via Inputs.SharedObjectRef / Inputs.ObjectRef and
-// onlyTransactionKind skips gas, so no client is needed. Passing any client
-// (even SuiJsonRpcClient) in a dapp-kit Provider context triggers valibot
+// IMPORTANT: tx.build MUST be called without a client — all args are
+// pre-resolved via resolveObjectRef / resolvePaymentCoin from
+// sui-tx-object-ref.ts (mode-switched: jsonrpc/graphql/shadow).
+// Inputs.SharedObjectRef / Inputs.ObjectRef are passed directly.
+// Passing any client in a dapp-kit Provider context triggers valibot
 // TransactionDataSchema validation: "Expected Object but received Object".
 // Confirmed by scripts/debug-build-check-passage.ts (dev diagnostic only).
 
 import { toBase64 } from '@mysten/bcs';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
-import { makeSuiJsonRpcClient } from './sui-object-fetcher';
-import { resolveObjectRef } from './sui-tx-object-ref';
+import { resolveObjectRef, resolvePaymentCoin } from './sui-tx-object-ref';
 
 // Active only in dev builds with VITE_DEBUG_TX=true.
 const devLog = import.meta.env.DEV && import.meta.env.VITE_DEBUG_TX === 'true'
@@ -40,12 +39,6 @@ export interface BuildCheckPassageArgs {
    * Defaults to 1n.
    */
   paymentMist?: bigint;
-}
-
-interface PaymentCoinRef {
-  objectId: string;
-  version: string;
-  digest: string;
 }
 
 function normalizeObjectId(value: string): string {
@@ -81,31 +74,6 @@ function requiredEnv(key: ConfigKey): string {
   return value;
 }
 
-async function selectPaymentCoin(
-  client: ReturnType<typeof makeSuiJsonRpcClient>,
-  owner: string,
-  paymentMist: bigint,
-): Promise<PaymentCoinRef> {
-  const result = await client.getCoins({
-    owner,
-    coinType: '0x2::sui::SUI',
-    limit: 50,
-  });
-  const selected = result.data
-    .filter(coin => BigInt(coin.balance) >= paymentMist)
-    .sort((a, b) => Number(BigInt(a.balance) - BigInt(b.balance)))[0];
-
-  if (!selected) {
-    throw new Error(`No traveler-owned SUI coin has at least ${paymentMist} MIST.`);
-  }
-
-  return {
-    objectId: normalizeObjectId(String(selected.coinObjectId)),
-    version:  normalizeObjectVersion(selected.version),
-    digest:   String(selected.digest),
-  };
-}
-
 export async function buildCheckPassageTxKind(
   args: BuildCheckPassageArgs,
 ): Promise<string> {
@@ -115,9 +83,6 @@ export async function buildCheckPassageTxKind(
     const pkgId             = requiredEnv('VITE_PKG_ID');
     const gatePolicyId      = requiredEnv('VITE_GATE_POLICY_ID');
     const gatePolicyVersion = normalizeObjectVersion(requiredEnv('VITE_GATE_POLICY_VERSION'));
-
-    step = 'rpcClient';
-    const rpcClient = makeSuiJsonRpcClient('tx-check-passage');
 
     devLog('[CHECK_PASSAGE] v5 step=start', { network: import.meta.env.VITE_SUI_NETWORK ?? 'testnet' });
 
@@ -140,7 +105,7 @@ export async function buildCheckPassageTxKind(
 
     step = 'selectPaymentCoin';
     const paymentMist = args.paymentMist ?? 1n;
-    const paymentCoin = await selectPaymentCoin(rpcClient, args.sender, paymentMist);
+    const paymentCoin = await resolvePaymentCoin(args.sender, paymentMist, 'tx-check-passage');
     devLog('[CHECK_PASSAGE] v5 step=paymentCoin', {
       objectId: paymentCoin.objectId,
       version:  paymentCoin.version,
