@@ -129,8 +129,7 @@ pub async fn rate_limit(
 
     if !result.allowed {
         let body = format!(
-            r#"{{"error":"RATE_LIMITED","tier":"{}","message":"Too many requests ({}). See Retry-After header."}}"#,
-            tier, tier,
+            r#"{{"error":"RATE_LIMITED","tier":"{tier}","message":"Too many requests ({tier}). See Retry-After header."}}"#,
         );
         return Response::builder()
             .status(StatusCode::TOO_MANY_REQUESTS)
