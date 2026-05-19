@@ -1,4 +1,4 @@
-export type Provenance = 'LIVE' | 'EMPTY' | 'DEMO' | 'ERROR';
+export type Provenance = 'LIVE' | 'EMPTY' | 'ERROR';
 
 interface LiveStatusProps {
   loading?: boolean;
@@ -12,7 +12,6 @@ interface LiveStatusProps {
 const PROVENANCE_CSS: Record<Provenance, string> = {
   LIVE: 'c-live-note--live',
   EMPTY: 'c-live-note--empty',
-  DEMO: 'c-live-note--fallback',
   ERROR: 'c-live-note--error',
 };
 
@@ -26,7 +25,7 @@ function resolveProvenance({
   if (loading) return 'SYNC';
   if (error) return 'ERROR';
   if (live) return 'LIVE';
-  return 'DEMO';
+  return 'EMPTY';
 }
 
 function provenanceLabel(state: Provenance | 'SYNC'): string {
@@ -50,13 +49,11 @@ export function LiveStatus({
       ? liveText
       : state === 'ERROR'
         ? `API ERROR — ${error ?? 'unknown'}`
-        : state === 'EMPTY'
-          ? 'NO LIVE DATA'
-          : emptyText ?? 'DESIGN FALLBACK';
+        : emptyText ?? 'NO LIVE DATA';
 
   return (
     <div className={`c-live-note ${badgeClass}`}>
-      {provenanceLabel(state)}{state !== 'SYNC' && state !== 'LIVE' ? '' : ''} — {text}
+      {provenanceLabel(state)} — {text}
     </div>
   );
 }
