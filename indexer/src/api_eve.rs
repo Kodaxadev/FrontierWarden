@@ -1,5 +1,6 @@
 use axum::{
     extract::{Extension, Path, Query, State},
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
@@ -287,12 +288,26 @@ async fn identity(
     Ok(Json(unresolved))
 }
 
+/// Max wallets per batch request. Prevents mass wallet-to-identity resolution.
+const IDENTITY_BATCH_MAX: usize = 50;
+
 async fn identity_batch(
     State(pool): State<PgPool>,
     Json(req): Json<IdentityBatchRequest>,
-) -> Result<Json<std::collections::HashMap<String, eve_identity::IdentityEnrichment>>, ApiError> {
+) -> Result<impl axum::response::IntoResponse, ApiError> {
+    if req.wallets.len() > IDENTITY_BATCH_MAX {
+        return Ok(crate::api_common::ValidationError::missing_field(
+            "wallets",
+            format!(
+                "Batch limited to {} wallets per request (got {})",
+                IDENTITY_BATCH_MAX,
+                req.wallets.len()
+            ),
+        )
+        .into_response());
+    }
     let rows = eve_identity::batch_identity_enrichments(&pool, req.wallets).await?;
-    Ok(Json(rows))
+    Ok(Json(rows).into_response())
 }
 
 async fn identity_by_character(

@@ -155,14 +155,18 @@ async fn attestations_for_subject(
 async fn singleton_attestations(
     State(pool): State<PgPool>,
     Path(item_id): Path<String>,
+    Query(filter): Query<AttestationFilter>,
 ) -> Result<Json<Vec<SingletonRow>>, ApiError> {
+    let limit = filter.limit.unwrap_or(50).min(200);
     let rows = sqlx::query_as::<_, SingletonRow>(
         "SELECT attestation_id, schema_id, item_id, issuer, value, issued_tx, revoked
          FROM singleton_attestations
          WHERE item_id = $1
-         ORDER BY issued_at DESC",
+         ORDER BY issued_at DESC
+         LIMIT $2",
     )
     .bind(&item_id)
+    .bind(limit)
     .fetch_all(&pool)
     .await?;
 

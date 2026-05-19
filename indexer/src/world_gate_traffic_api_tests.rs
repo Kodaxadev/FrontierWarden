@@ -26,9 +26,9 @@ fn limit_clamp_under_max() {
 }
 
 #[test]
-fn limit_clamp_over_max_clamped_to_500() {
-    assert_eq!(clamp_limit(Some(1000)), 500);
-    assert_eq!(clamp_limit(Some(i64::MAX)), 500);
+fn limit_clamp_over_max_clamped_to_200() {
+    assert_eq!(clamp_limit(Some(1000)), 200);
+    assert_eq!(clamp_limit(Some(i64::MAX)), 200);
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn limit_clamp_negative_returns_one() {
 
 #[test]
 fn limit_clamp_exact_max() {
-    assert_eq!(clamp_limit(Some(500)), 500);
+    assert_eq!(clamp_limit(Some(200)), 200);
 }
 
 /// Verify route registration without a real database (lazy pool).

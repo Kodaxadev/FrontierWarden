@@ -31,7 +31,7 @@ use crate::{
 const DEFAULT_LIMIT: i64 = 50;
 /// Maximum rows returned by any jump endpoint. Callers that send limit > MAX are
 /// silently clamped — no error is returned.
-const MAX_LIMIT: i64 = 500;
+const MAX_LIMIT: i64 = 200;
 
 pub(crate) fn clamp_limit(requested: Option<i64>) -> i64 {
     requested.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT)
