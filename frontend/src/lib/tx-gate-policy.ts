@@ -6,7 +6,7 @@
 
 import { toBase64 } from '@mysten/bcs';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
-import { makeSuiJsonRpcClient } from './sui-object-fetcher';
+import { resolveObjectRef } from './sui-tx-object-ref';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -53,16 +53,8 @@ export async function buildGatePolicyUpdateTxKind(
     throw new Error('gate policy tx: VITE_GATE_POLICY_VERSION must be a positive number');
   }
 
-  const rpcClient = makeSuiJsonRpcClient('tx-gate-policy');
-
-  // Resolve AdminCap version/digest from chain.
-  const adminCapObject = await rpcClient.getObject({
-    id:      gateAdminCapId,
-    options: { showBcs: false },
-  });
-  if (!adminCapObject?.data) {
-    throw new Error(`gate policy tx: failed to fetch AdminCap object ${gateAdminCapId}`);
-  }
+  // Resolve AdminCap version/digest from chain (mode-switched: jsonrpc/graphql/shadow).
+  const adminCapRef = await resolveObjectRef(gateAdminCapId, 'tx-gate-policy');
 
   const tx = new Transaction();
   tx.setSender(args.sender);
@@ -71,9 +63,9 @@ export async function buildGatePolicyUpdateTxKind(
     target: `${pkgId}::reputation_gate::update_thresholds`,
     arguments: [
       tx.object(Inputs.ObjectRef({
-        objectId: gateAdminCapId,
-        version:  String(adminCapObject.data.version),
-        digest:   String(adminCapObject.data.digest),
+        objectId: adminCapRef.objectId,
+        version:  adminCapRef.version,
+        digest:   adminCapRef.digest,
       })),
       tx.object(Inputs.SharedObjectRef({
         objectId:             gatePolicyId,

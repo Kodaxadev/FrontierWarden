@@ -1,5 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { makeSuiJsonRpcClient } from './sui-object-fetcher';
+import { resolveObjectRef, extractSharedVersion } from './sui-tx-object-ref';
 
 const CONFIG_KEYS = [
   'VITE_PKG_ID',
@@ -80,27 +80,20 @@ export class ChallengeNotFoundError extends Error {
 
 /**
  * Fetch the initialSharedVersion for a FraudChallenge shared object.
- * FraudChallenge is created via transfer::share_object — its owner field
- * encodes the initial_shared_version needed for mutable shared object refs.
+ * Mode-switched via resolveObjectRef (jsonrpc/graphql/shadow).
  */
-async function fetchChallengeSharedVersion(
-  rpcClient: ReturnType<typeof makeSuiJsonRpcClient>,
-  challengeId: string,
-): Promise<number> {
-  const obj = await rpcClient.getObject({
-    id: challengeId,
-    options: { showBcs: false },
-  });
-  if (!obj?.data) {
+async function fetchChallengeSharedVersion(challengeId: string): Promise<number> {
+  let ref;
+  try {
+    ref = await resolveObjectRef(challengeId, 'tx-dispute');
+  } catch {
     throw new ChallengeNotFoundError(challengeId);
   }
-  const owner = obj.data.owner;
-  if (typeof owner === 'object' && owner !== null && 'Shared' in owner) {
-    const v = (owner as { Shared: { initial_shared_version: string | number } }).Shared.initial_shared_version;
-    const n = Number(v);
-    if (Number.isFinite(n) && n > 0) return n;
+  try {
+    return extractSharedVersion(ref.owner, 'tx-dispute');
+  } catch {
+    throw new ChallengeNotSharedError(challengeId, ref.owner);
   }
-  throw new ChallengeNotSharedError(challengeId, owner);
 }
 
 export function missingDisputeConfig(): ConfigKey[] {
@@ -140,9 +133,7 @@ export function buildCreateChallengeTx(args: CreateChallengeArgs): Transaction {
  * not tx.object(), to avoid TypeMismatch errors on direct wallet signing.
  */
 export async function buildVoteChallengeTx(args: VoteChallengeArgs): Promise<Transaction> {
-  const rpcClient = makeSuiJsonRpcClient('tx-dispute-vote');
-
-  const initialSharedVersion = await fetchChallengeSharedVersion(rpcClient, args.challengeId);
+  const initialSharedVersion = await fetchChallengeSharedVersion(args.challengeId);
 
   const tx = new Transaction();
   tx.moveCall({
@@ -166,9 +157,7 @@ export async function buildVoteChallengeTx(args: VoteChallengeArgs): Promise<Tra
  * not tx.object(), to avoid TypeMismatch errors on direct wallet signing.
  */
 export async function buildResolveChallengeTx(args: ResolveChallengeArgs): Promise<Transaction> {
-  const rpcClient = makeSuiJsonRpcClient('tx-dispute-resolve');
-
-  const initialSharedVersion = await fetchChallengeSharedVersion(rpcClient, args.challengeId);
+  const initialSharedVersion = await fetchChallengeSharedVersion(args.challengeId);
 
   const tx = new Transaction();
   tx.moveCall({

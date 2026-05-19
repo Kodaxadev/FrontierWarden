@@ -11,7 +11,7 @@
 
 import { toBase64 } from '@mysten/bcs';
 import { Transaction, Inputs } from '@mysten/sui/transactions';
-import { makeSuiJsonRpcClient } from './sui-object-fetcher';
+import { resolveObjectRef, extractSharedVersion } from './sui-tx-object-ref';
 
 const CONFIG_KEYS = ['VITE_PKG_ID'] as const;
 type ConfigKey = typeof CONFIG_KEYS[number];
@@ -46,31 +46,10 @@ export async function buildBindOperatorGateTxKind(
 ): Promise<string> {
   const pkgId = requiredEnv('VITE_PKG_ID');
 
-  const rpcClient = makeSuiJsonRpcClient('tx-bind-operator-gate');
-
-  // Resolve GatePolicy initialSharedVersion from chain.
-  const policyObject = await rpcClient.getObject({
-    id: args.gatePolicyId,
-    options: { showBcs: false },
-  });
-  if (!policyObject?.data) {
-    throw new Error(`bind operator gate tx: failed to fetch GatePolicy ${args.gatePolicyId}`);
-  }
-  const ownerData = policyObject.data.owner as Record<string, unknown> | undefined;
-  const sharedOwner = ownerData?.Shared as Record<string, unknown> | undefined;
-  const initialSharedVersion = sharedOwner?.initial_shared_version;
-  if (typeof initialSharedVersion !== 'number' || initialSharedVersion <= 0) {
-    throw new Error(`bind operator gate tx: GatePolicy ${args.gatePolicyId} is not a shared object or initial version not found`);
-  }
-
-  // Resolve AdminCap version/digest from chain.
-  const adminCapObject = await rpcClient.getObject({
-    id: args.gateAdminCapId,
-    options: { showBcs: false },
-  });
-  if (!adminCapObject?.data) {
-    throw new Error(`bind operator gate tx: failed to fetch AdminCap ${args.gateAdminCapId}`);
-  }
+  // Resolve GatePolicy and AdminCap from chain (mode-switched: jsonrpc/graphql/shadow).
+  const policyRef = await resolveObjectRef(args.gatePolicyId, 'tx-bind-operator-gate');
+  const initialSharedVersion = extractSharedVersion(policyRef.owner, 'tx-bind-operator-gate');
+  const adminCapRef = await resolveObjectRef(args.gateAdminCapId, 'tx-bind-operator-gate');
 
   const tx = new Transaction();
   tx.setSender(args.sender);
@@ -78,9 +57,9 @@ export async function buildBindOperatorGateTxKind(
     target: `${pkgId}::reputation_gate::bind_world_gate`,
     arguments: [
       tx.object(Inputs.ObjectRef({
-        objectId: args.gateAdminCapId,
-        version: String(adminCapObject.data.version),
-        digest: String(adminCapObject.data.digest),
+        objectId: adminCapRef.objectId,
+        version: adminCapRef.version,
+        digest: adminCapRef.digest,
       })),
       tx.object(Inputs.SharedObjectRef({
         objectId: args.gatePolicyId,
