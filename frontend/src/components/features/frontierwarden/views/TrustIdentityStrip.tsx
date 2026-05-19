@@ -11,7 +11,7 @@ export function TrustIdentityStrip({
   if (!loading && eveIdentity?.identity_status !== 'resolved') return null;
 
   return (
-    <div style={{ marginBottom: 24, padding: '14px 18px', border: '1px solid rgba(0,210,255,0.3)', background: 'rgba(0,210,255,0.08)', borderRadius: 4, fontSize: 12 }}>
+    <div style={{ marginBottom: 24, padding: '14px 18px', border: '1px solid rgba(232,120,42,0.3)', background: 'rgba(232,120,42,0.08)', borderRadius: 4, fontSize: 12 }}>
       <div className="c-stat__label" style={{ marginBottom: 8, color: 'var(--c-hi)' }}>EVE Identity</div>
       {loading && <div className="c-sub">Resolving...</div>}
       {!loading && eveIdentity && (

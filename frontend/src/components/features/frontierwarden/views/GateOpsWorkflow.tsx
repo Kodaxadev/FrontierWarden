@@ -17,7 +17,7 @@ interface Props {
 export function GateOpsWorkflow(props: Props) {
   return (
     <div>
-      <p style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--c-hi)', margin: '0 0 12px 0' }}>Operate a gate</p>
+      <p className="c-section-header">Operate a gate</p>
       <GateIntelView
         data={props.data} live={props.live} loading={props.loading}
         error={props.error} provenance={props.provenance}

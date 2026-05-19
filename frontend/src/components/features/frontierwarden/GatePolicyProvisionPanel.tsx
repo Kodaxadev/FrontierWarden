@@ -70,7 +70,7 @@ export function GatePolicyProvisionPanel() {
     return (
       <div style={{
         maxWidth: 900, marginBottom: 28, padding: 20,
-        border: '1px solid rgba(0,210,255,0.25)', background: 'rgba(0,210,255,0.018)',
+        border: '1px solid rgba(232,120,42,0.25)', background: 'rgba(232,120,42,0.018)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
           <div className="c-stat__label">Policy Provisioning</div>
