@@ -73,8 +73,17 @@ path as the web dashboard's Gate Ops tab. No in-game-specific code paths
 diverge. The only difference is visual layout (compact vs full dashboard).
 
 The in-game gate route is **functionally complete** — not just render-valid
-but transaction-ready. A human operator approving the wallet co-sign will
-complete the on-chain `check_passage` call identically to the web surface.
+but transaction-ready.
+
+## Human Verification (2026-05-18)
+
+Operator manually confirmed the full CHECK PASSAGE flow using **Eve Vault**
+wallet (Slush was disabled due to Chrome extension conflicts with
+automation tooling). The on-chain `check_passage` transaction completed
+successfully from the in-game GateObjectSurface.
+
+This confirms the final link: wallet co-sign → on-chain execution works
+identically from the in-game surface and the web dashboard.
 
 ## What This Means
 
@@ -85,12 +94,12 @@ The in-game Smart Assembly object-mode architecture is validated end-to-end:
   → SmartObjectProvider derives Sui object ID via BCS
   → GraphQL resolves assembly (SmartGate)
   → GateObjectSurface renders
-  → CHECK PASSAGE builds PTB, sponsors, prompts wallet
-  → On-chain check_passage ready to execute
+  → CHECK PASSAGE builds PTB, sponsors, wallet co-signs
+  → On-chain check_passage executes successfully
 ```
 
 Both FrontierWarden surfaces are now production-proven:
 - **External web command center**: full dashboard with onboarding, policy,
   evidence, admin
 - **In-game object command surface**: compact gate controls with sponsored
-  passage transactions
+  passage transactions — confirmed working with Eve Vault wallet
