@@ -22,11 +22,12 @@ use sqlx::PgPool;
 
 use crate::{
     api_common::{ApiError, LimitParams},
+    world_gate_traffic_db::{gate_exists, jump_count_24h, jump_item_from_row, JumpWindowCounts, WorldGateRow},
     world_jump::{recent_jumps_for_character, recent_jumps_for_gate},
     world_topology::active_links_for_gate,
 };
 
-// ── Limit constants ───────────────────────────────────────────────────────────
+// ── Limit constants ──────────────────────────────────────────────────────────
 
 const DEFAULT_LIMIT: i64 = 50;
 /// Maximum rows returned by any jump endpoint. Callers that send limit > MAX are
@@ -37,7 +38,7 @@ pub(crate) fn clamp_limit(requested: Option<i64>) -> i64 {
     requested.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT)
 }
 
-// ── Router ────────────────────────────────────────────────────────────────────
+// ── Router ───────────────────────────────────────────────────────────────────
 
 pub fn router() -> Router<PgPool> {
     Router::new()
@@ -51,7 +52,7 @@ pub fn router() -> Router<PgPool> {
         )
 }
 
-// ── Response types ────────────────────────────────────────────────────────────
+// ── Response types ───────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
 pub struct ActiveLinkItem {
@@ -96,22 +97,12 @@ pub struct CharacterJumpsResponse {
 #[derive(Serialize)]
 pub struct GateActivityResponse {
     pub gate_id: String,
-    /// Jumps observed in the last hour.
-    /// Activity windows are based on when the indexer observed the event,
-    /// not an authoritative on-chain event timestamp.
     pub jump_count_1h: i64,
-    /// Jumps observed in the last 24 hours.
     pub jump_count_24h: i64,
-    /// Jumps observed in the last 7 days.
     pub jump_count_7d: i64,
-    /// Unique characters seen in the last 24 hours.
     pub unique_characters_24h: i64,
-    /// True if the gate has at least one active link in world_gate_links.
-    /// Advisory signal — not a binding proof of gate reachability.
     pub is_linked: bool,
     pub link_count: i64,
-    /// Always present. Reminds callers that windows are indexer-observed time,
-    /// not authoritative on-chain event timestamps.
     pub activity_window_note: &'static str,
 }
 
@@ -123,26 +114,13 @@ pub struct GateSummaryResponse {
     pub status: String,
     pub fw_extension_active: bool,
     pub fw_gate_policy_id: Option<String>,
-    /// Advisory signal — not binding proof.
     pub is_linked: bool,
     pub link_count: usize,
     pub jump_count_24h: i64,
     pub active_links: Vec<ActiveLinkItem>,
 }
 
-// ── DB row types ──────────────────────────────────────────────────────────────
-
-#[derive(sqlx::FromRow)]
-struct WorldGateRow {
-    gate_id: String,
-    item_id: i64,
-    tenant: String,
-    status: String,
-    fw_extension_active: bool,
-    fw_gate_policy_id: Option<String>,
-}
-
-// ── Error helpers ─────────────────────────────────────────────────────────────
+// ── Error helpers ────────────────────────────────────────────────────────────
 
 fn gate_not_found(gate_id: &str) -> impl IntoResponse {
     (
@@ -151,17 +129,12 @@ fn gate_not_found(gate_id: &str) -> impl IntoResponse {
     )
 }
 
-// ── Handlers ──────────────────────────────────────────────────────────────────
+// ── Handlers ─────────────────────────────────────────────────────────────────
 
-/// GET /world/gates/:gate_id/links
-///
-/// Returns all currently active outbound links for the gate. Both directions
-/// are stored; this returns the `source_gate_id = gate_id` rows only.
 async fn gate_links(
     State(pool): State<PgPool>,
     Path(gate_id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
-    // Verify the gate exists before returning topology.
     let exists = gate_exists(&pool, &gate_id).await?;
     if !exists {
         return Ok(gate_not_found(&gate_id).into_response());
@@ -188,10 +161,6 @@ async fn gate_links(
     .into_response())
 }
 
-/// GET /world/gates/:gate_id/jumps?limit=N
-///
-/// Most recent jumps where the gate is source or destination.
-/// Default limit 50; max 500 (clamped silently).
 async fn gate_jumps(
     State(pool): State<PgPool>,
     Path(gate_id): Path<String>,
@@ -216,10 +185,6 @@ async fn gate_jumps(
     .into_response())
 }
 
-/// GET /world/characters/:character_id/jumps?limit=N
-///
-/// Most recent jumps for the given character, ordered newest first.
-/// Default limit 50; max 500 (clamped silently).
 async fn character_jumps(
     State(pool): State<PgPool>,
     Path(character_id): Path<String>,
@@ -239,14 +204,6 @@ async fn character_jumps(
     .into_response())
 }
 
-/// GET /world/gates/:gate_id/activity
-///
-/// Jump count windows and unique character counts for a gate.
-///
-/// Activity windows are based on when the indexer observed the event, not an
-/// authoritative on-chain event timestamp. Checkpoint → wall-clock mapping is
-/// not available in this codebase; `created_at` (indexer insertion time) is
-/// used instead. Lag is typically seconds to minutes under normal conditions.
 async fn gate_activity(
     State(pool): State<PgPool>,
     Path(gate_id): Path<String>,
@@ -256,7 +213,6 @@ async fn gate_activity(
         return Ok(gate_not_found(&gate_id).into_response());
     }
 
-    // All three jump window counts in one query using conditional aggregation.
     let counts = sqlx::query_as::<_, JumpWindowCounts>(
         "SELECT
             COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 hour')  AS jump_count_1h,
@@ -302,10 +258,6 @@ async fn gate_activity(
     .into_response())
 }
 
-/// GET /world/gates/:gate_id
-///
-/// Combined gate object + topology + activity summary.
-/// All three data sources are queried concurrently via tokio::try_join!.
 async fn gate_summary(
     State(pool): State<PgPool>,
     Path(gate_id): Path<String>,
@@ -324,8 +276,7 @@ async fn gate_summary(
         return Ok(gate_not_found(&gate_id).into_response());
     };
 
-    // Fetch topology and activity in parallel.
-    let (links, jump_count_24h) = tokio::try_join!(
+    let (links, jc24h) = tokio::try_join!(
         active_links_for_gate(&pool, &gate_id),
         jump_count_24h(&pool, &gate_id),
     )?;
@@ -351,51 +302,8 @@ async fn gate_summary(
         fw_gate_policy_id: gate.fw_gate_policy_id,
         is_linked: link_count > 0,
         link_count,
-        jump_count_24h,
+        jump_count_24h: jc24h,
         active_links,
     })
     .into_response())
-}
-
-// ── Internal helpers ──────────────────────────────────────────────────────────
-
-#[derive(sqlx::FromRow)]
-struct JumpWindowCounts {
-    jump_count_1h: i64,
-    jump_count_24h: i64,
-    jump_count_7d: i64,
-}
-
-async fn gate_exists(pool: &PgPool, gate_id: &str) -> Result<bool, ApiError> {
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM world_gates WHERE gate_id = $1)",
-    )
-    .bind(gate_id)
-    .fetch_one(pool)
-    .await?;
-    Ok(exists)
-}
-
-async fn jump_count_24h(pool: &PgPool, gate_id: &str) -> anyhow::Result<i64> {
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM world_gate_jumps
-         WHERE (source_gate_id = $1 OR destination_gate_id = $1)
-           AND created_at >= NOW() - INTERVAL '24 hours'",
-    )
-    .bind(gate_id)
-    .fetch_one(pool)
-    .await?;
-    Ok(count)
-}
-
-fn jump_item_from_row(r: crate::world_jump_parser::JumpEventRow) -> JumpItem {
-    JumpItem {
-        tx_digest: r.tx_digest,
-        checkpoint: r.checkpoint,
-        source_gate_id: r.source_gate_id,
-        destination_gate_id: r.destination_gate_id,
-        character_id: r.character_id,
-        character_item_id: r.character_item_id,
-        character_tenant: r.character_tenant,
-    }
 }

@@ -15,6 +15,7 @@ mod api_sessions;
 mod api_trust;
 mod zklogin_verifier;
 mod api_world_gate_traffic;
+mod world_gate_traffic_db;
 mod api_world_gates;
 
 // Re-export for main
