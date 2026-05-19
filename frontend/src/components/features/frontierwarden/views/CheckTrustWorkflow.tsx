@@ -31,7 +31,7 @@ export function CheckTrustWorkflow(props: Props) {
 
   return (
     <div>
-      <p style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--c-hi)', margin: '0 0 12px 0' }}>Check a pilot or counterparty</p>
+      <p className="c-section-header">Check a pilot or counterparty</p>
       <WorkflowSubNav active={sub} onChange={setSub} tabs={[
         { id: 'evaluate', label: 'Evaluate Trust' },
         { id: 'dossier',  label: 'Trust Dossier' },

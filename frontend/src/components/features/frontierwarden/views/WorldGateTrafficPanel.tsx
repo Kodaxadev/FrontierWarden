@@ -219,7 +219,7 @@ export function WorldGateTrafficPanel({ worldGateId }: Props) {
                 style={{
                   padding: '10px 8px',
                   border: '1px solid var(--c-border)',
-                  background: 'rgba(0,210,255,0.018)',
+                  background: 'rgba(232,120,42,0.018)',
                   textAlign: 'center',
                 }}
               >

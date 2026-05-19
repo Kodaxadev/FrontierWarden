@@ -30,12 +30,12 @@ function GateRow({ gate, index }: GateRowProps) {
       style={{
         padding: '8px 12px',
         borderBottom: '1px solid var(--b-05)',
-        background: isActive ? 'rgba(0,210,255,0.06)' :
+        background: isActive ? 'rgba(232,120,42,0.06)' :
                     gate.status === 'camped' ? 'rgba(220,38,38,0.06)' : 'transparent',
         borderLeft: isActive ? '3px solid var(--sui-cyan)' :
                     gate.status === 'camped' ? '3px solid var(--tribe-crimson)' :
                     '3px solid transparent',
-        boxShadow: isActive ? 'inset 0 0 30px rgba(0,210,255,0.04)' : 'none',
+        boxShadow: isActive ? 'inset 0 0 30px rgba(232,120,42,0.04)' : 'none',
         position: 'relative', cursor: 'default',
         transition: 'background 80ms ease-out, border-left 80ms ease-out',
       }}

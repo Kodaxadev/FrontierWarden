@@ -123,7 +123,7 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
         marginBottom: 28,
         padding: 20,
         border: '1px solid var(--c-border)',
-        background: 'rgba(0,210,255,0.018)',
+        background: 'rgba(232,120,42,0.018)',
       }}>
         <div className="c-stat__label" style={{ marginBottom: 14 }}>Open Fraud Challenge</div>
         {!account && (
@@ -257,9 +257,9 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
               <tr key={row.challenge_id} style={{
                 cursor: 'pointer',
                 background: hoveredRow === row.challenge_id
-                  ? 'rgba(0,210,255,0.06)'
+                  ? 'rgba(232,120,42,0.06)'
                   : selectedChallenge === row.challenge_id
-                    ? 'rgba(0,210,255,0.04)'
+                    ? 'rgba(232,120,42,0.04)'
                     : undefined,
               }} onClick={() => setSelectedChallenge(row.challenge_id)}
                 onMouseEnter={() => setHoveredRow(row.challenge_id)}

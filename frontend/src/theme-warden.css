@@ -1,0 +1,297 @@
+/* ═══════════════════════════════════════════════════════
+   FrontierWarden Atmospheric Theme
+   Warm, cinematic visual layer matching README assets.
+   Loaded after globals.css — cascade overrides tokens.
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Design tokens: cold → warm shift ─────────────────── */
+:root {
+  /* Backgrounds: blue-black → warm charcoal */
+  --c-bg:       #07060a;
+  --c-surface:  #0c0a0e;
+  --c-border:   #1e1610;
+  --c-hover:    rgba(232,120,42,0.05);
+
+  /* Accent: yellow-amber → burnt orange */
+  --c-amber:    #E8782A;
+  --c-amber-lo: rgba(232,120,42,0.12);
+  --c-amber-glow: 0 0 24px rgba(232,120,42,0.35);
+
+  /* Warm-shifted neutrals */
+  --c-hi:       #E0D5C8;
+  --c-mid:      #6B5D50;
+  --c-lo:       #1E1610;
+
+  /* Warm-shifted fw- tokens */
+  --fw-bg:          #07060a;
+  --fw-bg-panel:    #0e0b08;
+  --fw-bg-row:      #120e0a;
+  --fw-bg-hover:    #1a1410;
+  --fw-border:      #1e1610;
+  --fw-border-2:    #161008;
+  --fw-amber:       #E8782A;
+  --fw-amber-dim:   rgba(232,120,42,0.12);
+  --fw-text-hi:     #E0D5C8;
+  --fw-text-mid:    #8A7A6A;
+  --fw-text-lo:     #4A3E32;
+
+  /* Neutralize residual cyan → warm amber */
+  --sui-cyan:           #E8782A;
+  --sui-cyan-glow:      rgba(232,120,42,0.15);
+  --frontier-amber:     #E8782A;
+  --frontier-amber-glow:rgba(232,120,42,0.15);
+
+  /* Display font for headers */
+  --c-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+}
+
+/* ── Atmospheric background ───────────────────────────── */
+.c-shell {
+  background:
+    radial-gradient(ellipse 80% 60% at 75% 20%, rgba(180,60,10,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 80% at 20% 80%, rgba(140,40,8,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, rgba(100,30,5,0.03) 0%, transparent 80%),
+    var(--c-bg);
+}
+
+/* Replace cold blue grid + scanlines with warm grain */
+.c-shell::before {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(120,60,10,0.025) 2px,
+    rgba(120,60,10,0.025) 4px
+  );
+}
+
+.c-shell::after {
+  background-image:
+    linear-gradient(rgba(232,120,42,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,120,42,0.012) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── Header: warm ─────────────────────────────────────── */
+.c-header {
+  background: rgba(10,8,6,0.95);
+  border-bottom-color: var(--c-border);
+  box-shadow: 0 1px 0 rgba(232,120,42,0.10), 0 4px 24px rgba(0,0,0,0.7);
+}
+
+.c-header__brand {
+  font-family: var(--c-display);
+  color: var(--c-amber);
+  text-shadow: 0 0 20px rgba(232,120,42,0.6), 0 0 60px rgba(232,120,42,0.2);
+}
+
+.c-header__score {
+  color: var(--c-amber);
+  text-shadow: 0 0 16px rgba(232,120,42,0.5);
+}
+
+/* ── Nav tabs: warm active state ──────────────────────── */
+.c-nav {
+  background: rgba(10,8,6,0.98);
+  border-bottom-color: var(--c-border);
+}
+
+.c-tab--active {
+  color: var(--c-amber);
+  border-bottom-color: var(--c-amber);
+  background: var(--c-amber-lo);
+  text-shadow: 0 0 12px rgba(232,120,42,0.4);
+}
+
+/* ── Filter bar: warm glow ────────────────────────────── */
+.c-filter--active {
+  background: var(--c-amber);
+  border-color: var(--c-amber);
+  color: #0a0806;
+  box-shadow: 0 0 12px rgba(232,120,42,0.35);
+}
+
+/* ── Panels & cards: warm surface ─────────────────────── */
+.fw-header {
+  background: #080604;
+  border-bottom-color: var(--fw-border);
+  box-shadow: 0 1px 0 rgba(232,120,42,0.08);
+}
+
+.fw-header__logo-box {
+  color: var(--c-amber);
+}
+
+.fw-col--amber { border-top-color: var(--c-amber); }
+
+/* ── Section headers: display font ────────────────────── */
+.c-view__title {
+  font-family: var(--c-display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+}
+
+.c-view__title::before {
+  color: var(--c-amber);
+  text-shadow: 0 0 8px rgba(232,120,42,0.6);
+}
+
+.c-view__title::after {
+  background: linear-gradient(90deg, var(--c-border) 0%, transparent 100%);
+}
+
+/* ── Stat blocks: warm glow ───────────────────────────── */
+.c-stat__value {
+  color: var(--c-amber);
+  text-shadow: 0 0 40px rgba(232,120,42,0.4), 0 0 80px rgba(232,120,42,0.15);
+}
+
+/* ── Tier segments ────────────────────────────────────── */
+.c-tier__seg--active {
+  background: var(--c-amber);
+  box-shadow: 0 0 8px rgba(232,120,42,0.5);
+}
+.c-tier__seg--current {
+  background: var(--c-amber);
+  box-shadow: 0 0 14px rgba(232,120,42,0.7);
+}
+
+/* ── Commit button: warm ──────────────────────────────── */
+.c-commit {
+  background: var(--c-amber);
+  color: #0a0806;
+  box-shadow: 0 0 24px rgba(232,120,42,0.3);
+}
+.c-commit:hover {
+  box-shadow: 0 0 36px rgba(232,120,42,0.5);
+}
+
+/* ── Bars and fills ───────────────────────────────────── */
+.c-bar__fill {
+  background: var(--c-amber);
+  box-shadow: 0 0 6px rgba(232,120,42,0.4);
+}
+.c-policy__fill {
+  background: var(--c-amber);
+  box-shadow: 0 0 10px rgba(232,120,42,0.4);
+}
+.c-policy__thumb {
+  border-color: var(--c-amber);
+  box-shadow: 0 0 12px rgba(232,120,42,0.5);
+}
+
+/* ── Input focus: warm glow ───────────────────────────── */
+.c-input:focus {
+  border-color: var(--c-amber);
+  box-shadow: 0 0 0 1px rgba(232,120,42,0.18), 0 0 18px rgba(232,120,42,0.12);
+}
+
+/* ── Wallet connect: warm ─────────────────────────────── */
+.c-wallet-connect {
+  --primary: var(--c-amber);
+  --accent: var(--c-amber);
+  --ring: var(--c-amber);
+}
+
+/* ── Vouch weight ─────────────────────────────────────── */
+.c-vouch__weight {
+  color: var(--c-amber);
+  text-shadow: 0 0 10px rgba(232,120,42,0.4);
+}
+
+/* ── Kill ISK ─────────────────────────────────────────── */
+.c-kill-isk {
+  color: var(--c-amber);
+}
+.c-kill-isk--large {
+  text-shadow: 0 0 12px rgba(232,120,42,0.5);
+}
+
+/* ── Alert badge: warm crimson stays ──────────────────── */
+.fw-alert-badge {
+  animation: fw-pulse-crit-warm 2s ease-in-out infinite;
+}
+@keyframes fw-pulse-crit-warm {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.2); }
+  50%     { box-shadow: 0 0 8px 2px rgba(239,68,68,0.25); }
+}
+
+/* ── Live notes: warmer backgrounds ───────────────────── */
+.c-live-note--sync {
+  color: var(--c-amber);
+  border-color: rgba(232,120,42,0.18);
+  background: rgba(232,120,42,0.045);
+}
+.c-live-note--sync::before {
+  background: var(--c-amber);
+  box-shadow: 0 0 8px rgba(232,120,42,0.5);
+}
+
+/* ── Workflow section headers (inline-styled in TSX) ──── */
+/* Ensure workflow headers use display font when class is used */
+.c-section-header {
+  font-family: var(--c-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--c-hi);
+  margin: 0 0 12px 0;
+}
+
+/* ── Scrollbar: warm tint ─────────────────────────────── */
+.c-view::-webkit-scrollbar-thumb { background: var(--c-lo); }
+
+/* ── Badge amber override ─────────────────────────────── */
+.c-badge--toll {
+  color: var(--c-amber);
+  background: rgba(232,120,42,0.08);
+  border-color: rgba(232,120,42,0.2);
+}
+.c-badge--high {
+  color: var(--c-amber);
+  background: rgba(232,120,42,0.08);
+  border-color: rgba(232,120,42,0.2);
+}
+
+/* ── Binding badge amber ──────────────────────────────── */
+.c-binding-badge--amber {
+  color: var(--c-amber);
+  background: rgba(232,120,42,0.08);
+}
+
+/* ── Selection: warm ──────────────────────────────────── */
+::selection {
+  background: rgba(232,120,42,0.25);
+  color: #E8782A;
+}
+
+/* ── Status bar: warm ─────────────────────────────────── */
+.fw-statusbar {
+  background: #080604;
+  border-top-color: var(--fw-border);
+}
+.fw-status-eyes {
+  color: var(--c-amber);
+}
+
+/* ── FW annotation marks ──────────────────────────────── */
+.fw-anno {
+  color: var(--c-amber);
+}
+
+/* ── Classified stripe ────────────────────────────────── */
+.classified-stripe {
+  border-left-color: var(--c-amber);
+}
+
+/* ── Ambient corner vignette ──────────────────────────── */
+.c-view::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 50% 40% at 90% 10%, rgba(180,60,10,0.06) 0%, transparent 100%),
+    radial-gradient(ellipse 40% 50% at 10% 90%, rgba(140,40,8,0.04) 0%, transparent 100%);
+}

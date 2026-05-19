@@ -49,7 +49,7 @@ export function SocialOraclePanel({
   onReset,
 }: SocialOraclePanelProps) {
   return (
-    <div style={{ maxWidth: 760, marginBottom: 24, padding: '16px 20px', border: '1px solid var(--c-border)', background: 'rgba(0,210,255,0.018)' }}>
+    <div style={{ maxWidth: 760, marginBottom: 24, padding: '16px 20px', border: '1px solid var(--c-border)', background: 'rgba(232,120,42,0.018)' }}>
       <div className="c-stat__label" style={{ marginBottom: 10 }}>
         {existingOracle ? 'Oracle Registration' : 'Register Oracle'}
       </div>

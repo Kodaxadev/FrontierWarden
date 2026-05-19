@@ -116,7 +116,7 @@ export function DispositionMatrix({ data }: DispositionMatrixProps) {
           </thead>
           <tbody>
             {data.matrix.map((row, ri) => (
-              <tr key={ri} style={{ background: ri === 0 ? 'rgba(0,210,255,0.05)' : 'transparent' }}>
+              <tr key={ri} style={{ background: ri === 0 ? 'rgba(232,120,42,0.05)' : 'transparent' }}>
                 <td style={{
                   padding: '6px 4px',
                   color: ri === 0 ? 'var(--sui-cyan)' : 'var(--t-primary)',

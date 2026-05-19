@@ -11,7 +11,7 @@ export function SocialIdentityPanel({ accountAddress, eveIdentity, loading }: So
   if (!accountAddress) return null;
 
   return (
-    <div style={{ maxWidth: 760, marginBottom: 24, padding: '12px 16px', border: '1px solid var(--c-border)', background: 'rgba(0,210,255,0.012)' }}>
+    <div style={{ maxWidth: 760, marginBottom: 24, padding: '12px 16px', border: '1px solid var(--c-border)', background: 'rgba(232,120,42,0.012)' }}>
       <div className="c-stat__label" style={{ marginBottom: 8 }}>EVE Identity</div>
       {loading && <div className="c-sub">Resolving EVE identity...</div>}
       {!loading && eveIdentity && (

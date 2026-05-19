@@ -122,7 +122,7 @@ export function GateObjectSurface() {
 
       {/* ── Passage decision ─────────────────────────────── */}
       {account && (
-        <section style={{ border: '1px solid var(--c-border)', padding: '12px 14px', background: 'rgba(0,210,255,0.018)' }}>
+        <section style={{ border: '1px solid var(--c-border)', padding: '12px 14px', background: 'rgba(232,120,42,0.018)' }}>
           <SectionLabel>PASSAGE DECISION</SectionLabel>
           <KV k="Traveler" v={shortId(account.address)} mono />
           <KV

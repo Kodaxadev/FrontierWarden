@@ -41,7 +41,7 @@ export function GatePassageAttemptPanel({
       marginTop: 24,
       padding: 20,
       border: '1px solid var(--c-border)',
-      background: 'rgba(0,210,255,0.018)',
+      background: 'rgba(232,120,42,0.018)',
     }}>
       <div className="c-stat__label" style={{ marginBottom: 8 }}>
         Passage Decision Preview / {selectedGate.id}
