@@ -13,18 +13,16 @@ import { GateOpsWorkflow }    from './views/GateOpsWorkflow';
 import { CreditRiskWorkflow } from './views/CreditRiskWorkflow';
 import { SettingsWorkflow }   from './views/SettingsWorkflow';
 import { useFrontierWardenData } from '../../../hooks/useFrontierWardenData';
-import { useDemoFallback } from '../../../hooks/useDemoFallback';
 
 /** @deprecated Use WorkflowTab. Kept for OnboardingWizardShell compatibility. */
 export type FwTab = 'onboarding' | 'sentinel' | 'gates' | 'trust' | 'killboard' | 'reputation' | 'contracts' | 'policy' | 'oracle' | 'social' | 'disputes';
 
 export function FrontierWardenDashboard() {
   const [tab, setTab] = useState<WorkflowTab>('dashboard');
-  const { demoEnabled, toggleDemo } = useDemoFallback();
   const {
     data, live, loading, reputationLive, killboardLive, policyLive,
     contractsLive, provenance, error, eveIdentity, eveIdentityMap,
-  } = useFrontierWardenData({ demoEnabled });
+  } = useFrontierWardenData();
   const operatorSignals = useOperatorContextSignals(data, eveIdentity);
 
   return (
@@ -33,18 +31,6 @@ export function FrontierWardenDashboard() {
       <FwWorkflowNav active={tab} onChange={setTab} alerts={data.alerts} />
       <OperatorContextBar signals={operatorSignals} />
       <div className="c-view">
-        {/* Demo toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <button
-            className={`c-filter${demoEnabled ? ' c-filter--active' : ''}`}
-            onClick={toggleDemo}
-            title={demoEnabled ? 'Showing demo fallback data when live data is empty' : 'Showing only live data — empty when no rows'}
-          >
-            {demoEnabled ? 'DEMO ON' : 'DEMO OFF'}
-          </button>
-          <span className="c-sub">{demoEnabled ? 'Mock data shown when live API returns no rows' : 'Only live indexer data — no fallback'}</span>
-        </div>
-
         {tab === 'dashboard' && (
           <DashboardWorkflow
             data={data} live={live} loading={loading} error={error}

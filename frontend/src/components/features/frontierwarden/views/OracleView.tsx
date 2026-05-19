@@ -155,7 +155,7 @@ export function OracleView({ provenance }: OracleViewProps = {}) {
       <div style={{
         maxWidth: 760, marginBottom: 36,
         padding: 20, border: '1px solid var(--c-border)',
-        background: 'rgba(0,210,255,0.018)',
+        background: 'rgba(232,120,42,0.018)',
       }}>
         <div className="c-stat__label" style={{ marginBottom: 14 }}>Issue Attestation</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>

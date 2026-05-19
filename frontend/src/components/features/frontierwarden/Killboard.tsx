@@ -35,12 +35,12 @@ function KillRow({ kill }: KillRowProps) {
         gridTemplateColumns: '110px 1fr 110px 90px 100px 90px',
         gap: 12, padding: '8px 14px',
         borderBottom: '1px solid var(--b-05)',
-        background: active ? 'rgba(0,210,255,0.05)' :
+        background: active ? 'rgba(232,120,42,0.05)' :
                     kill.friendly ? 'rgba(220,38,38,0.06)' : 'rgba(245,158,11,0.025)',
         borderLeft: active ? '3px solid var(--sui-cyan)' :
                     kill.friendly ? '3px solid var(--tribe-crimson)' :
                     '3px solid var(--frontier-amber)',
-        boxShadow: active ? 'inset 0 0 30px rgba(0,210,255,0.04)' : 'none',
+        boxShadow: active ? 'inset 0 0 30px rgba(232,120,42,0.04)' : 'none',
         position: 'relative', cursor: 'default', alignItems: 'center',
         transition: 'background 80ms ease-out',
       }}

@@ -28,7 +28,7 @@ export function CreditRiskWorkflow(props: Props) {
 
   return (
     <div>
-      <p style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--c-hi)', margin: '0 0 12px 0' }}>Review credit risk</p>
+      <p className="c-section-header">Review credit risk</p>
       <WorkflowSubNav active={sub} onChange={setSub} tabs={[
         { id: 'contracts', label: 'Contract Queue' },
         { id: 'social',    label: 'Vouches & Lending' },

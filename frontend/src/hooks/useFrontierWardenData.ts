@@ -27,9 +27,7 @@ export interface FrontierWardenDataState {
   refresh: () => void;
 }
 
-export interface UseFrontierWardenDataOptions {
-  demoEnabled?: boolean;
-}
+export type UseFrontierWardenDataOptions = Record<string, never>;
 
 function shortId(id: string): string {
   if (id.length <= 14) return id;
@@ -289,7 +287,6 @@ function mergeLiveData(
   contracts: AttestationFeedRow[],
   eveIdentity: EveIdentity | null,
   identityMap: IdentityEnrichmentMap,
-  demoEnabled: boolean,
 ): { data: FwData; provenance: Record<string, Provenance> } {
   const liveGates = gates.map(gate => mapGate(gate, gateBindings[gate.gate_id]));
   const liveAlerts = challenges.slice(0, 5).map(challengeAlert);
@@ -303,23 +300,23 @@ function mergeLiveData(
   const livePolicy = mapPolicy(policy);
   const liveContracts = mapContracts(contracts);
 
-  const gateProv: Provenance = liveGates.length > 0 ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
-  const killProv: Provenance = liveKills.length > 0 ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
-  const contractProv: Provenance = liveContracts.length > 0 ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
-  const repProv: Provenance = profile ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
-  const policyProv: Provenance = livePolicy ? 'LIVE' : demoEnabled ? 'DEMO' : 'EMPTY';
+  const gateProv: Provenance = liveGates.length > 0 ? 'LIVE' : 'EMPTY';
+  const killProv: Provenance = liveKills.length > 0 ? 'LIVE' : 'EMPTY';
+  const contractProv: Provenance = liveContracts.length > 0 ? 'LIVE' : 'EMPTY';
+  const repProv: Provenance = profile ? 'LIVE' : 'EMPTY';
+  const policyProv: Provenance = livePolicy ? 'LIVE' : 'EMPTY';
 
   return {
     data: {
       ...FW_DATA,
-      pilot: profile ? mapPilot(profile, scores, eveIdentity) : (demoEnabled ? { ...FW_DATA.pilot, timestamp: '[DEMO] mockup — no live profile' } : { ...FW_DATA.pilot, score: 0, scoreDelta: 0, timestamp: 'no profile', sourceId: undefined, checkpoint: null }),
-      policy: livePolicy ?? (demoEnabled ? FW_DATA.policy : undefined),
-      gates: liveGates.length > 0 ? liveGates : (demoEnabled ? FW_DATA.gates : []),
-      kills: liveKills.length > 0 ? liveKills : (demoEnabled ? FW_DATA.kills : []),
-      contracts: liveContracts.length > 0 ? liveContracts : (demoEnabled ? FW_DATA.contracts : []),
-      vouches: liveVouches.length > 0 ? liveVouches : (demoEnabled ? FW_DATA.vouches : []),
-      proofs: liveProofs.length > 0 ? liveProofs : (demoEnabled ? FW_DATA.proofs : []),
-      alerts: liveAlerts.length > 0 ? liveAlerts : (demoEnabled ? FW_DATA.alerts : []),
+      pilot: profile ? mapPilot(profile, scores, eveIdentity) : { ...FW_DATA.pilot, score: 0, scoreDelta: 0, timestamp: 'no profile', sourceId: undefined, checkpoint: null },
+      policy: livePolicy ?? undefined,
+      gates: liveGates,
+      kills: liveKills,
+      contracts: liveContracts,
+      vouches: liveVouches,
+      proofs: liveProofs,
+      alerts: liveAlerts,
     },
     provenance: {
       gateNetwork: gateProv,
@@ -332,7 +329,7 @@ function mergeLiveData(
 }
 
 export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}): FrontierWardenDataState {
-  const { demoEnabled = true } = options;
+  
   const account = useCurrentAccount();
   const [data, setData] = useState<FwData>(FW_DATA);
   const [live, setLive] = useState(false);
@@ -389,7 +386,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       setEveIdentity(identity);
       setEveIdentityMap(identityMap);
 
-      const result = mergeLiveData(gates, gateBindings, challenges, profile, scores, vouches, attestations, nativeKills, shipKillAttestations, policy, bountyContracts, identity, identityMap, demoEnabled);
+      const result = mergeLiveData(gates, gateBindings, challenges, profile, scores, vouches, attestations, nativeKills, shipKillAttestations, policy, bountyContracts, identity, identityMap);
       setData(result.data);
       setProvenance(result.provenance);
       setLive(gates.length > 0 || challenges.length > 0 || profile != null || nativeKills.length > 0 || policy != null || bountyContracts.length > 0);
@@ -417,7 +414,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
     } finally {
       setLoading(false);
     }
-  }, [demoEnabled, account]);
+  }, [account]);
 
   useEffect(() => {
     refresh();

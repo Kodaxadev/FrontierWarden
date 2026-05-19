@@ -255,7 +255,7 @@ export function PolicyView({ data, live = false, loading = false, error = null, 
         marginBottom: 28,
         padding: 20,
         border: '1px solid var(--c-border)',
-        background: 'rgba(0,210,255,0.018)',
+        background: 'rgba(232,120,42,0.018)',
       }}>
         <div className="c-stat__label" style={{ marginBottom: 14 }}>Operator Wallet</div>
         <div style={{

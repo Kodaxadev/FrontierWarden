@@ -30,7 +30,7 @@ export function SettingsWorkflow(props: Props) {
 
   return (
     <div>
-      <p style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--c-hi)', margin: '0 0 12px 0' }}>Configure trust domain</p>
+      <p className="c-section-header">Configure trust domain</p>
       <WorkflowSubNav active={sub} onChange={setSub} tabs={[
         { id: 'policy',   label: 'Gate Policy' },
         { id: 'disputes', label: 'Disputes' },
