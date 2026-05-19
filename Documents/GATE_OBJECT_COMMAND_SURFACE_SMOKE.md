@@ -59,19 +59,17 @@ environment variable: VITE_EVE_WORLD_PACKAGE_ID. Please set it in your
 .env file.
 ```
 
-### Fix Required (Vercel Environment Variable)
+### Fix Applied: Vercel Environment Variable
 
-Set on Vercel (frontierwarden project):
+Set on Vercel (frontierwarden project) and redeployed 2026-05-18:
 ```
 VITE_EVE_WORLD_PACKAGE_ID=0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c
 ```
 
 This is the Stillness world package ID — already used in
-`operator-gate-authority.ts` as `STILLNESS_WORLD_PACKAGE_ID`. After setting
-this env var, trigger a Vercel rebuild (VITE_ vars are baked at build time).
+`operator-gate-authority.ts` as `STILLNESS_WORLD_PACKAGE_ID`.
 
-No other missing env vars were detected. The dapp-kit only requires this
-single env var (`getEnvVar` is called once, for this variable).
+Production deployment: `dpl_3JyFhPWf8rcWQXfQrqHv2kEHu8Jt`
 
 ## Checklist
 
@@ -80,25 +78,34 @@ single env var (`getEnvVar` is called once, for this variable).
 | Numeric itemId found | PASS | `1000005269846` from `/world/gates` API |
 | In-game surface renders | PASS | Context strip + ATT bars visible |
 | Wallet connected | PASS | Auto-connected from previous session |
-| SmartObjectProvider resolves | **BLOCKED** | Missing `VITE_EVE_WORLD_PACKAGE_ID` |
-| assembly.type = SmartGate | BLOCKED | Depends on provider resolution |
-| GateObjectSurface renders | BLOCKED | Depends on assembly type detection |
-| Unknown fallback does not render | BLOCKED | Depends on assembly type detection |
+| SmartObjectProvider resolves | **PASS** | BCS derived Sui object ID from itemId + tenant |
+| assembly.type = SmartGate | **PASS** | TYPE cell shows "GATE OPERATIONS" (green) |
+| GateObjectSurface renders | **PASS** | All sections: gate identity, authority, passage decision |
+| Unknown fallback does not render | **PASS** | Gate screen took over, no placeholder visible |
 
-## After Env Fix — Expected Flow
+## Confirmed Live Behavior
 
-Once `VITE_EVE_WORLD_PACKAGE_ID` is set and Vercel rebuilt:
+After env fix and Vercel rebuild, the full gate path works end-to-end:
 
-1. SmartObjectProvider derives Sui object ID from `itemId=1000005269846` +
+1. SmartObjectProvider derived Sui object ID from `itemId=1000005269846` +
    `tenant=stillness` via BCS.
-2. GraphQL query fetches the assembly object.
-3. `transformToAssembly()` parses the Move type string, detects
+2. GraphQL query fetched the assembly object successfully.
+3. `transformToAssembly()` parsed the Move type string, detected
    `Assemblies.SmartGate`.
-4. `assemblyToScreen()` returns `'gate'`.
-5. Context strip TYPE cell shows "GATE OPERATIONS" (green).
-6. `GateObjectSurface` renders: gate identity, authority checklist,
-   binding state, passage decision.
-7. The unknown/placeholder fallback does NOT render.
+4. `assemblyToScreen()` returned `'gate'`.
+5. Context strip: OPERATOR green (`0x9cc0...20e1`), OBJECT green
+   (`0x019f...0a7c`), TYPE green ("GATE OPERATIONS").
+6. `GateObjectSurface` rendered all sections:
+   - **Gate Identity** — Object `0x019f...0a7c`, Owner `0xe8e3...b2f6`
+   - **Authority** — Policy authority MISSING, World gate ownership
+     MISSING, Extension auth MISSING (correct — test wallet does not
+     own this gate's caps)
+   - **ATT. OPERATOR** — amber warning "NO GATE POLICY FOUND FOR THIS
+     WALLET" (correct)
+   - **Passage Decision** — Traveler shown, TRIBE_STANDING attestation
+     found (`0x308d...be49`), CHECK PASSAGE button enabled, status
+     "proof ready"
+7. The unknown/placeholder fallback did NOT render.
 
 ## Gate Universe Summary
 
