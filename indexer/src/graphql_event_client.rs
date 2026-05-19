@@ -153,6 +153,8 @@ impl GraphqlEventClient {
     }
 
     /// Execute a GraphQL events query with the given filter variables.
+    /// The Sui GraphQL endpoint caps page size at 50; we clamp here so
+    /// callers (e.g. ingester with batch_size=100) don't need to know.
     async fn fetch_events(
         &self,
         filter: Value,
@@ -160,6 +162,7 @@ impl GraphqlEventClient {
         limit: u32,
     ) -> Result<EventPage> {
         let gql_cursor = extract_gql_cursor(cursor);
+        let limit = limit.min(50); // Sui GraphQL max page size
 
         let body = serde_json::json!({
             "query": EVENTS_QUERY,
