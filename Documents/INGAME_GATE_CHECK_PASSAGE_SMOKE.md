@@ -75,15 +75,23 @@ diverge. The only difference is visual layout (compact vs full dashboard).
 The in-game gate route is **functionally complete** — not just render-valid
 but transaction-ready.
 
-## Human Verification (2026-05-18)
+## Two Distinct Smoke Results
 
-Operator manually confirmed the full CHECK PASSAGE flow using **Eve Vault**
-wallet (Slush was disabled due to Chrome extension conflicts with
-automation tooling). The on-chain `check_passage` transaction completed
-successfully from the in-game GateObjectSurface.
+### Automation smoke (Claude Code + Chrome)
 
-This confirms the final link: wallet co-sign → on-chain execution works
-identically from the in-game surface and the web dashboard.
+Reached wallet signing through the real production sponsor path. Failed at
+the human wallet approval boundary — automation cannot interact with
+browser extension popups. The FrontierWarden build/sponsor/sign-request
+path is validated; the rejection is at the wallet UI, not our code.
+
+### Human smoke (operator, Eve Vault)
+
+Operator disabled Slush (Chrome extension conflict with automation) and
+used **Eve Vault** wallet. CHECK PASSAGE approved in wallet, on-chain
+`check_passage` transaction completed successfully from the in-game
+GateObjectSurface. This confirms the final link: wallet co-sign →
+on-chain execution works identically from the in-game surface and the
+web dashboard.
 
 ## What This Means
 
