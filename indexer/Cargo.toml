@@ -27,6 +27,12 @@ path = "src/bin/run_migration.rs"
 name = "verify_signature_spike"
 path = "src/bin/verify_signature_spike.rs"
 
+# Dev-only: compare JSON-RPC vs GraphQL event source parity.
+# Not deployed. Run: RUST_LOG=info cargo run --bin event_source_parity
+[[bin]]
+name = "event_source_parity"
+path = "src/bin/event_source_parity.rs"
+
 [lib]
 name = "efrep_indexer"
 path = "src/lib.rs"

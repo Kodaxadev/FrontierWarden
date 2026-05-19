@@ -1,6 +1,8 @@
 pub mod config;
 pub mod db;
+pub mod event_source;
 pub mod gate_policy_bindings;
+pub mod graphql_event_client;
 #[cfg(test)]
 mod gate_policy_bindings_tests;
 pub mod rpc;

@@ -11,6 +11,7 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::Value;
+use tracing::debug;
 
 use crate::event_source::SuiEventSource;
 use crate::rpc::{EventId, EventPage, SuiEvent};
@@ -200,6 +201,18 @@ impl GraphqlEventClient {
             tx_digest: c,
             event_seq: GQL_CURSOR_SENTINEL.to_owned(),
         });
+
+        let first_cp = data.first().and_then(|e| e.checkpoint.as_deref());
+        let last_cp = data.last().and_then(|e| e.checkpoint.as_deref());
+        debug!(
+            filter = %filter,
+            count = data.len(),
+            first_checkpoint = first_cp.unwrap_or("-"),
+            last_checkpoint = last_cp.unwrap_or("-"),
+            has_next_page = connection.page_info.has_next_page,
+            has_cursor = next_cursor.is_some(),
+            "graphql_event_source:page"
+        );
 
         Ok(EventPage {
             data,
