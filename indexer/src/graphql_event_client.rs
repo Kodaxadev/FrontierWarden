@@ -38,6 +38,12 @@ query Events($filter: EventFilter!, $cursor: String, $limit: Int) {
 
 /// Sentinel value stored in `EventId.event_seq` to distinguish a GraphQL
 /// opaque cursor (stored in `EventId.tx_digest`) from a JSON-RPC cursor.
+///
+/// IMPORTANT: This sentinel only appears in `EventPage.next_cursor` — the
+/// pagination token passed between the ingester loop and the event source.
+/// It NEVER appears in `SuiEvent.id`, which always carries the real
+/// transaction digest and event sequence number from the GraphQL node.
+/// The raw_events table therefore always stores real Sui identifiers.
 pub const GQL_CURSOR_SENTINEL: &str = "gql";
 
 // ── Wire types (GraphQL response) ────────────────────────────────────────────
