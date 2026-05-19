@@ -6,6 +6,8 @@ use axum::{
 use serde::Serialize;
 use sqlx::PgPool;
 
+// SECURITY: All list endpoints must use LimitParams to clamp result set size.
+// See Documents/API_WEAPONIZATION_AUDIT.md for rationale.
 use crate::api_common::{ApiError, LimitParams};
 
 pub fn router() -> Router<PgPool> {
@@ -85,8 +87,13 @@ struct GatePassageRow {
     indexed_at: String,
 }
 
-async fn gates(State(pool): State<PgPool>) -> Result<Json<Vec<GateSummaryRow>>, ApiError> {
+async fn gates(
+    State(pool): State<PgPool>,
+    Query(params): Query<LimitParams>,
+) -> Result<Json<Vec<GateSummaryRow>>, ApiError> {
+    let limit = params.limit.unwrap_or(200).min(500);
     let rows = sqlx::query_as::<_, GateSummaryRow>(GATES_SQL)
+        .bind(limit)
         .fetch_all(&pool)
         .await?;
 
@@ -230,7 +237,8 @@ const GATES_SQL: &str = "
     LEFT JOIN latest_config c ON c.gate_id = g.gate_id
     LEFT JOIN gate_passages p ON p.gate_id = g.gate_id
     GROUP BY g.gate_id, c.ally_threshold, c.base_toll_mist, c.indexed_at
-    ORDER BY COALESCE(c.indexed_at, NOW()) DESC, g.gate_id";
+    ORDER BY COALESCE(c.indexed_at, NOW()) DESC, g.gate_id
+    LIMIT $1";
 
 const GATE_SINGLE_SQL: &str = "
     WITH latest_config AS (

@@ -6,6 +6,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
+// SECURITY: List endpoints clamp result set size.
+// See Documents/API_WEAPONIZATION_AUDIT.md for rationale.
 use crate::api_common::ApiError;
 
 const DEFAULT_TENANT: &str = "stillness";
@@ -18,6 +20,7 @@ pub fn router() -> Router<PgPool> {
 #[serde(rename_all = "camelCase")]
 struct WorldGatesQuery {
     tenant: Option<String>,
+    limit: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -54,6 +57,8 @@ async fn world_gates(
         .unwrap_or(DEFAULT_TENANT)
         .to_owned();
 
+    let limit = params.limit.unwrap_or(200).min(500);
+
     let gates = sqlx::query_as::<_, WorldGateCandidate>(
         "SELECT
             gate_id,
@@ -73,9 +78,11 @@ async fn world_gates(
                 ELSE 2
             END,
             item_id ASC,
-            checkpoint_updated DESC",
+            checkpoint_updated DESC
+         LIMIT $2",
     )
     .bind(&tenant)
+    .bind(limit)
     .fetch_all(&pool)
     .await?;
 
