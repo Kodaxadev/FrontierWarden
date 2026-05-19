@@ -39,22 +39,24 @@ export const SCREEN_LABELS: Record<InGameScreen, string> = {
 };
 
 /** Parse query params for in-game mode detection.
- *  Returns null when the page is NOT in in-game mode. */
+ *  Returns null when the page is NOT in in-game mode.
+ *
+ *  SmartObjectProvider only reads ?itemId= (numeric) to derive a Sui
+ *  object ID via BCS + AssemblyRegistry.  It does NOT read ?objectId=.
+ *  EVE Frontier's smart assembly frame supplies ?itemId=<numeric>, so
+ *  this is the only query param we check. */
 export function parseInGameParams(): {
-  itemId: string | null;
-  objectId: string | null;
+  itemId: string;
   tenant: string | null;
 } | null {
   const params = new URLSearchParams(window.location.search);
   const itemId = params.get('itemId')?.trim() || null;
-  const objectId = params.get('objectId')?.trim() || null;
 
-  // In-game mode requires at least one object identifier
-  if (!itemId && !objectId) return null;
+  // In-game mode requires an itemId (numeric assembly identifier)
+  if (!itemId) return null;
 
   return {
     itemId,
-    objectId,
     tenant: params.get('tenant')?.trim() || null,
   };
 }

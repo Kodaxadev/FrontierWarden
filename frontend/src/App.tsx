@@ -2,8 +2,8 @@
 // CradleOS (hackathon build) is excluded from this build.
 //
 // Surface detection:
-//   ?itemId= or ?objectId= → in-game object command surface
-//   otherwise              → external web command center
+//   ?itemId= → in-game object command surface (SmartObjectProvider derives Sui objectId)
+//   otherwise → external web command center
 
 import { FrontierWardenDashboard } from './components/features/frontierwarden/FrontierWardenDashboard';
 import { OperatorSessionGate } from './components/features/frontierwarden/OperatorSessionGate';
