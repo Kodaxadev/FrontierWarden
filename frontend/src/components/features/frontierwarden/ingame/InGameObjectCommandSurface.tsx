@@ -16,6 +16,10 @@ import { GateObjectSurface } from './GateObjectSurface';
 const shortId = (value: string) =>
   value.length <= 14 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
 
+/** URL to the web command center — same origin, no in-game query params. */
+const webCommandCenterUrl = () =>
+  window.location.origin + window.location.pathname;
+
 /** Dense operator context strip for in-game mode. */
 function ContextStrip({ wallet, objectId, screen }: {
   wallet: string | null;
@@ -33,6 +37,24 @@ function ContextStrip({ wallet, objectId, screen }: {
       <ContextCell label="OPERATOR" value={wallet ? shortId(wallet) : 'NOT CONNECTED'} tone={wallet ? 'good' : 'idle'} />
       <ContextCell label="OBJECT" value={objectId ? shortId(objectId) : 'LOADING'} tone={objectId ? 'good' : 'idle'} />
       <ContextCell label="TYPE" value={SCREEN_LABELS[screen]} tone={screen === 'unknown' ? 'warn' : 'good'} />
+      <a
+        href={webCommandCenterUrl()}
+        style={{
+          marginLeft: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '8px 14px',
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: 1.2,
+          textTransform: 'uppercase',
+          color: 'var(--c-hi, #00d2ff)',
+          textDecoration: 'none',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        FULL DASHBOARD ↗
+      </a>
     </div>
   );
 }
@@ -162,15 +184,14 @@ export function InGameObjectCommandSurface() {
           fontSize: 10,
           color: 'var(--c-mid)',
         }}>
-          Full operator command center available at{' '}
+          This is the compact object view.{' '}
           <a
-            href={window.location.origin}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={webCommandCenterUrl()}
             style={{ color: 'var(--c-hi, #00d2ff)' }}
           >
-            {window.location.origin}
+            Open Web Command Center
           </a>
+          {' '}for full setup, dossiers, policy, evidence, and admin.
         </div>
       </div>
     </div>
