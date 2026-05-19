@@ -4,6 +4,11 @@
 
 [network]
 rpc_url = "https://fullnode.testnet.sui.io:443"
+# Sui GraphQL endpoint for event ingestion (graphql mode).
+graphql_url = "https://graphql.testnet.sui.io/graphql"
+# Event source mode: "jsonrpc" (default) or "graphql".
+# Set to "graphql" to use Sui GraphQL events query instead of suix_queryEvents.
+event_source_mode = "jsonrpc"
 
 [package]
 # Current testnet package ID (after v2 upgrade).

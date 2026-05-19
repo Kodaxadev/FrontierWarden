@@ -3,8 +3,11 @@ use anyhow::Result;
 use crate::rpc::{EventId, EventPage, RpcClient};
 
 // Adapter boundary: all Sui event fetching goes through this trait.
-// TODO: GraphQL cutover point — replace RpcClient impl with a GraphQL-backed source.
-// See Documents/SUI_JSON_RPC_DEPRECATION_SPIKE.md, Phase 3.
+// Two implementations:
+//   - RpcClient (rpc.rs)                — JSON-RPC suix_queryEvents (default)
+//   - GraphqlEventClient (graphql_event_client.rs) — Sui GraphQL events query
+// Selected at startup via [network] event_source_mode in config.toml.
+// See Documents/INDEXER_EVENT_GRAPHQL_SPIKE.md for migration plan.
 pub trait SuiEventSource: Send + Sync {
     async fn query_events(
         &self,
