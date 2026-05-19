@@ -17,6 +17,23 @@ pub struct Config {
 #[derive(Debug, Deserialize, Clone)]
 pub struct NetworkConfig {
     pub rpc_url: String,
+    /// Sui GraphQL endpoint for event ingestion (graphql mode).
+    /// Default: "https://graphql.testnet.sui.io/graphql"
+    #[serde(default = "NetworkConfig::default_graphql_url")]
+    pub graphql_url: String,
+    /// Event source mode: "jsonrpc" (default) or "graphql".
+    /// GraphQL mode uses the Sui GraphQL events query instead of suix_queryEvents.
+    #[serde(default = "NetworkConfig::default_event_source_mode")]
+    pub event_source_mode: String,
+}
+
+impl NetworkConfig {
+    fn default_graphql_url() -> String {
+        "https://graphql.testnet.sui.io/graphql".into()
+    }
+    fn default_event_source_mode() -> String {
+        "jsonrpc".into()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -148,6 +165,13 @@ impl Config {
             .with_context(|| format!("cannot read {:?}", path.as_ref()))?;
         let mut cfg: Self = toml::from_str(&text).context("config.toml parse failed")?;
         cfg.database.url = resolve_database_url(&cfg.database.url)?;
+        // Env var overrides for network config
+        if let Ok(s) = std::env::var("EFREP_GRAPHQL_URL") {
+            cfg.network.graphql_url = s;
+        }
+        if let Ok(s) = std::env::var("EFREP_EVENT_SOURCE_MODE") {
+            cfg.network.event_source_mode = s;
+        }
         // Env var overrides for package config (Railway deployment)
         if let Ok(s) = std::env::var("EFREP_PACKAGE_ID") {
             cfg.package.id = s;

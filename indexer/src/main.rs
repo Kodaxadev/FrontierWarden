@@ -26,6 +26,7 @@ mod eve_identity;
 mod gate_binding_status_api_tests;
 mod gate_policy_bindings;
 mod event_source;
+mod graphql_event_client;
 mod ingester;
 mod processor;
 mod rpc;
@@ -110,7 +111,25 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Indexer loop — runs forever; returns only on fatal error
-    let event_source = rpc::RpcClient::new(&cfg.network.rpc_url);
-    ingester::run(cfg, pool, event_source).await
+    // Indexer loop — runs forever; returns only on fatal error.
+    // Event source mode: "jsonrpc" (default) or "graphql".
+    match cfg.network.event_source_mode.as_str() {
+        "graphql" => {
+            tracing::info!(
+                url = %cfg.network.graphql_url,
+                "event source: GraphQL"
+            );
+            let event_source =
+                graphql_event_client::GraphqlEventClient::new(&cfg.network.graphql_url);
+            ingester::run(cfg, pool, event_source).await
+        }
+        _ => {
+            tracing::info!(
+                url = %cfg.network.rpc_url,
+                "event source: JSON-RPC"
+            );
+            let event_source = rpc::RpcClient::new(&cfg.network.rpc_url);
+            ingester::run(cfg, pool, event_source).await
+        }
+    }
 }
