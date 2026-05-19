@@ -30,38 +30,40 @@ pub(crate) fn router_with_security(
 ) -> Router {
     START.get_or_init(Instant::now);
 
-    let api_routes = Router::new()
+    let sensitive_limit = crate::api_rate_limit::RateLimitState::sensitive_from_env();
+    let elevated_limit = crate::api_rate_limit::RateLimitState::elevated_from_env();
+
+    // ── Sensitive tier (30/min default): identity batch, character jumps ──
+    let sensitive_routes = Router::new()
+        .merge(crate::api_eve::router(eve_cfg.clone()))
+        .merge(crate::api_world_gate_traffic::router());
+    let sensitive_routes = apply_rate_limit(sensitive_routes, sensitive_limit);
+
+    // ── Elevated tier (60/min default): kill-mails, leaderboard, reputation ──
+    let elevated_routes = Router::new()
+        .merge(crate::api_kill_mails::router())
+        .merge(crate::api_reputation::router());
+    let elevated_routes = apply_rate_limit(elevated_routes, elevated_limit);
+
+    // ── Standard routes (global limit only) ──
+    let standard_routes = Router::new()
         .merge(crate::api_attestations::router())
         .merge(crate::api_challenges::router())
-        .merge(crate::api_eve::router(eve_cfg))
         .merge(crate::api_gates::router())
         .merge(crate::api_gate_ops::router())
         .merge(crate::api_registry::router())
-        .merge(crate::api_reputation::router())
         .merge(crate::api_trust::router_with_config(trust_cfg))
-        .merge(crate::api_world_gates::router())
-        .merge(crate::api_world_gate_traffic::router())
-        .merge(crate::api_kill_mails::router());
+        .merge(crate::api_world_gates::router());
+
+    // Merge all tiers then apply global rate limit on top.
+    let api_routes = Router::new()
+        .merge(sensitive_routes)
+        .merge(elevated_routes)
+        .merge(standard_routes);
+    let api_routes = apply_rate_limit(api_routes, rate_limit.clone());
 
     let auth_routes = crate::api_sessions::router(sessions.clone());
-
-    let auth_routes = if let Some(limiter) = rate_limit.clone() {
-        auth_routes.layer(middleware::from_fn_with_state(
-            limiter,
-            crate::api_rate_limit::rate_limit,
-        ))
-    } else {
-        auth_routes
-    };
-
-    let api_routes = if let Some(limiter) = rate_limit {
-        api_routes.layer(middleware::from_fn_with_state(
-            limiter,
-            crate::api_rate_limit::rate_limit,
-        ))
-    } else {
-        api_routes
-    };
+    let auth_routes = apply_rate_limit(auth_routes, rate_limit);
 
     Router::new()
         .route("/health", get(health))
@@ -70,6 +72,20 @@ pub(crate) fn router_with_security(
         .layer(middleware::from_fn(crate::api_request_log::log_request))
         .layer(cors_layer())
         .with_state(pool)
+}
+
+fn apply_rate_limit(
+    router: Router<PgPool>,
+    limiter: Option<crate::api_rate_limit::RateLimitState>,
+) -> Router<PgPool> {
+    if let Some(limiter) = limiter {
+        router.layer(middleware::from_fn_with_state(
+            limiter,
+            crate::api_rate_limit::rate_limit,
+        ))
+    } else {
+        router
+    }
 }
 
 fn cors_layer() -> CorsLayer {
