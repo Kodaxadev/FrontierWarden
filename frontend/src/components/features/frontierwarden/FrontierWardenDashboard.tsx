@@ -1,37 +1,36 @@
-// FrontierWardenDashboard v3 — tab-based navigation shell
-// One focused view at a time. No simultaneous panels.
+// FrontierWardenDashboard v4 — workflow-based navigation shell
+// 5 workflow groups replace the 11 flat tabs. Old FwNav preserved at FwNav.tsx.
 
 import { useState } from 'react';
 import { FwHeader }           from './FwHeader';
-import { FwNav }              from './FwNav';
-import { OnboardingWizardShell } from './OnboardingWizardShell';
+import { FwWorkflowNav }      from './FwWorkflowNav';
+import type { WorkflowTab }   from './FwWorkflowNav';
 import { OperatorContextBar } from './OperatorContextBar';
 import { useOperatorContextSignals } from './operator-context-signals';
-import { NodeSentinelView }   from './views/NodeSentinelView';
-import { GateIntelView }      from './views/GateIntelView';
-import { KillboardView }      from './views/KillboardView';
-import { ReputationView }     from './views/ReputationView';
-import { ContractsView }      from './views/ContractsView';
-import { PolicyView }         from './views/PolicyView';
-import { OracleView }         from './views/OracleView';
-import { SocialView }         from './views/SocialView';
-import { DisputesView }       from './views/DisputesView';
-import { TrustConsoleView }   from './views/TrustConsoleView';
+import { DashboardWorkflow }  from './views/DashboardWorkflow';
+import { CheckTrustWorkflow } from './views/CheckTrustWorkflow';
+import { GateOpsWorkflow }    from './views/GateOpsWorkflow';
+import { CreditRiskWorkflow } from './views/CreditRiskWorkflow';
+import { SettingsWorkflow }   from './views/SettingsWorkflow';
 import { useFrontierWardenData } from '../../../hooks/useFrontierWardenData';
 import { useDemoFallback } from '../../../hooks/useDemoFallback';
 
+/** @deprecated Use WorkflowTab. Kept for OnboardingWizardShell compatibility. */
 export type FwTab = 'onboarding' | 'sentinel' | 'gates' | 'trust' | 'killboard' | 'reputation' | 'contracts' | 'policy' | 'oracle' | 'social' | 'disputes';
 
 export function FrontierWardenDashboard() {
-  const [tab, setTab] = useState<FwTab>('sentinel');
+  const [tab, setTab] = useState<WorkflowTab>('dashboard');
   const { demoEnabled, toggleDemo } = useDemoFallback();
-  const { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, eveIdentity, eveIdentityMap } = useFrontierWardenData({ demoEnabled });
+  const {
+    data, live, loading, reputationLive, killboardLive, policyLive,
+    contractsLive, provenance, error, eveIdentity, eveIdentityMap,
+  } = useFrontierWardenData({ demoEnabled });
   const operatorSignals = useOperatorContextSignals(data, eveIdentity);
 
   return (
     <div className="c-shell">
       <FwHeader data={data} />
-      <FwNav active={tab} onChange={setTab} alerts={data.alerts} />
+      <FwWorkflowNav active={tab} onChange={setTab} alerts={data.alerts} />
       <OperatorContextBar signals={operatorSignals} />
       <div className="c-view">
         {/* Demo toggle */}
@@ -46,17 +45,52 @@ export function FrontierWardenDashboard() {
           <span className="c-sub">{demoEnabled ? 'Mock data shown when live API returns no rows' : 'Only live indexer data — no fallback'}</span>
         </div>
 
-        {tab === 'onboarding' && <OnboardingWizardShell signals={operatorSignals} onNavigate={setTab} />}
-        {tab === 'sentinel'   && <NodeSentinelView data={data} live={live} loading={loading} error={error} eveIdentity={eveIdentity} eveIdentityMap={eveIdentityMap} />}
-        {tab === 'gates'      && <GateIntelView  data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
-        {tab === 'trust'      && <TrustConsoleView data={data} live={live} loading={loading} error={error} provenance={provenance.gateNetwork} />}
-        {tab === 'killboard'  && <KillboardView  data={data} live={killboardLive} loading={loading} error={error} provenance={provenance.killboard} />}
-        {tab === 'reputation' && <ReputationView data={data} live={reputationLive} loading={loading} error={error} provenance={provenance.reputation} />}
-        {tab === 'contracts'  && <ContractsView  data={data} live={contractsLive} loading={loading} error={error} provenance={provenance.contracts} />}
-        {tab === 'policy'     && <PolicyView     data={data} live={policyLive} loading={loading} error={error} provenance={provenance.policy} />}
-        {tab === 'oracle'     && <OracleView     provenance={provenance.gateNetwork} />}
-        {tab === 'social'     && <SocialView     provenance={provenance.reputation} />}
-        {tab === 'disputes'   && <DisputesView   provenance={provenance.killboard} />}
+        {tab === 'dashboard' && (
+          <DashboardWorkflow
+            data={data} live={live} loading={loading} error={error}
+            eveIdentity={eveIdentity} eveIdentityMap={eveIdentityMap}
+            operatorSignals={operatorSignals}
+            onWorkflowNavigate={setTab}
+          />
+        )}
+        {tab === 'check-trust' && (
+          <CheckTrustWorkflow
+            data={data} live={live} loading={loading} error={error}
+            reputationLive={reputationLive} killboardLive={killboardLive}
+            provenance={{
+              gateNetwork: provenance.gateNetwork,
+              reputation: provenance.reputation,
+              killboard: provenance.killboard,
+            }}
+          />
+        )}
+        {tab === 'gate-ops' && (
+          <GateOpsWorkflow
+            data={data} live={live} loading={loading} error={error}
+            provenance={provenance.gateNetwork}
+          />
+        )}
+        {tab === 'credit-risk' && (
+          <CreditRiskWorkflow
+            data={data} live={live} loading={loading} error={error}
+            contractsLive={contractsLive}
+            provenance={{
+              contracts: provenance.contracts,
+              reputation: provenance.reputation,
+            }}
+          />
+        )}
+        {tab === 'settings' && (
+          <SettingsWorkflow
+            data={data} live={live} loading={loading} error={error}
+            policyLive={policyLive}
+            provenance={{
+              policy: provenance.policy,
+              gateNetwork: provenance.gateNetwork,
+              killboard: provenance.killboard,
+            }}
+          />
+        )}
       </div>
     </div>
   );
