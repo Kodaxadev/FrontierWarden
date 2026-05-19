@@ -75,6 +75,18 @@
       "note": "Cap from first fresh-package GatePolicy; kept for audit only."
     }
   },
+  "world_gate": {
+    "id": "0x019f53078f1501840c37ce97f3b1d48fe284c5913e8091ed922c313da3f30a7c",
+    "itemId": 1000005269846,
+    "tenant": "stillness",
+    "status": "online",
+    "linkedGateId": "0xb2a07bad90170dfc123d20b9855b8b94b2673665f331102e9f8ccdcbb1549ea9",
+    "note": "Primary test world gate. itemId confirmed via /world/gates API 2026-05-18. Use ?itemId=1000005269846&tenant=stillness for in-game mode."
+  },
+  "eve_world_package": {
+    "id": "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c",
+    "note": "Stillness world package ID. Required as VITE_EVE_WORLD_PACKAGE_ID for dapp-kit BCS derivation."
+  },
   "deployer_objects": {
     "gas_station_sponsor": {
       "address": "0xcfcf2247346d7a0676e2018168f94b86e1d1263fd3afd6862685725c8c49db8f",

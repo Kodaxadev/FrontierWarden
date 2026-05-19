@@ -69,14 +69,12 @@ resolves the assembly type.
 
 | Asset | Sui Object ID | Numeric itemId |
 |-------|---------------|----------------|
-| World Gate | `0x019f53078f...30a7c` | Unknown — must query `/world/gates?tenant=stillness` |
+| World Gate | `0x019f53078f...30a7c` | `1000005269846` |
 | GatePolicy | `0x7b10f2ee46...53807` | N/A (not an assembly) |
 | GateAdminCap | `0x7876d36be7...53a3` | N/A (not an assembly) |
 
-The numeric `itemId` for the world gate is available from the
-`/world/gates?tenant=stillness` API endpoint (returns
-`WorldGateCandidate.itemId`). This API is served by the EFRep indexer and
-requires it to have indexed the gate.
+Numeric itemId confirmed via `/world/gates?tenant=stillness` API (41 gates
+indexed). See `GATE_OBJECT_COMMAND_SURFACE_SMOKE.md` for live test results.
 
 ## Testing Path
 
