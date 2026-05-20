@@ -1,0 +1,13 @@
+{
+  "backup_timestamp": "2026-05-19T15:10:00Z",
+  "note": "Core tables companion file. Data queried from Supabase production at backup time.",
+  "table_counts": {
+    "indexer_state": 40,
+    "attestations": 36,
+    "profiles": 2,
+    "fraud_challenges": 4,
+    "score_cache": 3,
+    "schemas": 22,
+    "vouches": 1
+  }
+}

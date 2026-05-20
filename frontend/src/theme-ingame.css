@@ -1,0 +1,229 @@
+/* EVE Frontier in-game browser presence layer. */
+
+.c-shell {
+  background:
+    linear-gradient(90deg, rgba(4, 3, 2, 0.96) 0%, rgba(8, 5, 3, 0.86) 38%, rgba(5, 3, 2, 0.97) 100%),
+    linear-gradient(180deg, rgba(8, 5, 3, 0.64) 0%, rgba(5, 3, 2, 0.88) 74%, rgba(3, 2, 1, 0.98) 100%),
+    radial-gradient(ellipse 52% 62% at 70% 24%, rgba(255, 48, 38, 0.2) 0%, transparent 58%),
+    url('/visuals/frontier-rift.jpg') center / cover no-repeat,
+    #050302;
+}
+
+.c-shell::after {
+  background-image:
+    linear-gradient(rgba(255, 122, 34, 0.024) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 122, 34, 0.018) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(255, 122, 34, 0.018) 1px, transparent 1px);
+  background-size: 36px 36px, 36px 36px, 12px 12px;
+}
+
+.fw-game-frame {
+  font-family: var(--c-mono);
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: 75;
+}
+
+.fw-game-frame__top {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  left: 50%;
+  max-width: 540px;
+  opacity: 0.72;
+  position: fixed;
+  top: 14px;
+  transform: translateX(-50%);
+  width: 34vw;
+}
+
+.fw-game-frame__top span {
+  border-bottom: 1px solid rgba(238, 228, 210, 0.42);
+  color: rgba(238, 228, 210, 0.74);
+  font-size: 10px;
+  padding-bottom: 5px;
+  text-align: center;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.18);
+}
+
+.fw-game-frame__top span:last-child {
+  border-bottom-color: rgba(238, 228, 210, 0.92);
+  box-shadow: 0 6px 10px -8px rgba(255, 255, 255, 0.9);
+}
+
+.fw-game-frame__left {
+  color: rgba(238, 228, 210, 0.7);
+  display: grid;
+  gap: 8px;
+  left: 20px;
+  letter-spacing: 0.04em;
+  max-width: 170px;
+  position: fixed;
+  top: 68px;
+}
+
+.fw-game-frame__node {
+  color: rgba(238, 228, 210, 0.9);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.fw-game-frame__region {
+  color: rgba(238, 228, 210, 0.68);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fw-game-frame__route {
+  border-top: 1px solid rgba(242, 118, 34, 0.28);
+  color: rgba(238, 228, 210, 0.85);
+  font-size: 11px;
+  font-weight: 700;
+  padding-top: 8px;
+}
+
+.fw-game-frame__left span:last-child {
+  color: rgba(238, 228, 210, 0.48);
+  font-size: 11px;
+}
+
+.fw-game-frame__rail {
+  bottom: 84px;
+  display: grid;
+  gap: 6px;
+  left: 16px;
+  position: fixed;
+  width: 34px;
+}
+
+.fw-game-frame__rail span {
+  background:
+    linear-gradient(135deg, transparent 0 42%, rgba(242, 118, 34, 0.7) 43% 55%, transparent 56%),
+    rgba(5, 4, 3, 0.82);
+  border: 1px solid rgba(238, 228, 210, 0.34);
+  height: 28px;
+  opacity: 0.7;
+}
+
+.fw-game-frame__reticle {
+  border: 1px solid rgba(242, 118, 34, 0.48);
+  bottom: 96px;
+  height: 72px;
+  left: 40px;
+  position: fixed;
+  transform: rotate(45deg);
+  width: 72px;
+}
+
+.fw-game-frame__reticle::before,
+.fw-game-frame__reticle::after {
+  content: '';
+  position: absolute;
+}
+
+.fw-game-frame__reticle::before {
+  border: 1px solid rgba(242, 118, 34, 0.18);
+  inset: 10px;
+}
+
+.fw-game-frame__reticle::after {
+  background:
+    linear-gradient(90deg, transparent 0 47%, rgba(242, 118, 34, 0.5) 48% 52%, transparent 53%),
+    linear-gradient(0deg, transparent 0 47%, rgba(242, 118, 34, 0.5) 48% 52%, transparent 53%);
+  inset: 18px;
+}
+
+.fw-game-frame__bottom {
+  align-items: center;
+  background: linear-gradient(90deg, rgba(16, 42, 255, 0.92), rgba(18, 36, 220, 0.94));
+  bottom: 0;
+  box-shadow: 0 -1px 0 rgba(238, 228, 210, 0.2), 0 -18px 46px rgba(0, 0, 0, 0.38);
+  color: rgba(238, 228, 210, 0.92);
+  display: flex;
+  font-size: 12px;
+  gap: 18px;
+  height: 26px;
+  justify-content: center;
+  letter-spacing: 0.08em;
+  position: fixed;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+.fw-game-frame__bottom span {
+  white-space: nowrap;
+}
+
+.c-header,
+.c-nav,
+.c-context-bar,
+.c-view {
+  position: relative;
+  z-index: 100;
+}
+
+.c-header {
+  margin-left: 56px;
+  margin-right: 18px;
+  margin-top: 18px;
+  border: 1px solid rgba(242, 118, 34, 0.2);
+  border-bottom-color: rgba(242, 118, 34, 0.34);
+}
+
+.c-nav,
+.c-context-bar {
+  margin-left: 56px;
+  margin-right: 18px;
+}
+
+.c-view {
+  margin-left: 56px;
+  margin-right: 18px;
+  padding-bottom: 54px;
+}
+
+.c-panel,
+.c-card,
+.c-stat,
+.ns-block {
+  backdrop-filter: blur(7px);
+}
+
+.c-tab--active {
+  box-shadow: inset 0 -2px 0 rgba(242, 118, 34, 0.9), inset 0 1px 0 rgba(238, 228, 210, 0.08);
+}
+
+.c-filter--active,
+.c-commit {
+  box-shadow: 0 0 0 1px rgba(238, 228, 210, 0.1), 0 0 18px rgba(242, 118, 34, 0.34);
+}
+
+@media (max-width: 1080px) {
+  .fw-game-frame__top,
+  .fw-game-frame__left,
+  .fw-game-frame__rail,
+  .fw-game-frame__reticle {
+    display: none;
+  }
+
+  .c-header,
+  .c-nav,
+  .c-context-bar,
+  .c-view {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .fw-game-frame__bottom {
+    font-size: 9px;
+    gap: 10px;
+    justify-content: flex-start;
+    overflow: hidden;
+    padding: 0 12px;
+  }
+}
