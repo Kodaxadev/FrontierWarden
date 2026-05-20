@@ -17,6 +17,7 @@ import {
 } from '@evefrontier/dapp-kit';
 import './globals.css';
 import './theme-warden.css';
+import './theme-readme-polish.css';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { dAppKit } from './lib/dapp-kit';

@@ -1,0 +1,274 @@
+/* README-aligned FrontierWarden presentation layer. */
+
+:root {
+  --fw-readme-cream: #eee4d2;
+  --fw-readme-amber: #f27622;
+  --fw-readme-amber-soft: rgba(242, 118, 34, 0.14);
+  --fw-readme-red: rgba(210, 56, 24, 0.18);
+  --fw-readme-line: rgba(242, 118, 34, 0.26);
+  --fw-readme-panel: rgba(17, 11, 7, 0.82);
+  --fw-readme-panel-hi: rgba(35, 21, 12, 0.88);
+}
+
+.c-shell {
+  background:
+    linear-gradient(90deg, rgba(5, 4, 3, 0.98) 0%, rgba(7, 5, 3, 0.84) 42%, rgba(12, 7, 4, 0.98) 100%),
+    radial-gradient(ellipse 46% 52% at 70% 18%, var(--fw-readme-red) 0%, transparent 68%),
+    radial-gradient(ellipse 70% 62% at 58% 24%, rgba(242, 118, 34, 0.12) 0%, transparent 72%),
+    radial-gradient(ellipse 90% 90% at 50% 96%, rgba(242, 118, 34, 0.06) 0%, transparent 58%),
+    #050403;
+}
+
+.c-shell::before {
+  opacity: 0.72;
+  background:
+    linear-gradient(90deg, rgba(242, 118, 34, 0.055) 1px, transparent 1px),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(242, 118, 34, 0.018) 3px 4px);
+  background-size: 96px 100%, auto;
+}
+
+.c-shell::after {
+  opacity: 0.78;
+  background-image:
+    linear-gradient(rgba(242, 118, 34, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(242, 118, 34, 0.018) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 80%, transparent 100%);
+}
+
+.c-header {
+  min-height: 50px;
+  padding: 0 22px;
+  background:
+    linear-gradient(90deg, rgba(242, 118, 34, 0.11), transparent 34%),
+    rgba(7, 5, 3, 0.96);
+  border-bottom-color: var(--fw-readme-line);
+}
+
+.c-header::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 5px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--fw-readme-line), transparent 55%, var(--fw-readme-line));
+  opacity: 0.55;
+}
+
+.c-header__brand {
+  align-items: baseline;
+  color: var(--fw-readme-cream);
+  display: inline-flex;
+  font-size: 15px;
+  gap: 10px;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-shadow: 0 0 22px rgba(242, 118, 34, 0.36);
+}
+
+.c-header__brand::before {
+  content: '';
+  width: 28px;
+  height: 8px;
+  border-top: 2px solid var(--fw-readme-cream);
+  border-left: 12px solid var(--fw-readme-cream);
+  transform: skewX(-28deg);
+  box-shadow: 18px 0 0 -8px var(--fw-readme-cream);
+  opacity: 0.92;
+}
+
+.c-header__brand-sub,
+.c-header__pilot-tag {
+  color: var(--c-mid);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+}
+
+.c-header__pilot-tag { margin-left: 8px; }
+
+.c-header__chain,
+.c-header__pilot,
+.c-header__wallet {
+  color: rgba(238, 228, 210, 0.72);
+}
+
+.c-header__score {
+  color: var(--fw-readme-amber);
+  letter-spacing: 0;
+}
+
+.c-nav {
+  min-height: 44px;
+  background:
+    linear-gradient(90deg, rgba(242, 118, 34, 0.06), transparent 62%),
+    rgba(8, 6, 4, 0.98);
+}
+
+.c-tab {
+  position: relative;
+  letter-spacing: 0.12em;
+}
+
+.c-tab::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 7px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(242, 118, 34, 0.3), transparent);
+  opacity: 0;
+}
+
+.c-tab:hover,
+.c-tab--active {
+  color: var(--fw-readme-cream);
+  background: linear-gradient(180deg, rgba(242, 118, 34, 0.13), rgba(242, 118, 34, 0.035));
+}
+
+.c-tab--active::before { opacity: 1; }
+
+.c-context-bar {
+  background:
+    linear-gradient(90deg, rgba(242, 118, 34, 0.045), transparent 68%),
+    rgba(10, 7, 5, 0.74);
+  border-bottom: 1px solid rgba(242, 118, 34, 0.16);
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 0 18px;
+}
+
+.c-context-cell {
+  border-right: 1px solid rgba(242, 118, 34, 0.16);
+  display: grid;
+  gap: 4px;
+  min-width: 154px;
+  padding: 10px 14px;
+  position: relative;
+}
+
+.c-context-cell::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: rgba(238, 228, 210, 0.08);
+}
+
+.c-context-cell__label {
+  color: var(--c-mid);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.c-context-cell__value {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.c-context-cell__action {
+  color: var(--c-mid);
+  font-size: 11px;
+}
+
+.c-view {
+  padding-top: 28px;
+}
+
+.c-view > * {
+  position: relative;
+  z-index: 1;
+}
+
+.c-view__title,
+.c-section-header {
+  color: var(--fw-readme-cream);
+  text-shadow: 0 0 24px rgba(242, 118, 34, 0.18);
+}
+
+.c-section-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  text-transform: uppercase;
+}
+
+.c-section-header::before {
+  content: '';
+  width: 34px;
+  height: 1px;
+  background: var(--fw-readme-line);
+  box-shadow: 0 0 12px rgba(242, 118, 34, 0.28);
+}
+
+.c-stat,
+.c-panel,
+.c-card,
+.ns-block {
+  background:
+    linear-gradient(180deg, var(--fw-readme-panel-hi), var(--fw-readme-panel)),
+    rgba(8, 6, 4, 0.88);
+  border-color: rgba(242, 118, 34, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(238, 228, 210, 0.035),
+    0 16px 44px rgba(0, 0, 0, 0.26);
+}
+
+.c-table th,
+.c-filter,
+.c-binding-badge,
+.ns-label,
+.ns-terminal-footer {
+  letter-spacing: 0.1em;
+}
+
+.c-filter {
+  border-color: rgba(242, 118, 34, 0.18);
+}
+
+.c-filter--active {
+  color: #120905;
+}
+
+.ns-root::before {
+  opacity: 0.2;
+  background-image:
+    linear-gradient(rgba(242, 118, 34, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(242, 118, 34, 0.022) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+.ns-terminal-header {
+  border: 1px solid rgba(242, 118, 34, 0.16);
+  border-left: 0;
+  border-right: 0;
+  padding: 13px 16px;
+}
+
+.ns-terminal-header__title,
+.ns-terminal-header__subtitle {
+  letter-spacing: 0.16em;
+}
+
+.ns-terminal-header__logo {
+  color: var(--fw-readme-amber);
+}
+
+@media (max-width: 860px) {
+  .c-header {
+    padding: 10px 16px;
+  }
+
+  .c-header__brand {
+    width: 100%;
+  }
+
+  .c-context-cell {
+    min-width: 50%;
+  }
+}
