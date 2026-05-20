@@ -81,6 +81,20 @@ pub struct TrustObserved {
     pub score_source: Option<&'static str>,
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct MvrProvenance {
+    pub mvr_name: String,
+    pub mvr_version: String,
+    pub package_id: String,
+    pub module_name: String,
+    pub function_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_digest: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub registry_checked_at: Option<String>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustProof {
@@ -93,4 +107,6 @@ pub struct TrustProof {
     pub attestation_ids: Vec<String>,
     pub tx_digests: Vec<String>,
     pub warnings: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<MvrProvenance>,
 }

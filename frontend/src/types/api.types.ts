@@ -279,6 +279,16 @@ export interface TrustObserved {
   scoreSource?: string | null;
 }
 
+export interface MvrProvenance {
+  mvrName: string;
+  mvrVersion: string;
+  packageId: string;
+  moduleName: string;
+  functionName: string;
+  sourceDigest?: string;
+  registryCheckedAt?: string;
+}
+
 export interface TrustProof {
   gateId?: string;
   subject: string;
@@ -288,6 +298,7 @@ export interface TrustProof {
   attestationIds: string[];
   txDigests: string[];
   warnings: string[];
+  provenance?: MvrProvenance;
 }
 
 export interface TrustEvaluateResponse {
@@ -319,156 +330,17 @@ export function systemThreatLevel(intel: SystemIntelResponse): ThreatLevel {
   return 'unknown';
 }
 
-// ── EVE World Data ────────────────────────────────────────────────────────────
+// EVE World Data types (extracted to api.eve-types.ts)
+export type {
+  EveSolarSystem, EveType, EveTribe, EveShip, EveWorldStatus,
+  EveIdentity, IdentityEnrichment, IdentityEnrichmentMap,
+} from './api.eve-types';
 
-export interface EveSolarSystem {
-  system_id: string;
-  name: string | null;
-}
-
-export interface EveType {
-  type_id: string;
-  name: string | null;
-  group_id: string | null;
-  category_id: string | null;
-}
-
-export interface EveTribe {
-  tribe_id: string;
-  name: string | null;
-}
-
-export interface EveShip {
-  ship_id: string;
-  name: string | null;
-  owner_character_id: string | null;
-  type_id: string | null;
-}
-
-export interface EveWorldStatus {
-  systems_count: number;
-  types_count: number;
-  tribes_count: number;
-  ships_count: number;
-  source: string;
-}
-
-export interface EveIdentity {
-  wallet: string;
-  player_profile_object: string | null;
-  character_id: string | null;
-  character_object: string | null;
-  tribe_id: string | null;
-  tribe_name: string | null;
-  character_name: string | null;
-  tenant: string | null;
-  item_id: string | null;
-  frontierwarden_profile_id: string | null;
-  identity_status: string;
-  source: string;
-  synced_at: string | null;
-}
-
-export interface IdentityEnrichment {
-  wallet: string;
-  character_id: string | null;
-  character_name: string | null;
-  tribe_id: string | null;
-  tribe_name: string | null;
-  frontierwarden_profile_id: string | null;
-  identity_status: string;
-  synced_at: string | null;
-}
-
-export type IdentityEnrichmentMap = Record<string, IdentityEnrichment>;
-
-// ── World Gate Traffic API ────────────────────────────────────────────────────
-// Mirrors indexer/src/api_world_gate_traffic.rs response types.
-
-export interface WorldGateActiveLinkItem {
-  destination_gate_id:        string;
-  destination_gate_item_id:   number;
-  destination_gate_tenant:    string;
-  linked_at_checkpoint:       number;
-}
-
-export interface WorldGateLinksResponse {
-  gate_id:      string;
-  active_links: WorldGateActiveLinkItem[];
-  link_count:   number;
-}
-
-export interface WorldGateJumpItem {
-  tx_digest:            string;
-  checkpoint:           number;
-  source_gate_id:       string;
-  destination_gate_id:  string;
-  character_id:         string;
-  character_item_id:    number;
-  character_tenant:     string;
-}
-
-export interface WorldGateJumpsResponse {
-  gate_id: string;
-  jumps:   WorldGateJumpItem[];
-  total:   number;
-}
-
-export interface WorldGateActivityResponse {
-  gate_id:               string;
-  jump_count_1h:         number;
-  jump_count_24h:        number;
-  jump_count_7d:         number;
-  unique_characters_24h: number;
-  is_linked:             boolean;
-  link_count:            number;
-  /** Always present. Windows use indexer-observed insertion time, not on-chain timestamp. */
-  activity_window_note:  string;
-}
-
-export interface WorldGateSummaryResponse {
-  gate_id:             string;
-  item_id:             number;
-  tenant:              string;
-  status:              string;
-  fw_extension_active: boolean;
-  fw_gate_policy_id:   string | null;
-  is_linked:           boolean;
-  link_count:          number;
-  jump_count_24h:      number;
-  active_links:        WorldGateActiveLinkItem[];
-}
-
-export interface WorldCharacterJumpsResponse {
-  character_id: string;
-  jumps:        WorldGateJumpItem[];
-  total:        number;
-}
-
-// ── Native Kill Mails ─────────────────────────────────────────────────────────
-// Combat telemetry from the alpha-strike community API.
-// Separate from SHIP_KILL attestations (oracle/trust evidence).
-
-export interface KillMailItem {
-  killMailId:       number;
-  sourceId:         number;
-  environment:      string;
-  killerName:       string | null;
-  killerAddress:    string | null;
-  killerTribe:      string | null;
-  victimName:       string | null;
-  victimAddress:    string | null;
-  victimTribe:      string | null;
-  solarSystemId:    number | null;
-  solarSystemName:  string | null;
-  lossType:         string | null;
-  killTimestamp:    string | null;
-  indexedAt:        string;
-}
-
-export interface KillMailListResponse {
-  items:      KillMailItem[];
-  total:      number;
-  nextCursor: string | null;
-  dataNote:   string;
-}
+// World Gate Traffic + Kill Mail types (extracted to api.world-types.ts)
+export type {
+  WorldGateActiveLinkItem, WorldGateLinksResponse,
+  WorldGateJumpItem, WorldGateJumpsResponse,
+  WorldGateActivityResponse, WorldGateSummaryResponse,
+  WorldCharacterJumpsResponse,
+  KillMailItem, KillMailListResponse,
+} from './api.world-types';

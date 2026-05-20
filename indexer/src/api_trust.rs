@@ -9,6 +9,7 @@ use sqlx::PgPool;
 
 use crate::{
     api_common::{ApiError, ValidationError},
+    config::ProvenanceConfig,
     trust_evaluator,
     trust_types::{TrustEvaluationRequest, TrustEvaluationResponse},
 };
@@ -18,6 +19,7 @@ pub struct TrustConfig {
     pub default_gate_schema: String,
     pub default_counterparty_schema: String,
     pub default_bounty_schema: String,
+    pub provenance: Option<ProvenanceConfig>,
 }
 
 impl Default for TrustConfig {
@@ -26,6 +28,7 @@ impl Default for TrustConfig {
             default_gate_schema: "TRIBE_STANDING".into(),
             default_counterparty_schema: "TRIBE_STANDING".into(),
             default_bounty_schema: "TRIBE_STANDING".into(),
+            provenance: None,
         }
     }
 }
@@ -73,6 +76,7 @@ async fn evaluate(
         &cfg.default_gate_schema,
         &cfg.default_counterparty_schema,
         &cfg.default_bounty_schema,
+        cfg.provenance.as_ref(),
     )
     .await
     .map_err(|e| ApiError(e).into_response())?;

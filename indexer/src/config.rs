@@ -12,6 +12,18 @@ pub struct Config {
     pub eve: Option<EveConfig>,
     #[serde(default)]
     pub kill_mails: KillMailsConfig,
+    #[serde(default)]
+    pub provenance: Option<ProvenanceConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ProvenanceConfig {
+    pub mvr_name: String,
+    pub mvr_version: String,
+    #[serde(default)]
+    pub source_digest: Option<String>,
+    #[serde(default)]
+    pub package_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -199,6 +211,25 @@ impl Config {
             }
             if eve.enabled {
                 validate_world_pkg_ids(eve)?;
+            }
+        }
+        // Env var overrides for MVR provenance
+        if let (Ok(name), Ok(version)) = (
+            std::env::var("EFREP_MVR_NAME"),
+            std::env::var("EFREP_MVR_VERSION"),
+        ) {
+            let source_digest = std::env::var("EFREP_MVR_SOURCE_DIGEST").ok();
+            cfg.provenance = Some(ProvenanceConfig {
+                mvr_name: name,
+                mvr_version: version,
+                source_digest,
+                package_id: None,
+            });
+        }
+        // Backfill provenance.package_id from package.id if not set explicitly
+        if let Some(ref mut prov) = cfg.provenance {
+            if prov.package_id.is_none() {
+                prov.package_id = Some(cfg.package.id.clone());
             }
         }
         // Env var overrides for kill mail poller

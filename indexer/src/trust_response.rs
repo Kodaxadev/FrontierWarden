@@ -1,7 +1,7 @@
 use crate::trust_db::{GatePolicy, StandingAttestation};
 use crate::trust_types::{
-    TrustEvaluationResponse, TrustObserved, TrustProof, TrustRequirements, REASON_ALLOW_FREE,
-    REASON_ALLOW_TAXED, REASON_DENY_SCORE_BELOW_THRESHOLD,
+    MvrProvenance, TrustEvaluationResponse, TrustObserved, TrustProof, TrustRequirements,
+    REASON_ALLOW_FREE, REASON_ALLOW_TAXED, REASON_DENY_SCORE_BELOW_THRESHOLD,
 };
 
 pub(crate) fn compute_confidence(proof: &TrustProof, base: f64) -> f64 {
@@ -38,6 +38,7 @@ pub(crate) fn insufficient(
         attestation_ids: Vec::new(),
         tx_digests: Vec::new(),
         warnings: vec!["Decision could not be proven from indexed data.".to_owned()],
+        provenance: None,
     };
 
     response_raw(
@@ -215,6 +216,7 @@ pub(crate) fn proof(
     gate_id: &str,
     policy: Option<&GatePolicy>,
     attestation: Option<&StandingAttestation>,
+    provenance: Option<MvrProvenance>,
 ) -> TrustProof {
     let checkpoint = [
         policy.map(|p| p.checkpoint_seq),
@@ -244,6 +246,7 @@ pub(crate) fn proof(
             .unwrap_or_default(),
         tx_digests,
         warnings: Vec::new(),
+        provenance,
     }
 }
 
@@ -252,6 +255,7 @@ pub(crate) fn proof_counterparty(
     schema: &str,
     subject: &str,
     attestation: Option<&StandingAttestation>,
+    provenance: Option<MvrProvenance>,
 ) -> TrustProof {
     let checkpoint = attestation.and_then(|a| a.checkpoint_seq);
     let tx_digests = attestation
@@ -269,5 +273,6 @@ pub(crate) fn proof_counterparty(
             .unwrap_or_default(),
         tx_digests,
         warnings: Vec::new(),
+        provenance,
     }
 }
