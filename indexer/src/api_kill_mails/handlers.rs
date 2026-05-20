@@ -1,195 +1,25 @@
-//! Read-only kill mail API.
-//!
-//! Exposes native EVE Frontier kill data ingested from the alpha-strike
-//! community API. This is combat telemetry — not trust scores, not
-//! attestations, and not targeting intelligence.
-//!
-//! SHIP_KILL attestations are a separate, trust-layer concept and are served
-//! by the attestation endpoints. These two data sources must not be conflated.
-//!
-//! Data aggregation policy: paginated reads only, max 200 rows per page,
-//! no bulk export, no "vulnerable pilot" filters, no social-graph traversal.
-//!
-//! Endpoints:
-//!   GET /kill-mails?limit=&cursor=
-//!   GET /kill-mails/:id
-//!   GET /world/characters/:address/kills?limit=&cursor=
-//!   GET /world/characters/:address/losses?limit=&cursor=
-//!   GET /world/systems/:system_id/kills?limit=&cursor=
-
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::get,
-    Json, Router,
+    Json,
 };
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::api_common::ApiError;
 
-// ── Pagination constants ──────────────────────────────────────────────────────
-
-const DEFAULT_LIMIT: i64 = 50;
-const MAX_LIMIT: i64 = 200;
-
-fn clamp_limit(requested: Option<i64>) -> i64 {
-    requested.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT)
-}
-
-/// Decode a cursor string into an exclusive upper-bound row id.
-/// Cursor is base64url(decimal string of i64 id).
-fn decode_cursor(s: &str) -> Option<i64> {
-    let bytes = URL_SAFE_NO_PAD.decode(s).ok()?;
-    let id_str = std::str::from_utf8(&bytes).ok()?;
-    id_str.parse::<i64>().ok()
-}
-
-fn encode_cursor(id: i64) -> String {
-    URL_SAFE_NO_PAD.encode(id.to_string())
-}
-
-// ── Router ────────────────────────────────────────────────────────────────────
-
-pub fn router() -> Router<PgPool> {
-    Router::new()
-        .route("/kill-mails", get(list_kill_mails))
-        .route("/kill-mails/{id}", get(get_kill_mail))
-        .route(
-            "/world/characters/{address}/kills",
-            get(character_kills),
-        )
-        .route(
-            "/world/characters/{address}/losses",
-            get(character_losses),
-        )
-        .route("/world/systems/{system_id}/kills", get(system_kills))
-}
-
-// ── Query params ──────────────────────────────────────────────────────────────
+use super::types::*;
+use super::{clamp_limit, decode_cursor, encode_cursor, DATA_NOTE};
 
 #[derive(Deserialize)]
-struct PageParams {
+pub(crate) struct PageParams {
     limit: Option<i64>,
     cursor: Option<String>,
 }
 
-// ── Response types ────────────────────────────────────────────────────────────
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KillMailItem {
-    pub kill_mail_id: i64,
-    pub source_id: i64,
-    pub environment: String,
-    pub killer_name: Option<String>,
-    pub killer_address: Option<String>,
-    pub killer_tribe: Option<String>,
-    pub victim_name: Option<String>,
-    pub victim_address: Option<String>,
-    pub victim_tribe: Option<String>,
-    pub solar_system_id: Option<i64>,
-    pub solar_system_name: Option<String>,
-    pub loss_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub kill_timestamp: Option<String>,
-    pub indexed_at: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KillMailListResponse {
-    pub items: Vec<KillMailItem>,
-    pub total: usize,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub next_cursor: Option<String>,
-    /// Reminds callers that this is raw combat telemetry, not trust scores.
-    pub data_note: &'static str,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KillMailResponse {
-    #[serde(flatten)]
-    pub kill_mail: KillMailItem,
-    pub raw_json: Option<serde_json::Value>,
-}
-
-// ── DB row ────────────────────────────────────────────────────────────────────
-
-#[derive(sqlx::FromRow)]
-struct KillMailRow {
-    id: i64,
-    source_id: i64,
-    environment: String,
-    killer_name: Option<String>,
-    killer_address: Option<String>,
-    killer_tribe: Option<String>,
-    victim_name: Option<String>,
-    victim_address: Option<String>,
-    victim_tribe: Option<String>,
-    solar_system_id: Option<i64>,
-    solar_system_name: Option<String>,
-    loss_type: Option<String>,
-    kill_time: Option<chrono::DateTime<chrono::Utc>>,
-    indexed_at: chrono::DateTime<chrono::Utc>,
-}
-
-#[derive(sqlx::FromRow)]
-struct KillMailRowWithRaw {
-    id: i64,
-    source_id: i64,
-    environment: String,
-    killer_name: Option<String>,
-    killer_address: Option<String>,
-    killer_tribe: Option<String>,
-    victim_name: Option<String>,
-    victim_address: Option<String>,
-    victim_tribe: Option<String>,
-    solar_system_id: Option<i64>,
-    solar_system_name: Option<String>,
-    loss_type: Option<String>,
-    kill_time: Option<chrono::DateTime<chrono::Utc>>,
-    indexed_at: chrono::DateTime<chrono::Utc>,
-    raw_json: Option<serde_json::Value>,
-}
-
-// ── Conversion ────────────────────────────────────────────────────────────────
-
-fn row_to_item(r: KillMailRow) -> KillMailItem {
-    KillMailItem {
-        kill_mail_id: r.id,
-        source_id: r.source_id,
-        environment: r.environment,
-        killer_name: r.killer_name,
-        killer_address: r.killer_address,
-        killer_tribe: r.killer_tribe,
-        victim_name: r.victim_name,
-        victim_address: r.victim_address,
-        victim_tribe: r.victim_tribe,
-        solar_system_id: r.solar_system_id,
-        solar_system_name: r.solar_system_name,
-        loss_type: r.loss_type,
-        kill_timestamp: r.kill_time.map(|t| t.to_rfc3339()),
-        indexed_at: r.indexed_at.to_rfc3339(),
-    }
-}
-
-const DATA_NOTE: &str =
-    "Native kill mail data is combat telemetry. \
-     It is not a trust score, attestation, or targeting recommendation. \
-     SHIP_KILL attestations are a separate trust-layer signal served by /attestations.";
-
-// ── Handlers ──────────────────────────────────────────────────────────────────
-
 /// GET /kill-mails?limit=&cursor=
-///
-/// Paginated list of all kill mails, ordered newest first (by id DESC).
-/// Cursor is an opaque token from a previous response's `nextCursor` field.
-/// Max 200 rows per page. No bulk export.
-async fn list_kill_mails(
+pub(crate) async fn list_kill_mails(
     State(pool): State<PgPool>,
     Query(params): Query<PageParams>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -240,9 +70,7 @@ async fn list_kill_mails(
 }
 
 /// GET /kill-mails/:id
-///
-/// Single kill mail by DB row id. Includes raw_json (the original alpha-strike payload).
-async fn get_kill_mail(
+pub(crate) async fn get_kill_mail(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -292,9 +120,7 @@ async fn get_kill_mail(
 }
 
 /// GET /world/characters/:address/kills?limit=&cursor=
-///
-/// Kill mails where the given address was the killer, newest first.
-async fn character_kills(
+pub(crate) async fn character_kills(
     State(pool): State<PgPool>,
     Path(address): Path<String>,
     Query(params): Query<PageParams>,
@@ -315,9 +141,7 @@ async fn character_kills(
 }
 
 /// GET /world/characters/:address/losses?limit=&cursor=
-///
-/// Kill mails where the given address was the victim, newest first.
-async fn character_losses(
+pub(crate) async fn character_losses(
     State(pool): State<PgPool>,
     Path(address): Path<String>,
     Query(params): Query<PageParams>,
@@ -338,9 +162,7 @@ async fn character_losses(
 }
 
 /// GET /world/systems/:system_id/kills?limit=&cursor=
-///
-/// Kill mails in the given solar system, newest first.
-async fn system_kills(
+pub(crate) async fn system_kills(
     State(pool): State<PgPool>,
     Path(system_id): Path<i64>,
     Query(params): Query<PageParams>,
@@ -394,8 +216,6 @@ async fn system_kills(
     }))
 }
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
-
 async fn fetch_by_column(
     pool: &PgPool,
     column: &str,
@@ -403,7 +223,6 @@ async fn fetch_by_column(
     limit: i64,
     cursor_id: Option<i64>,
 ) -> Result<Vec<KillMailRow>, sqlx::Error> {
-    // column is always a hardcoded literal from callers — no injection risk.
     let sql_cursor = format!(
         "SELECT id, source_id, environment,
                 killer_name, killer_address, killer_tribe,
@@ -443,9 +262,6 @@ async fn fetch_by_column(
     }
 }
 
-/// Splits limit+1 rows into (items, next_cursor).
-/// If we got limit+1 back, there is another page; the cursor points at the
-/// last item we return (exclusive — caller fetches rows with id < cursor).
 fn paginate(mut rows: Vec<KillMailRow>, limit: i64) -> (Vec<KillMailItem>, Option<String>) {
     let has_more = rows.len() as i64 > limit;
     if has_more {

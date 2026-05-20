@@ -1,0 +1,21 @@
+{
+  "thresholds": {
+    "max_file_length": 400
+  },
+  "lint": {
+    "exclude_paths": [
+      "Documents/",
+      "README.md",
+      "frontend/src/globals.css",
+      "frontend/src/theme-readme-polish.css",
+      "scripts/",
+      "tests/reputation_gate_tests.move"
+    ]
+  },
+  "secrets": {
+    "allowlist": [
+      "indexer/src/api_auth.rs",
+      "scripts/indexer.config.toml"
+    ]
+  }
+}

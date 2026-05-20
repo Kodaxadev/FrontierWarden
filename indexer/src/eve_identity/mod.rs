@@ -1,7 +1,9 @@
 mod client;
 mod db;
 mod enrichment;
+mod graphql_types;
 mod parser;
+mod probe;
 mod resolver;
 mod types;
 

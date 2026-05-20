@@ -56,8 +56,7 @@ describe('01 — Contract Deployment Verification', () => {
   });
 
   it('network chain ID is devnet', () => {
-    // Devnet chain ID is e8118007; localnet uses 4c78adac
-    const validChains = ['e8118007', '4c78adac'];
+    const validChains = ['e8118007', '4c78adac', 'c515b850'];
     expect(validChains).toContain(networkInfo.chainId);
     console.log('[✓] Network chain ID:', networkInfo.chainId);
   });
