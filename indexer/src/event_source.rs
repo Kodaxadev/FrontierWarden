@@ -8,22 +8,21 @@ use crate::rpc::{EventId, EventPage, RpcClient};
 //   - GraphqlEventClient (graphql_event_client.rs) — Sui GraphQL events query
 // Selected at startup via [network] event_source_mode in config.toml.
 // See Documents/INDEXER_EVENT_GRAPHQL_SPIKE.md for migration plan.
-#[allow(async_fn_in_trait)] // trait is crate-internal; Send bound not needed
 pub trait SuiEventSource: Send + Sync {
-    async fn query_events(
+    fn query_events(
         &self,
         package_id: &str,
         module: &str,
         cursor: Option<&EventId>,
         limit: u32,
-    ) -> Result<EventPage>;
+    ) -> impl std::future::Future<Output = Result<EventPage>> + Send;
 
-    async fn query_events_by_type(
+    fn query_events_by_type(
         &self,
         event_type: &str,
         cursor: Option<&EventId>,
         limit: u32,
-    ) -> Result<EventPage>;
+    ) -> impl std::future::Future<Output = Result<EventPage>> + Send;
 }
 
 impl SuiEventSource for RpcClient {

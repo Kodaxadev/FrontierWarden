@@ -31,6 +31,7 @@ mod graphql_event_client;
 mod ingester;
 mod processor;
 mod rpc;
+mod shadow_event_source;
 #[cfg(test)]
 mod trust_api_http_tests;
 mod trust_db;
@@ -114,7 +115,7 @@ async fn main() -> Result<()> {
     });
 
     // Indexer loop — runs forever; returns only on fatal error.
-    // Event source mode: "jsonrpc" (default) or "graphql".
+    // Event source mode: "jsonrpc" (default), "graphql", or "shadow".
     match cfg.network.event_source_mode.as_str() {
         "graphql" => {
             tracing::info!(
@@ -123,6 +124,19 @@ async fn main() -> Result<()> {
             );
             let event_source =
                 graphql_event_client::GraphqlEventClient::new(&cfg.network.graphql_url);
+            ingester::run(cfg, pool, event_source).await
+        }
+        "shadow" => {
+            tracing::info!(
+                rpc_url = %cfg.network.rpc_url,
+                graphql_url = %cfg.network.graphql_url,
+                "event source: shadow (primary=JSON-RPC, shadow=GraphQL)"
+            );
+            let primary = rpc::RpcClient::new(&cfg.network.rpc_url);
+            let shadow =
+                graphql_event_client::GraphqlEventClient::new(&cfg.network.graphql_url);
+            let event_source =
+                shadow_event_source::ShadowEventSource::new(primary, shadow);
             ingester::run(cfg, pool, event_source).await
         }
         _ => {

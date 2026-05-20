@@ -6,6 +6,7 @@ pub mod graphql_event_client;
 #[cfg(test)]
 mod gate_policy_bindings_tests;
 pub mod rpc;
+pub mod shadow_event_source;
 #[cfg(test)]
 #[allow(dead_code)]
 mod trust_db;
