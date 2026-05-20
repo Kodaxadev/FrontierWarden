@@ -39,6 +39,17 @@ environment = "stillness"
 poll_interval_ms = 30000
 page_size = 200
 
+# ── MVR Provenance (optional) ─────────────────────────────────────────────────
+# When set, every Trust API proof bundle includes a provenance section proving
+# which package/version produced the decision. Omit this section (or leave
+# env vars unset) to keep existing proof shape unchanged.
+# Env overrides: EFREP_MVR_NAME, EFREP_MVR_VERSION, EFREP_MVR_SOURCE_DIGEST
+#
+# [provenance]
+# mvr_name = "@kodaxa/frontierwarden"
+# mvr_version = "1.0.0"
+# source_digest = "sha256:..."   # optional — set from build pipeline
+
 # ── EVE Frontier Integration ──────────────────────────────────────────────────
 # Stillness is the primary environment for the current demo.
 # Utopia remains available as a sandbox environment.

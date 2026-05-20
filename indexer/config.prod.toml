@@ -20,6 +20,9 @@ poll_interval_ms = 2000
 default_gate_schema = "TRIBE_STANDING"
 default_counterparty_schema = "TRIBE_STANDING"
 
+# [provenance] — set via EFREP_MVR_NAME, EFREP_MVR_VERSION env vars on Railway.
+# Omit to keep proof bundles unchanged (provenance field absent).
+
 [eve]
 enabled = true
 world_api_base = "https://world-api-stillness.live.tech.evefrontier.com"

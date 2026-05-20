@@ -1,7 +1,9 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::config::ProvenanceConfig;
 use crate::trust_db::{add_freshness_warnings, latest_standing_attestation, score_from_cache};
+use crate::trust_evaluator::build_provenance;
 use crate::trust_response::{compute_confidence, proof_counterparty, response_counterparty};
 use crate::trust_types::{
     TrustEvaluationRequest, TrustEvaluationResponse, REASON_BOUNTY_TRUST_INSUFFICIENT_DATA,
@@ -16,6 +18,7 @@ pub(crate) async fn evaluate_counterparty_risk(
     pool: &PgPool,
     req: TrustEvaluationRequest,
     default_counterparty_schema: &str,
+    provenance_cfg: Option<&ProvenanceConfig>,
 ) -> Result<TrustEvaluationResponse> {
     let req_start = std::time::Instant::now();
     let subject = req.entity.trim().to_owned();
@@ -33,6 +36,9 @@ pub(crate) async fn evaluate_counterparty_risk(
         .filter(|&s| s > 0)
         .unwrap_or(DEFAULT_MINIMUM_SCORE);
 
+    let score_provenance = provenance_cfg
+        .map(|c| build_provenance(c, "attestation", "evaluate_score"));
+
     let t0 = std::time::Instant::now();
     let (attestation, cached) = tokio::try_join!(
         latest_standing_attestation(pool, &subject, &schema),
@@ -40,7 +46,7 @@ pub(crate) async fn evaluate_counterparty_risk(
     )?;
     let attestation_ms = t0.elapsed().as_millis();
     let Some(attestation) = attestation else {
-        let mut proof_bundle = proof_counterparty(&schema, &subject, None);
+        let mut proof_bundle = proof_counterparty(&schema, &subject, None, score_provenance.clone());
         let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
         let freshness_ms = t0.elapsed().as_millis();
@@ -78,7 +84,7 @@ pub(crate) async fn evaluate_counterparty_risk(
         (attestation.value, Some("attestation_raw"))
     };
     if score < minimum_score {
-        let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation));
+        let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation), score_provenance.clone());
         let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
         let freshness_ms = t0.elapsed().as_millis();
@@ -116,7 +122,7 @@ pub(crate) async fn evaluate_counterparty_risk(
         ));
     }
 
-    let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation));
+    let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation), score_provenance);
     let t0 = std::time::Instant::now();
     add_freshness_warnings(pool, &mut proof_bundle).await?;
     let freshness_ms = t0.elapsed().as_millis();
@@ -159,6 +165,7 @@ pub(crate) async fn evaluate_bounty_trust(
     pool: &PgPool,
     req: TrustEvaluationRequest,
     default_bounty_schema: &str,
+    provenance_cfg: Option<&ProvenanceConfig>,
 ) -> Result<TrustEvaluationResponse> {
     let req_start = std::time::Instant::now();
     let subject = req.entity.trim().to_owned();
@@ -176,6 +183,9 @@ pub(crate) async fn evaluate_bounty_trust(
         .filter(|&s| s > 0)
         .unwrap_or(DEFAULT_MINIMUM_SCORE);
 
+    let bounty_provenance = provenance_cfg
+        .map(|c| build_provenance(c, "attestation", "evaluate_score"));
+
     let t0 = std::time::Instant::now();
     let (attestation, cached) = tokio::try_join!(
         latest_standing_attestation(pool, &subject, &schema),
@@ -184,7 +194,7 @@ pub(crate) async fn evaluate_bounty_trust(
     let attestation_ms = t0.elapsed().as_millis();
 
     let Some(attestation) = attestation else {
-        let mut proof_bundle = proof_counterparty(&schema, &subject, None);
+        let mut proof_bundle = proof_counterparty(&schema, &subject, None, bounty_provenance.clone());
         let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
         let freshness_ms = t0.elapsed().as_millis();
@@ -222,7 +232,7 @@ pub(crate) async fn evaluate_bounty_trust(
     };
 
     if score < minimum_score {
-        let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation));
+        let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation), bounty_provenance.clone());
         let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
         let freshness_ms = t0.elapsed().as_millis();
@@ -262,7 +272,7 @@ pub(crate) async fn evaluate_bounty_trust(
         ));
     }
 
-    let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation));
+    let mut proof_bundle = proof_counterparty(&schema, &subject, Some(&attestation), bounty_provenance);
     let t0 = std::time::Instant::now();
     add_freshness_warnings(pool, &mut proof_bundle).await?;
     let freshness_ms = t0.elapsed().as_millis();

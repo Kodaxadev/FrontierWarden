@@ -1,10 +1,12 @@
 use anyhow::{anyhow, Result};
 use sqlx::PgPool;
 
+use crate::config::ProvenanceConfig;
 use crate::trust_db::{
     add_freshness_warnings, apply_world_gate_warnings, latest_gate_policy,
     latest_standing_attestation, score_from_cache, world_gate_for_policy,
 };
+use crate::trust_evaluator::build_provenance;
 use crate::trust_response::{classify_score, compute_confidence, insufficient, proof, response};
 use crate::trust_types::{
     TrustEvaluationRequest, TrustEvaluationResponse, REASON_ALLOW_FREE, REASON_ALLOW_TAXED,
@@ -15,6 +17,7 @@ pub(crate) async fn evaluate_gate_access(
     pool: &PgPool,
     req: TrustEvaluationRequest,
     default_gate_schema: &str,
+    provenance_cfg: Option<&ProvenanceConfig>,
 ) -> Result<TrustEvaluationResponse> {
     let req_start = std::time::Instant::now();
     let subject = req.entity.trim().to_owned();
@@ -63,8 +66,11 @@ pub(crate) async fn evaluate_gate_access(
         ));
     };
 
+    let gate_provenance = provenance_cfg
+        .map(|c| build_provenance(c, "reputation_gate", "check_passage"));
+
     let Some(attestation) = attestation else {
-        let mut proof_bundle = proof(&schema, &subject, &gate_id, Some(&policy), None);
+        let mut proof_bundle = proof(&schema, &subject, &gate_id, Some(&policy), None, gate_provenance.clone());
         apply_world_gate_warnings(world_gate.as_ref(), &mut proof_bundle);
         let t0 = std::time::Instant::now();
         add_freshness_warnings(pool, &mut proof_bundle).await?;
@@ -120,6 +126,7 @@ pub(crate) async fn evaluate_gate_access(
         &gate_id,
         Some(&policy),
         Some(&attestation),
+        gate_provenance,
     );
     apply_world_gate_warnings(world_gate.as_ref(), &mut proof_bundle);
     let t0 = std::time::Instant::now();

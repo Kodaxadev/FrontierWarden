@@ -16,13 +16,20 @@ export function TrustResultPanel({
 }: TrustResultPanelProps) {
   const proofRows = useMemo(() => {
     if (!result) return [];
-    return [
+    const rows: [string, string][] = [
       ['Indexed Source', result.proof?.source ?? '-'],
       ['Proof Checkpoint', result.proof?.checkpoint?.toString() ?? '-'],
       ['Schema Evidence', result.proof?.schemas?.join(', ') || '-'],
       ['Attestation Objects', result.proof?.attestationIds?.map(shortId).join(', ') || '-'],
       ['Source Transactions', result.proof?.txDigests?.map(shortId).join(', ') || '-'],
     ];
+    const p = result.proof?.provenance;
+    if (p) {
+      rows.push(['Decision Package', `${p.mvrName}@${p.mvrVersion}`]);
+      rows.push(['Module / Function', `${p.moduleName}::${p.functionName}`]);
+      if (p.sourceDigest) rows.push(['Source Digest', shortId(p.sourceDigest)]);
+    }
+    return rows;
   }, [result]);
 
   const warnings = result?.proof?.warnings ?? [];

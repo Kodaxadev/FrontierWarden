@@ -36,6 +36,7 @@ fn proof_uses_latest_checkpoint_and_distinct_txs() {
         "0xgate",
         Some(&policy),
         Some(&attestation),
+        None,
     );
 
     assert_eq!(bundle.checkpoint, Some(11));
@@ -59,6 +60,7 @@ fn proof_deduplicates_matching_policy_and_attestation_txs() {
         "0xgate",
         Some(&policy),
         Some(&attestation),
+        None,
     );
 
     assert_eq!(bundle.tx_digests, vec!["policy_tx"]);
@@ -140,6 +142,7 @@ fn world_gate_warnings_are_additive_and_do_not_change_proof_shape() {
         "0xgate",
         Some(&policy),
         Some(&attestation),
+        None,
     );
     let gate = WorldGateProjection {
         status: "offline".to_owned(),
@@ -161,7 +164,7 @@ fn world_gate_warnings_are_additive_and_do_not_change_proof_shape() {
 #[test]
 fn world_gate_warnings_are_silent_without_reliable_association() {
     let policy = sample_policy();
-    let mut bundle = proof("TRIBE_STANDING", "0xsubject", "0xgate", Some(&policy), None);
+    let mut bundle = proof("TRIBE_STANDING", "0xsubject", "0xgate", Some(&policy), None, None);
 
     apply_world_gate_warnings(None, &mut bundle);
 
