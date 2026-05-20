@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { GateIntelView } from './GateIntelView';
 import { GateNetworkGrid } from './GateNetworkGrid';
 import { WorkflowSubNav } from './DashboardWorkflow';
+import { useGateGroups } from '../../../../hooks/useGateGroups';
 import type { FwData } from '../fw-data';
 import type { Provenance } from '../LiveStatus';
 
@@ -23,6 +24,7 @@ interface Props {
 export function GateOpsWorkflow(props: Props) {
   const [sub, setSub] = useState<SubTab>('network');
   const [selectedGateId, setSelectedGateId] = useState<string | null>(null);
+  const { groups, labels: groupLabels, setGroup } = useGateGroups();
 
   function drillIntoGate(gateId: string) {
     setSelectedGateId(gateId);
@@ -41,6 +43,9 @@ export function GateOpsWorkflow(props: Props) {
           data={props.data}
           selectedGateId={selectedGateId}
           onSelectGate={drillIntoGate}
+          groups={groups}
+          groupLabels={groupLabels}
+          onSetGroup={setGroup}
         />
       )}
       {sub === 'detail' && (
