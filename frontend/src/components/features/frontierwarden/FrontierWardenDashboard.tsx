@@ -6,7 +6,6 @@ import { FwHeader }           from './FwHeader';
 import { FwWorkflowNav }      from './FwWorkflowNav';
 import type { WorkflowTab }   from './FwWorkflowNav';
 import { OperatorContextBar } from './OperatorContextBar';
-import { SmartUnitFrame }     from './SmartUnitFrame';
 import { useOperatorContextSignals } from './operator-context-signals';
 import { DashboardWorkflow }  from './views/DashboardWorkflow';
 import { CheckTrustWorkflow } from './views/CheckTrustWorkflow';
@@ -28,7 +27,6 @@ export function FrontierWardenDashboard() {
 
   return (
     <div className="c-shell">
-      <SmartUnitFrame />
       <FwHeader data={data} />
       <FwWorkflowNav active={tab} onChange={setTab} alerts={data.alerts} />
       <OperatorContextBar signals={operatorSignals} />
