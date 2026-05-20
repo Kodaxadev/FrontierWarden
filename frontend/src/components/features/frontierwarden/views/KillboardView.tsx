@@ -7,9 +7,22 @@
 // Kill mails are combat telemetry — not trust scores and not reputation judgments.
 // SHIP_KILL attestations are a separate oracle/trust evidence layer.
 
+import { useCallback } from 'react';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
-import type { FwData } from '../fw-data';
+import type { FwData, FwKill } from '../fw-data';
+import { useSortable, sortArrow } from '../../../../hooks/useSortable';
+
+type KillSortKey = 'time' | 'victim' | 'killer' | 'system' | 'lossType';
+const KILL_ACCESSOR = (k: FwKill, key: KillSortKey): string | number => {
+  switch (key) {
+    case 'time': return k.t;
+    case 'victim': return k.victim;
+    case 'killer': return k.killer ?? '';
+    case 'system': return k.system;
+    case 'lossType': return k.lossType ?? '';
+  }
+};
 
 interface Props {
   data: FwData;
@@ -35,7 +48,8 @@ function uniqueSystems(kills: FwData['kills']): number {
 }
 
 export function KillboardView({ data, live = false, loading = false, error = null, provenance }: Props) {
-  const kills = data.kills;
+  const killAccessor = useCallback(KILL_ACCESSOR, []);
+  const { sorted: kills, sort: killSort, toggle: toggleKillSort } = useSortable(data.kills, 'time' as KillSortKey, 'desc', killAccessor);
   const attestedCount = kills.filter(k => k.attested).length;
   const systemCount = uniqueSystems(kills);
 
@@ -122,11 +136,11 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         <table className="c-table">
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Killer</th>
-              <th>Victim</th>
-              <th>System</th>
-              <th>Loss Type</th>
+              <th className="c-th--sort" onClick={() => toggleKillSort('time')}>Time{sortArrow(killSort, 'time')}</th>
+              <th className="c-th--sort" onClick={() => toggleKillSort('killer')}>Killer{sortArrow(killSort, 'killer')}</th>
+              <th className="c-th--sort" onClick={() => toggleKillSort('victim')}>Victim{sortArrow(killSort, 'victim')}</th>
+              <th className="c-th--sort" onClick={() => toggleKillSort('system')}>System{sortArrow(killSort, 'system')}</th>
+              <th className="c-th--sort" onClick={() => toggleKillSort('lossType')}>Loss Type{sortArrow(killSort, 'lossType')}</th>
               <th>Status</th>
             </tr>
           </thead>

@@ -303,6 +303,16 @@
   border-bottom: 1px solid rgba(232,120,42,0.10);
 }
 
+/* ── Sortable table headers ──────────────────────────── */
+.c-th--sort {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+.c-th--sort:hover {
+  color: var(--c-amber);
+}
+
 /* ── Sub-tab visual hierarchy (P2) ───────────────────── */
 /* WorkflowSubNav buttons sit inside workflow views.
    Differentiate from inline data filters by using a

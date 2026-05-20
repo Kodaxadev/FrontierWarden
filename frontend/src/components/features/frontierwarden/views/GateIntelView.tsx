@@ -1,10 +1,11 @@
 // GateIntelView - Gate Operations workflow around existing gate panels.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { fetchGatePassages } from '../../../../lib/api';
 import { SUI_NETWORK } from '../../../../lib/network';
 import type { GatePassageRow } from '../../../../types/api.types';
 import { useCheckPassage } from '../../../../hooks/useCheckPassage';
+import { useSortable, sortArrow } from '../../../../hooks/useSortable';
 import { LiveStatus } from '../LiveStatus';
 import type { FwData, FwGate } from '../fw-data';
 import type { Provenance } from '../LiveStatus';
@@ -15,6 +16,18 @@ import { TopologyWarningBanner } from './TopologyWarningBanner';
 import { GateOperationsOverview } from './GateOperationsOverview';
 import { GatePassageAttemptPanel } from './GatePassageAttemptPanel';
 import { GateInlinePolicy } from './GateInlinePolicy';
+
+type GateSortKey = 'id' | 'route' | 'status' | 'toll' | 'traffic' | 'threat';
+const GATE_ACCESSOR = (g: FwGate, key: GateSortKey): string | number => {
+  switch (key) {
+    case 'id': return g.id;
+    case 'route': return `${g.from} ${g.to}`;
+    case 'status': return g.status;
+    case 'toll': return g.toll === '0' ? 0 : parseFloat(g.toll) || 0;
+    case 'traffic': return g.traffic;
+    case 'threat': return g.threat ?? '';
+  }
+};
 
 type GateFilter = 'ALL' | 'open' | 'camped' | 'toll' | 'closed';
 const FILTERS: GateFilter[] = ['ALL', 'open', 'camped', 'toll', 'closed'];
@@ -74,7 +87,9 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
     reset: resetPassage,
   } = useCheckPassage();
 
-  const gates = filter === 'ALL' ? data.gates : data.gates.filter(g => g.status === filter);
+  const filteredGates = filter === 'ALL' ? data.gates : data.gates.filter(g => g.status === filter);
+  const gateAccessor = useCallback(GATE_ACCESSOR, []);
+  const { sorted: gates, sort: gateSort, toggle: toggleGateSort } = useSortable(filteredGates, 'traffic' as GateSortKey, 'desc', gateAccessor);
   const selectedGate = gates.find(g => g.id === selectedGateId) ?? gates[0] ?? null;
 
   async function copyDiagnostics() {
@@ -155,15 +170,15 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
         <table className="c-table">
           <thead>
             <tr>
-              <th>GatePolicy</th>
-              <th>Route</th>
-              <th>Status</th>
+              <th className="c-th--sort" onClick={() => toggleGateSort('id')}>GatePolicy{sortArrow(gateSort, 'id')}</th>
+              <th className="c-th--sort" onClick={() => toggleGateSort('route')}>Route{sortArrow(gateSort, 'route')}</th>
+              <th className="c-th--sort" onClick={() => toggleGateSort('status')}>Status{sortArrow(gateSort, 'status')}</th>
               <th>Binding</th>
               <th>Policy</th>
-              <th>Toll</th>
-              <th>Traffic / h</th>
+              <th className="c-th--sort" onClick={() => toggleGateSort('toll')}>Toll{sortArrow(gateSort, 'toll')}</th>
+              <th className="c-th--sort" onClick={() => toggleGateSort('traffic')}>Traffic / h{sortArrow(gateSort, 'traffic')}</th>
               <th>Checkpoint</th>
-              <th style={{ textAlign: 'right' }}>Threat</th>
+              <th className="c-th--sort" onClick={() => toggleGateSort('threat')} style={{ textAlign: 'right' }}>Threat{sortArrow(gateSort, 'threat')}</th>
             </tr>
           </thead>
           <tbody>

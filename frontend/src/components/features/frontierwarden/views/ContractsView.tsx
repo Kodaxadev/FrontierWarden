@@ -1,8 +1,22 @@
 // ContractsView — contract queue with priority color coding
 
+import { useCallback } from 'react';
 import type { FwData, FwContract } from '../fw-data';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
+import { useSortable, sortArrow } from '../../../../hooks/useSortable';
+
+type ContractSortKey = 'priority' | 'kind' | 'target' | 'bounty' | 'state';
+const PRIORITY_RANK: Record<string, number> = { CRIT: 0, HIGH: 1, MED: 2, LOW: 3 };
+const CONTRACT_ACCESSOR = (c: FwContract, key: ContractSortKey): string | number => {
+  switch (key) {
+    case 'priority': return PRIORITY_RANK[c.priority] ?? 4;
+    case 'kind': return c.kind;
+    case 'target': return c.target;
+    case 'bounty': return parseFloat(c.bounty) || 0;
+    case 'state': return c.state;
+  }
+};
 
 type Priority = FwContract['priority'];
 
@@ -28,6 +42,9 @@ interface Props {
 }
 
 export function ContractsView({ data, live = false, loading = false, error = null, provenance }: Props) {
+  const contractAccessor = useCallback(CONTRACT_ACCESSOR, []);
+  const { sorted: contracts, sort: contractSort, toggle: toggleContractSort } = useSortable(data.contracts, 'priority' as ContractSortKey, 'asc', contractAccessor);
+
   return (
     <>
       <div className="c-view__title">Contract Queue</div>
@@ -43,18 +60,18 @@ export function ContractsView({ data, live = false, loading = false, error = nul
       <table className="c-table">
         <thead>
           <tr>
-            <th>Priority</th>
+            <th className="c-th--sort" onClick={() => toggleContractSort('priority')}>Priority{sortArrow(contractSort, 'priority')}</th>
             <th>Contract</th>
-            <th>Kind</th>
-            <th>Target</th>
+            <th className="c-th--sort" onClick={() => toggleContractSort('kind')}>Kind{sortArrow(contractSort, 'kind')}</th>
+            <th className="c-th--sort" onClick={() => toggleContractSort('target')}>Target{sortArrow(contractSort, 'target')}</th>
             <th>Age</th>
             <th>Issuer</th>
-            <th style={{ textAlign: 'right' }}>Bounty</th>
-            <th style={{ textAlign: 'right' }}>State</th>
+            <th className="c-th--sort" onClick={() => toggleContractSort('bounty')} style={{ textAlign: 'right' }}>Bounty{sortArrow(contractSort, 'bounty')}</th>
+            <th className="c-th--sort" onClick={() => toggleContractSort('state')} style={{ textAlign: 'right' }}>State{sortArrow(contractSort, 'state')}</th>
           </tr>
         </thead>
         <tbody>
-          {data.contracts.length === 0 && (
+          {contracts.length === 0 && (
             <tr>
               <td colSpan={8} style={{
                 padding: '48px 0', textAlign: 'center',
@@ -64,7 +81,7 @@ export function ContractsView({ data, live = false, loading = false, error = nul
               </td>
             </tr>
           )}
-          {data.contracts.map(c => (
+          {contracts.map(c => (
             <tr key={c.id}>
               <td>
                 <span style={{
