@@ -12,6 +12,7 @@ interface Props {
   data: FwData;
   selectedGateId: string | null;
   onSelectGate: (gateId: string) => void;
+  onNavigateSettings?: () => void;
   /** Gate-to-group map from useGateGroups. */
   groups: GateGroupMap;
   /** All group labels in use. */
@@ -42,7 +43,9 @@ function threatBrief(gate: FwGate): string | null {
   return null;
 }
 
-export function GateNetworkGrid({ data, selectedGateId, onSelectGate, groups, groupLabels, onSetGroup }: Props) {
+export function GateNetworkGrid({
+  data, selectedGateId, onSelectGate, onNavigateSettings, groups, groupLabels, onSetGroup,
+}: Props) {
   const [groupFilter, setGroupFilter] = useState<string | null>(null);
   const [editingGateId, setEditingGateId] = useState<string | null>(null);
   const [newGroupInput, setNewGroupInput] = useState('');
@@ -111,8 +114,34 @@ export function GateNetworkGrid({ data, selectedGateId, onSelectGate, groups, gr
       )}
 
       {gates.length === 0 ? (
-        <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 11, color: 'var(--c-mid)' }}>
-          No gates indexed. Connect wallet and check policy authority.
+        <div style={{
+          padding: '26px 24px',
+          border: '1px solid rgba(232,120,42,0.24)',
+          background: 'rgba(232,120,42,0.035)',
+          display: 'grid',
+          gap: 12,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--c-amber)', fontWeight: 700, letterSpacing: '0.06em' }}>
+                NO OPERATOR-OWNED WORLD GATES DETECTED
+              </div>
+              <div className="c-sub" style={{ marginTop: 6, maxWidth: 640 }}>
+                Network Overview lists EVE world Gates discovered from OwnerCap&lt;Gate&gt; objects
+                owned by the connected wallet. FrontierWarden GatePolicies are separate objects and
+                do not prove world Gate ownership.
+              </div>
+            </div>
+            {onNavigateSettings && (
+              <button className="c-filter" onClick={onNavigateSettings}>
+                Open Gate Policy
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'grid', gap: 6, fontSize: 11, color: 'var(--c-mid)' }}>
+            <span>Next: connect the wallet that owns OwnerCap&lt;Gate&gt;, then check Settings &gt; Gate Policy.</span>
+            <span>Binding can move a policy to BOUND. Extension authorization is still required for BINDING VERIFIED.</span>
+          </div>
         </div>
       ) : (
         <div style={{

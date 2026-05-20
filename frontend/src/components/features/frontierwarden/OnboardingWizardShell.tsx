@@ -105,9 +105,14 @@ function buildSteps(signals: OperatorContextSignals): Step[] {
       signals.trustListCount > 0 ? `${signals.trustListCount} existing trust signals` : 'Read-only setup guidance',
       signals.trustListCount > 0 ? 'good' : 'idle',
       'A first tenant trust list will later separate trusted and blocked pilots before policy decisions run.',
-      'Review the existing Social and Vouch surfaces.',
-      'Manual trusted/blocked pilot import belongs to a later implementation phase. This wizard issues no attestations.',
-      { target: 'social', targetLabel: 'Open Social' },
+      signals.trustListCount > 0
+        ? 'Review existing Social and Vouch evidence.'
+        : 'Evaluate a pilot in Check Trust, then review Social and Vouch evidence before importing trust lists.',
+      'Waiting means no tenant trust-list entries are indexed yet; this is not a failed prerequisite. Manual trusted/blocked pilot import belongs to a later implementation phase.',
+      {
+        target: signals.trustListCount > 0 ? 'social' : 'trust',
+        targetLabel: signals.trustListCount > 0 ? 'Open Social' : 'Open Check Trust',
+      },
     ),
     stepFromTone(
       'Preview',

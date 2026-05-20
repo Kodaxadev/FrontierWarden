@@ -34,6 +34,10 @@ export function GateOpsWorkflow(props: Props) {
   return (
     <div>
       <p className="c-section-header">Operate a gate</p>
+      <div className="c-sub" style={{ marginTop: -8, marginBottom: 12 }}>
+        Gate Ops combines indexed world Gate candidates, policy binding gaps, and operator warnings.
+        A zero-gate network means no OwnerCap&lt;Gate&gt; candidates are visible for the connected wallet.
+      </div>
       <WorkflowSubNav active={sub} onChange={setSub} tabs={[
         { id: 'network', label: 'Network Overview' },
         { id: 'detail',  label: 'Gate Detail' },
@@ -43,6 +47,7 @@ export function GateOpsWorkflow(props: Props) {
           data={props.data}
           selectedGateId={selectedGateId}
           onSelectGate={drillIntoGate}
+          onNavigateSettings={props.onNavigateSettings}
           groups={groups}
           groupLabels={groupLabels}
           onSetGroup={setGroup}

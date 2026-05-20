@@ -208,6 +208,25 @@ export function OperatorWorldGateBindingPanel() {
           </select>
         )}
       </div>
+      {!authority.isLoading && candidateGates.length === 0 && (
+        <div style={{
+          marginTop: -2,
+          marginBottom: 12,
+          marginLeft: 16,
+          padding: '10px 12px',
+          border: '1px solid rgba(232,120,42,0.2)',
+          background: 'rgba(232,120,42,0.035)',
+          color: 'var(--c-mid)',
+          fontSize: 11,
+          lineHeight: 1.55,
+        }}>
+          Candidates come from OwnerCap&lt;Gate&gt; objects held by the connected wallet.
+          GateAdminCap proves FrontierWarden policy authority, not world Gate ownership.
+          {authority.walletAddress
+            ? ' Reconnect with the wallet that owns the Smart Assembly gate OwnerCap, or transfer that cap before binding.'
+            : ' Connect the gate owner wallet to scan for candidates.'}
+        </div>
+      )}
 
       {/* Selected gate details */}
       {selectedWorldGateId && (
