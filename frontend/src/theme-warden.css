@@ -284,6 +284,40 @@
   border-left-color: var(--c-amber);
 }
 
+/* ── Context bar: actionable links ───────────────────── */
+.c-context-cell__action--link {
+  all: unset;
+  cursor: pointer;
+  color: var(--c-amber);
+  font-size: 11px;
+  transition: color 0.15s;
+}
+.c-context-cell__action--link:hover {
+  color: var(--c-hi);
+  text-decoration: underline;
+}
+
+/* ── Context bar: collapsed mode ─────────────────────── */
+.c-context-bar--collapsed {
+  background: rgba(10, 7, 5, 0.74);
+  border-bottom: 1px solid rgba(232,120,42,0.10);
+}
+
+/* ── Sub-tab visual hierarchy (P2) ───────────────────── */
+/* WorkflowSubNav buttons sit inside workflow views.
+   Differentiate from inline data filters by using a
+   slightly taller, bordered pill style. */
+.c-section-header + div > .c-filter {
+  border-radius: 2px;
+  padding: 6px 16px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--c-border);
+}
+.c-section-header + div > .c-filter--active {
+  border-color: var(--c-amber);
+}
+
 /* ── Ambient corner vignette ──────────────────────────── */
 .c-view::before {
   content: '';

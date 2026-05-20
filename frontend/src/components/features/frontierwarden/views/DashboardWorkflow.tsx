@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { NodeSentinelView } from './NodeSentinelView';
 import { OnboardingWizardShell } from '../OnboardingWizardShell';
+import { AlertFeed } from '../AlertFeed';
 import type { FwData } from '../fw-data';
 import type { EveIdentity, IdentityEnrichmentMap } from '../../../../types/api.types';
 import type { OperatorContextSignals } from '../operator-context-signals';
@@ -39,6 +40,10 @@ export function DashboardWorkflow(props: Props) {
 
   return (
     <div>
+      <AlertFeed
+        alerts={props.data.alerts}
+        onNavigateGateOps={() => props.onWorkflowNavigate('gate-ops')}
+      />
       <WorkflowSubNav active={sub} onChange={setSub} tabs={[
         { id: 'status', label: 'Node Status' },
         { id: 'setup',  label: 'Setup Checklist' },

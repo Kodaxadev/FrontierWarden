@@ -29,7 +29,7 @@ export function FrontierWardenDashboard() {
     <div className="c-shell">
       <FwHeader data={data} />
       <FwWorkflowNav active={tab} onChange={setTab} alerts={data.alerts} />
-      <OperatorContextBar signals={operatorSignals} />
+      <OperatorContextBar signals={operatorSignals} onNavigate={setTab} />
       <div className="c-view">
         {tab === 'dashboard' && (
           <DashboardWorkflow
@@ -54,6 +54,7 @@ export function FrontierWardenDashboard() {
           <GateOpsWorkflow
             data={data} live={live} loading={loading} error={error}
             provenance={provenance.gateNetwork}
+            onNavigateSettings={() => setTab('settings')}
           />
         )}
         {tab === 'credit-risk' && (

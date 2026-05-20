@@ -14,6 +14,7 @@ import { WorldGateTrafficPanel } from './WorldGateTrafficPanel';
 import { TopologyWarningBanner } from './TopologyWarningBanner';
 import { GateOperationsOverview } from './GateOperationsOverview';
 import { GatePassageAttemptPanel } from './GatePassageAttemptPanel';
+import { GateInlinePolicy } from './GateInlinePolicy';
 
 type GateFilter = 'ALL' | 'open' | 'camped' | 'toll' | 'closed';
 const FILTERS: GateFilter[] = ['ALL', 'open', 'camped', 'toll', 'closed'];
@@ -49,9 +50,13 @@ interface Props {
   loading?: boolean;
   error?: string | null;
   provenance?: Provenance;
+  /** Pre-select a gate when navigating from Network Overview. */
+  initialGateId?: string | null;
+  /** Navigate to Settings → Gate Policy. */
+  onNavigatePolicy?: () => void;
 }
 
-export function GateIntelView({ data, live = false, loading = false, error = null, provenance }: Props) {
+export function GateIntelView({ data, live = false, loading = false, error = null, provenance, initialGateId, onNavigatePolicy }: Props) {
   const [filter, setFilter] = useState<GateFilter>('ALL');
   const [selectedGateId, setSelectedGateId] = useState<string | null>(null);
   const [passages, setPassages] = useState<GatePassageRow[]>([]);
@@ -84,8 +89,12 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
   }, [passageState.step, passageState.digest]);
 
   useEffect(() => {
-    if (!selectedGateId && gates[0]) setSelectedGateId(gates[0].id);
-  }, [gates, selectedGateId]);
+    if (initialGateId && gates.some(g => g.id === initialGateId)) {
+      setSelectedGateId(initialGateId);
+    } else if (!selectedGateId && gates[0]) {
+      setSelectedGateId(gates[0].id);
+    }
+  }, [gates, selectedGateId, initialGateId]);
 
   useEffect(() => {
     if (!live || !selectedGate?.sourceId) {
@@ -212,6 +221,11 @@ export function GateIntelView({ data, live = false, loading = false, error = nul
 
           {selectedGate.sourceId && <OperatorBindingPanel gatePolicyId={selectedGate.sourceId} />}
           <TopologyWarningBanner binding={selectedGate.binding} />
+          <GateInlinePolicy
+            gate={selectedGate}
+            policy={data.policy}
+            onNavigatePolicy={onNavigatePolicy ?? (() => {})}
+          />
           <WorldGateTrafficPanel worldGateId={selectedGate.binding?.worldGateId ?? null} />
           <GatePassageAttemptPanel
             selectedGate={selectedGate}
