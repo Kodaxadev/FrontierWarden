@@ -27,7 +27,6 @@ export function FwHeader({ data }: FwHeaderProps) {
   const account = useCurrentAccount();
   const { pilot, alerts } = data;
   const crits = alerts.filter(a => a.lvl === 'CRIT').length;
-  const luxM   = (pilot.walletLux / 1_000_000).toFixed(1);
   const checkpoint = latestCheckpoint(data);
 
   return (

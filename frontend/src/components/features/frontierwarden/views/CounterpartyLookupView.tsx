@@ -20,6 +20,7 @@ import type {
   AttestationRow,
   ScoreRow,
 } from '../../../../types/api.types';
+import { LoadingSkeleton } from '../LoadingSkeleton';
 
 interface Props {
   onAddToWatchlist?: (address: string, label: string) => void;
@@ -46,12 +47,30 @@ const EMPTY_DOSSIER: CounterpartyDossier = {
   trustResult: null, receivedVouches: [], givenVouches: [], attestations: [],
 };
 
+const LOOKUP_HISTORY_KEY = 'fw:lookup-history';
+const MAX_HISTORY = 10;
+
+interface LookupHistoryEntry {
+  address: string;
+  label: string;
+  timestamp: string;
+}
+
+function loadHistory(): LookupHistoryEntry[] {
+  try { return JSON.parse(localStorage.getItem(LOOKUP_HISTORY_KEY) ?? '[]'); } catch { return []; }
+}
+
+function saveHistory(entries: LookupHistoryEntry[]) {
+  localStorage.setItem(LOOKUP_HISTORY_KEY, JSON.stringify(entries));
+}
+
 export function CounterpartyLookupView({ onAddToWatchlist, isOnWatchlist }: Props) {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dossier, setDossier] = useState<CounterpartyDossier>(EMPTY_DOSSIER);
   const [searched, setSearched] = useState(false);
+  const [history, setHistory] = useState<LookupHistoryEntry[]>(loadHistory);
 
   const runLookup = useCallback(async () => {
     const address = query.trim();
@@ -77,6 +96,18 @@ export function CounterpartyLookupView({ onAddToWatchlist, isOnWatchlist }: Prop
       ]);
 
       setDossier({ identity, profile, scores, trustResult, receivedVouches, givenVouches, attestations });
+
+      // Record in lookup history
+      const entry: LookupHistoryEntry = {
+        address: normalized,
+        label: identity?.character_name ?? shortAddr(normalized),
+        timestamp: new Date().toISOString(),
+      };
+      setHistory(prev => {
+        const next = [entry, ...prev.filter(h => h.address !== normalized)].slice(0, MAX_HISTORY);
+        saveHistory(next);
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setDossier(EMPTY_DOSSIER);
@@ -113,11 +144,33 @@ export function CounterpartyLookupView({ onAddToWatchlist, isOnWatchlist }: Prop
         </button>
       </div>
 
+      {/* Recent lookups */}
+      {history.length > 0 && (
+        <div style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 9, color: 'var(--c-mid)', letterSpacing: '0.08em', marginRight: 4 }}>RECENT:</span>
+          {history.map(h => (
+            <button
+              key={h.address}
+              className="c-tab"
+              style={{ fontSize: 10 }}
+              onClick={() => { setQuery(h.address); }}
+            >
+              {h.label}
+            </button>
+          ))}
+          <button className="c-tab" style={{ fontSize: 9, color: 'var(--c-mid)' }} onClick={() => { setHistory([]); localStorage.removeItem(LOOKUP_HISTORY_KEY); }}>
+            CLEAR
+          </button>
+        </div>
+      )}
+
       {error && (
         <div style={{ padding: '12px 16px', border: '1px solid var(--c-border)', color: 'var(--c-crimson)', fontSize: 12, marginBottom: 20 }}>
           {error}
         </div>
       )}
+
+      {loading && <LoadingSkeleton variant="stats" />}
 
       {searched && !loading && !error && (
         <div style={{ display: 'grid', gap: 20 }}>

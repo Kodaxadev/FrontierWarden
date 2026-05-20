@@ -7,7 +7,7 @@
 // Kill mails are combat telemetry — not trust scores and not reputation judgments.
 // SHIP_KILL attestations are a separate oracle/trust evidence layer.
 
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
 import type { FwData, FwKill } from '../fw-data';
@@ -48,8 +48,24 @@ function uniqueSystems(kills: FwData['kills']): number {
 }
 
 export function KillboardView({ data, live = false, loading = false, error = null, provenance }: Props) {
+  const [filterText, setFilterText] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!filterText.trim()) return data.kills;
+    const q = filterText.trim().toLowerCase();
+    return data.kills.filter(k =>
+      k.victim.toLowerCase().includes(q)
+      || k.system.toLowerCase().includes(q)
+      || (k.killer ?? '').toLowerCase().includes(q)
+      || (k.killerWallet ?? '').toLowerCase().includes(q)
+      || (k.victimWallet ?? '').toLowerCase().includes(q)
+      || (k.victimCorp ?? '').toLowerCase().includes(q)
+      || (k.killerCorp ?? '').toLowerCase().includes(q)
+    );
+  }, [data.kills, filterText]);
+
   const killAccessor = useCallback(KILL_ACCESSOR, []);
-  const { sorted: kills, sort: killSort, toggle: toggleKillSort } = useSortable(data.kills, 'time' as KillSortKey, 'desc', killAccessor);
+  const { sorted: kills, sort: killSort, toggle: toggleKillSort } = useSortable(filtered, 'time' as KillSortKey, 'desc', killAccessor);
   const attestedCount = kills.filter(k => k.attested).length;
   const systemCount = uniqueSystems(kills);
 
@@ -129,6 +145,27 @@ export function KillboardView({ data, live = false, loading = false, error = nul
         }}>
           Kill mail feed unavailable: {error}.
           SHIP_KILL attestations may still exist as trust evidence under Proofs.
+        </div>
+      )}
+
+      {/* Filter bar */}
+      {data.kills.length > 0 && (
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <input
+            className="c-input"
+            placeholder="Filter by name, address, system, corp..."
+            value={filterText}
+            onChange={e => setFilterText(e.target.value)}
+            style={{ maxWidth: 360 }}
+          />
+          {filterText && (
+            <>
+              <span style={{ fontSize: 10, color: 'var(--c-mid)' }}>
+                {kills.length} / {data.kills.length}
+              </span>
+              <button className="c-tab" style={{ fontSize: 9 }} onClick={() => setFilterText('')}>CLEAR</button>
+            </>
+          )}
         </div>
       )}
 

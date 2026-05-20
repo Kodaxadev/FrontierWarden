@@ -5,6 +5,19 @@ import type { FraudChallengeRow, ChallengeStatsRow } from '../../../../types/api
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
 import { useDisputeActions } from '../../../../hooks/useDisputeActions';
+import { useSortable, sortArrow } from '../../../../hooks/useSortable';
+import { LoadingSkeleton } from '../LoadingSkeleton';
+
+type DisputeSortKey = 'date' | 'challenger' | 'oracle' | 'status' | 'slash';
+const DISPUTE_ACCESSOR = (row: FraudChallengeRow, key: DisputeSortKey): string | number => {
+  switch (key) {
+    case 'date': return row.created_at ?? '';
+    case 'challenger': return row.challenger;
+    case 'oracle': return row.oracle;
+    case 'status': return row.resolved ? (row.guilty ? 'GUILTY' : 'CLEARED') : 'OPEN';
+    case 'slash': return row.slash_amount ?? 0;
+  }
+};
 
 const DEFAULT_ORACLE =
   import.meta.env.VITE_ORACLE_ADDRESS
@@ -71,6 +84,8 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
   const attestationValid = /^0x[0-9a-fA-F]{64}$/.test(attestationId);
   const oracleValid = /^0x[0-9a-fA-F]{64}$/.test(oracleAddress);
   const canCreate = Boolean(account && attestationValid && oracleValid && evidence.trim() && stakeMist >= MIN_CHALLENGE_STAKE && !busy);
+  const disputeAccessor = useCallback(DISPUTE_ACCESSOR, []);
+  const { sorted: sortedRows, sort: disputeSort, toggle: toggleDisputeSort } = useSortable(rows, 'date' as DisputeSortKey, 'desc', disputeAccessor);
   const selectedRow = rows.find(r => r.challenge_id === selectedChallenge);
   const selectedResolved = selectedRow?.resolved === true;
   const canAct = Boolean(account && selectedChallenge && !busy && !selectedResolved);
@@ -238,22 +253,23 @@ export function DisputesView({ provenance }: DisputesViewProps = {}) {
         </div>
       </div>
 
+      {loading && <LoadingSkeleton rows={4} />}
       {rows.length === 0 && !loading && <div className="c-sub">No challenge rows indexed yet.</div>}
       {rows.length > 0 && (
         <table className="c-table">
           <thead>
             <tr>
-              <th>Challenge</th>
+              <th className="c-th--sort" onClick={() => toggleDisputeSort('date')}>Challenge{sortArrow(disputeSort, 'date')}</th>
               <th>Attestation</th>
-              <th>Challenger</th>
-              <th>Oracle</th>
-              <th>Status</th>
-              <th>Slash</th>
+              <th className="c-th--sort" onClick={() => toggleDisputeSort('challenger')}>Challenger{sortArrow(disputeSort, 'challenger')}</th>
+              <th className="c-th--sort" onClick={() => toggleDisputeSort('oracle')}>Oracle{sortArrow(disputeSort, 'oracle')}</th>
+              <th className="c-th--sort" onClick={() => toggleDisputeSort('status')}>Status{sortArrow(disputeSort, 'status')}</th>
+              <th className="c-th--sort" onClick={() => toggleDisputeSort('slash')}>Slash{sortArrow(disputeSort, 'slash')}</th>
               <th style={{ textAlign: 'right' }}>Tx</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(row => (
+            {sortedRows.map(row => (
               <tr key={row.challenge_id} style={{
                 cursor: 'pointer',
                 background: hoveredRow === row.challenge_id

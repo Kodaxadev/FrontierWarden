@@ -313,6 +313,15 @@
   color: var(--c-amber);
 }
 
+/* ── Loading skeleton shimmer ───────────────────────── */
+@keyframes c-skeleton-pulse {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 0.6; }
+}
+.c-skeleton {
+  animation: c-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
 /* ── Sub-tab visual hierarchy (P2) ───────────────────── */
 /* WorkflowSubNav buttons sit inside workflow views.
    Differentiate from inline data filters by using a
