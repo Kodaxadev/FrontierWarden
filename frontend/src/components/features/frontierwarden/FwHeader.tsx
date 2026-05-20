@@ -26,8 +26,8 @@ export function FwHeader({ data }: FwHeaderProps) {
     <header className="c-header">
       <span className="c-header__brand">
         FRONTIERWARDEN
-        <span style={{ fontSize: 8, color: 'var(--c-mid)', letterSpacing: '0.14em', marginLeft: 8 }}>
-          NODE SENTINEL
+        <span className="c-header__brand-sub">
+          TRUST · REPUTATION · GATE POLICY
         </span>
       </span>
 
@@ -44,7 +44,7 @@ export function FwHeader({ data }: FwHeaderProps) {
 
       <span className="c-header__pilot">
         {pilot.characterName ?? pilot.name}
-        <span style={{ color: 'var(--c-mid)', marginLeft: 8 }}>
+        <span className="c-header__pilot-tag">
           {pilot.syndicateTag}
         </span>
       </span>
