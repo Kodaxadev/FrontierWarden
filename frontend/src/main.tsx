@@ -18,6 +18,7 @@ import {
 import './globals.css';
 import './theme-warden.css';
 import './theme-readme-polish.css';
+import './theme-ingame.css';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { dAppKit } from './lib/dapp-kit';
