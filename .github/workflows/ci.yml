@@ -82,3 +82,41 @@ jobs:
           VITE_GATE_ADMIN_CAP_ID: "0x0000000000000000000000000000000000000000000000000000000000000005"
           VITE_GATE_ADMIN_OWNER: "0x0000000000000000000000000000000000000000000000000000000000000000"
           VITE_ORACLE_ADDRESS: "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+  # ── npm audit: supply-chain safety ─────────────────────────────────────────
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [frontend, tests]
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: npm ci
+        run: npm ci
+
+      - name: npm audit (high + critical)
+        run: npm audit --audit-level=high
+
+  # ── Code-Warden: governance gate ───────────────────────────────────────────
+  governance:
+    name: Code-Warden Governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Code-Warden
+        uses: Kodaxadev/Code-Warden@v3.4.0
+        with:
+          summary: "true"
+          upload-artifact: "true"
+          sarif: "true"
