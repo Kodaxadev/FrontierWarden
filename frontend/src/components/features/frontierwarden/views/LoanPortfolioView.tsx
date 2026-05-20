@@ -33,6 +33,19 @@ const STATUS_BADGE: Record<LoanStatus, string> = {
   overdue: 'c-badge--toll',
 };
 
+/** Returns urgency color for due epoch. Compares to created time as rough proxy. */
+function dueUrgency(loan: LoanRecord): { color: string; label: string } {
+  if (loan.status === 'repaid' || loan.status === 'defaulted') return { color: 'var(--c-mid)', label: '' };
+  if (!loan.dueEpoch) return { color: 'var(--c-mid)', label: '' };
+  // If already overdue status, show red
+  if (loan.status === 'overdue') return { color: 'var(--c-crimson)', label: 'OVERDUE' };
+  // Simple heuristic: days since created vs due epoch
+  const daysSinceCreated = (Date.now() - new Date(loan.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+  if (daysSinceCreated > loan.dueEpoch * 0.8) return { color: 'var(--c-crimson)', label: 'DUE SOON' };
+  if (daysSinceCreated > loan.dueEpoch * 0.5) return { color: 'var(--c-amber)', label: '' };
+  return { color: 'var(--c-mid)', label: '' };
+}
+
 export function LoanPortfolioView({
   loans, totalLent, totalRepaid, defaultCount, defaultRate,
   onAddLoan, onUpdateLoan, onRemoveLoan,
@@ -200,8 +213,17 @@ function LoanTable({ loans, onUpdate, onRemove }: {
             <td style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-amber)' }}>
               {formatMist(loan.amount)}
             </td>
-            <td style={{ fontSize: 11, color: 'var(--c-mid)' }}>
-              {loan.dueEpoch || '—'}
+            <td style={{ fontSize: 11 }}>
+              {loan.dueEpoch ? (
+                <>
+                  <span style={{ color: dueUrgency(loan).color }}>{loan.dueEpoch}</span>
+                  {dueUrgency(loan).label && (
+                    <div style={{ fontSize: 8, fontWeight: 700, color: dueUrgency(loan).color, letterSpacing: '0.06em', marginTop: 2 }}>
+                      {dueUrgency(loan).label}
+                    </div>
+                  )}
+                </>
+              ) : '—'}
             </td>
             <td>
               <span className={`c-badge ${STATUS_BADGE[loan.status]}`}>

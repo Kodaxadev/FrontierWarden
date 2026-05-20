@@ -192,12 +192,39 @@ function StepCard({ step, onNavigate }: { step: Step; onNavigate: (target: NavTa
 
 export function OnboardingWizardShell({ signals, onNavigate }: OnboardingWizardShellProps) {
   const steps = buildSteps(signals);
+  const completed = steps.filter(s => s.tone === 'good').length;
+  const total = steps.length;
+  const pct = Math.round((completed / total) * 100);
 
   return (
     <>
       <div className="c-view__title">Operator Onboarding</div>
-      <div className="c-sub" style={{ marginTop: -16, marginBottom: 24 }}>
+      <div className="c-sub" style={{ marginTop: -16, marginBottom: 16 }}>
         A read-only setup guide for wallet, identity, tenant context, authority, trust list, and first decision preview.
+      </div>
+
+      {/* Progress bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        marginBottom: 24, padding: '12px 16px',
+        border: '1px solid var(--c-border)',
+        background: 'rgba(255,255,255,0.012)',
+      }}>
+        <span style={{ fontSize: 22, fontWeight: 700, color: completed === total ? 'var(--c-green, #5ee28a)' : 'var(--c-amber)', letterSpacing: '-0.02em' }}>
+          {completed}/{total}
+        </span>
+        <div style={{ flex: 1, height: 6, background: 'var(--c-lo)', position: 'relative' }}>
+          <div style={{
+            position: 'absolute', top: 0, left: 0, bottom: 0,
+            width: `${pct}%`,
+            background: completed === total ? 'var(--c-green, #5ee28a)' : 'var(--c-amber)',
+            transition: 'width 0.3s',
+            boxShadow: completed === total ? '0 0 8px rgba(94,226,138,0.4)' : '0 0 8px rgba(232,120,42,0.3)',
+          }} />
+        </div>
+        <span style={{ fontSize: 11, color: 'var(--c-mid)', letterSpacing: '0.04em' }}>
+          {completed === total ? 'ALL STEPS COMPLETE' : `${pct}% SETUP`}
+        </span>
       </div>
       <div style={{
         display: 'grid',

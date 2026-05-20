@@ -276,7 +276,9 @@ function ContextSection({ data }: { data: FwData }) {
 export function ReputationView({ data, live = false, loading = false, error = null, provenance }: Props) {
   const { account } = useProfileCreate();
   const [eveIdentity, setEveIdentity] = useState<EveIdentity | null>(null);
-  const identityAddr = account?.address ?? data.pilot.sourceId ?? null;
+  const [subjectInput, setSubjectInput] = useState('');
+  const [subjectOverride, setSubjectOverride] = useState<string | null>(null);
+  const identityAddr = subjectOverride ?? account?.address ?? data.pilot.sourceId ?? null;
   const shipKillAttestationCount = data.proofs.filter(
     (proof) => proof.schema === 'SHIP_KILL' && !proof.revoked,
   ).length;
@@ -294,8 +296,44 @@ export function ReputationView({ data, live = false, loading = false, error = nu
   return (
     <>
       <div className="c-view__title" style={{ marginBottom: 8 }}>Trust Dossier</div>
-      <div className="c-sub" style={{ marginBottom: 18 }}>
+      <div className="c-sub" style={{ marginBottom: 12 }}>
         A trust dossier is evidence and context under tenant policy, not universal truth.
+      </div>
+
+      {/* Subject lookup bar */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+        <input
+          className="c-input"
+          style={{ flex: 1, fontSize: 12 }}
+          placeholder="Look up any wallet address (0x...) — leave blank for your own dossier"
+          value={subjectInput}
+          onChange={e => setSubjectInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              const addr = subjectInput.trim();
+              setSubjectOverride(addr.length >= 10 ? addr : null);
+            }
+          }}
+        />
+        <button
+          className="c-commit"
+          style={{ fontSize: 10, padding: '6px 14px' }}
+          onClick={() => {
+            const addr = subjectInput.trim();
+            setSubjectOverride(addr.length >= 10 ? addr : null);
+          }}
+        >
+          LOOKUP
+        </button>
+        {subjectOverride && (
+          <button
+            className="c-tab"
+            style={{ fontSize: 10 }}
+            onClick={() => { setSubjectOverride(null); setSubjectInput(''); }}
+          >
+            CLEAR
+          </button>
+        )}
       </div>
       <LiveStatus
         loading={loading}

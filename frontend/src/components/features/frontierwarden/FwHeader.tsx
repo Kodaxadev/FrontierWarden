@@ -1,6 +1,8 @@
 // FwHeader v3 — slim 44px persistent header
-// Brand | Chain status | Pilot | Score | Wallet | Crit badge
+// Brand | Chain status | Pilot | Score | Wallet connect | Crit badge
 
+import { useCurrentAccount } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import type { FwData } from './fw-data';
 import { SUI_NETWORK_LABEL } from '../../../lib/network';
 
@@ -16,7 +18,13 @@ function latestCheckpoint(data: FwData): number | null {
   return values.length > 0 ? Math.max(...values) : null;
 }
 
+function shortAddr(v: string): string {
+  if (v.length <= 12) return v;
+  return `${v.slice(0, 6)}...${v.slice(-4)}`;
+}
+
 export function FwHeader({ data }: FwHeaderProps) {
+  const account = useCurrentAccount();
   const { pilot, alerts } = data;
   const crits = alerts.filter(a => a.lvl === 'CRIT').length;
   const luxM   = (pilot.walletLux / 1_000_000).toFixed(1);
@@ -53,7 +61,15 @@ export function FwHeader({ data }: FwHeaderProps) {
       <span className="c-header__delta">+{pilot.scoreDelta}</span>
 
       <span className="c-header__wallet">
-        <strong>{luxM}M</strong> LUX
+        {account ? (
+          <span style={{ fontSize: 10, fontFamily: 'var(--c-mono)', color: 'var(--c-hi)' }}>
+            {shortAddr(account.address)}
+          </span>
+        ) : (
+          <span className="c-wallet-connect" style={{ display: 'inline-block' }}>
+            <ConnectButton>CONNECT</ConnectButton>
+          </span>
+        )}
       </span>
 
       {crits > 0 && (

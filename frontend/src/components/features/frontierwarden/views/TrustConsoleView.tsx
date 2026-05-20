@@ -6,6 +6,7 @@ import type { EveIdentity } from '../../../../types/api.types';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
 import { useProfileCreate } from '../../../../hooks/useProfileCreate';
+import { useEvalHistory } from '../../../../hooks/useEvalHistory';
 import { TrustIdentityStrip } from './TrustIdentityStrip';
 import { TrustInputPanel, TrustPresetStrip } from './TrustInputPanel';
 import { TrustResultPanel } from './TrustResultPanel';
@@ -25,6 +26,7 @@ interface Props {
 
 export function TrustConsoleView({ data, live = false, loading = false, error = null, provenance }: Props) {
   const { account } = useProfileCreate();
+  const evalHistory = useEvalHistory();
   const firstGate = data?.policy?.gateId ?? data?.gates[0]?.sourceId ?? DEFAULT_GATE;
   const [action, setAction] = useState<TrustAction>('gate_access');
   const [subject, setSubject] = useState(() => account?.address ?? DEFAULT_SUBJECT);
@@ -62,6 +64,14 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
         },
       });
       setResult(next);
+      evalHistory.addEntry({
+        subject: subject.trim(),
+        action,
+        decision: next.decision,
+        score: next.score,
+        confidence: next.confidence,
+        reason: next.reason,
+      });
     } catch (err) {
       setResult(null);
       setEvalError(err instanceof Error ? err.message : String(err));
@@ -153,6 +163,58 @@ export function TrustConsoleView({ data, live = false, loading = false, error = 
           />
         </div>
       </div>
+
+      {/* Evaluation history */}
+      {evalHistory.entries.length > 0 && (
+        <section style={{ marginTop: 32, borderTop: '1px solid var(--c-border)', paddingTop: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div className="c-view__title">Recent Evaluations</div>
+            <button className="c-tab" style={{ fontSize: 9 }} onClick={evalHistory.clearHistory}>CLEAR HISTORY</button>
+          </div>
+          <table className="c-table">
+            <thead>
+              <tr>
+                <th>Subject</th>
+                <th>Action</th>
+                <th>Decision</th>
+                <th>Score</th>
+                <th>Confidence</th>
+                <th style={{ textAlign: 'right' }}>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {evalHistory.entries.map((entry, i) => (
+                <tr
+                  key={`${entry.timestamp}-${i}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    setSubject(entry.subject);
+                    setAction(entry.action as TrustAction);
+                  }}
+                >
+                  <td style={{ fontSize: 10, fontFamily: 'var(--c-mono)' }}>
+                    {entry.subject.length > 14 ? `${entry.subject.slice(0, 6)}...${entry.subject.slice(-4)}` : entry.subject}
+                  </td>
+                  <td style={{ fontSize: 10, color: 'var(--c-mid)' }}>{entry.action}</td>
+                  <td>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700,
+                      color: entry.decision.startsWith('ALLOW') ? 'var(--c-green, #5ee28a)' : entry.decision === 'DENY' ? 'var(--c-crimson)' : 'var(--c-mid)',
+                    }}>
+                      {entry.decision}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: 11, color: 'var(--c-amber)' }}>{entry.score ?? '—'}</td>
+                  <td style={{ fontSize: 11, color: 'var(--c-mid)' }}>{Math.round(entry.confidence * 100)}%</td>
+                  <td style={{ textAlign: 'right', fontSize: 10, color: 'var(--c-mid)' }}>
+                    {new Date(entry.timestamp).toLocaleTimeString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
     </>
   );
 }

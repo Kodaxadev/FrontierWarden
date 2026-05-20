@@ -1,6 +1,6 @@
 // ContractsView — contract queue with priority color coding
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { FwData, FwContract } from '../fw-data';
 import { LiveStatus } from '../LiveStatus';
 import type { Provenance } from '../LiveStatus';
@@ -41,9 +41,14 @@ interface Props {
   provenance?: Provenance;
 }
 
+type StateFilter = 'ALL' | 'OPEN' | 'CLAIMED' | 'EXPIRED';
+const STATE_FILTERS: StateFilter[] = ['ALL', 'OPEN', 'CLAIMED', 'EXPIRED'];
+
 export function ContractsView({ data, live = false, loading = false, error = null, provenance }: Props) {
+  const [stateFilter, setStateFilter] = useState<StateFilter>('ALL');
+  const filtered = stateFilter === 'ALL' ? data.contracts : data.contracts.filter(c => c.state === stateFilter);
   const contractAccessor = useCallback(CONTRACT_ACCESSOR, []);
-  const { sorted: contracts, sort: contractSort, toggle: toggleContractSort } = useSortable(data.contracts, 'priority' as ContractSortKey, 'asc', contractAccessor);
+  const { sorted: contracts, sort: contractSort, toggle: toggleContractSort } = useSortable(filtered, 'priority' as ContractSortKey, 'asc', contractAccessor);
 
   return (
     <>
@@ -56,6 +61,18 @@ export function ContractsView({ data, live = false, loading = false, error = nul
         liveText="Live bounties"
         emptyText="No contracts indexed"
       />
+
+      <div className="c-filters" style={{ marginBottom: 16 }}>
+        {STATE_FILTERS.map(f => (
+          <button
+            key={f}
+            className={`c-filter${stateFilter === f ? ' c-filter--active' : ''}`}
+            onClick={() => setStateFilter(f)}
+          >
+            {f} {f !== 'ALL' ? `(${data.contracts.filter(c => c.state === f).length})` : ''}
+          </button>
+        ))}
+      </div>
 
       <table className="c-table">
         <thead>
@@ -107,7 +124,7 @@ export function ContractsView({ data, live = false, loading = false, error = nul
               <td style={{ fontSize: 11, color: 'var(--c-mid)' }}>{c.age}</td>
               <td>
                 <div style={{ fontSize: 10, color: 'var(--c-mid)', fontFamily: 'var(--c-mono)' }}>
-                  {c.issuer ?? 'design'}
+                  {c.issuer ?? '—'}
                 </div>
                 {c.tx && <div className="c-sub">{c.tx}</div>}
               </td>

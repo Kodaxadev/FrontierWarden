@@ -172,6 +172,12 @@ export function SocialView({ provenance }: SocialViewProps = {}) {
         onRedeemVouch={() => void redeemVouch({ vouchId: vouchObjId })}
         onReset={vouchReset}
       />
+      <SocialVouchFeeds
+        accountConnected={accountConnected}
+        feedLoading={feedLoading}
+        receivedVouches={receivedVouches}
+        givenVouches={givenVouches}
+      />
       <SocialLoanPanel
         accountConnected={accountConnected}
         busy={busy}
@@ -186,41 +192,44 @@ export function SocialView({ provenance }: SocialViewProps = {}) {
         onMarkDefault={() => void markDefault({ loanId: markLoanId })}
         onReset={lendReset}
       />
-      <SocialOraclePanel
-        accountConnected={accountConnected}
-        busy={busy}
-        existingOracle={existingOracle}
-        oracleCheckLoading={oracleCheckLoading}
-        oracleName={oracleName}
-        oracleSchemas={oracleSchemas}
-        requestedSystemOracle={requestedSystemOracle}
-        canRegisterSystem={canRegisterSystem}
-        teeVerified={teeVerified}
-        teeHash={teeHash}
-        oracleState={oracleState}
-        setOracleName={setOracleName}
-        setOracleSchemas={setOracleSchemas}
-        setIsSystemOracle={setIsSystemOracle}
-        setTeeVerified={setTeeVerified}
-        setTeeHash={setTeeHash}
-        onRegisterOracle={() => void registerOracle({
-          name: oracleName.trim(),
-          initialSchemas: oracleSchemas.split(',').map(s => s.trim()).filter(Boolean),
-          stakeMist: minStake,
-          teeVerified,
-          teeAttestationHash: teeHash || 'none',
-          isSystemOracle: requestedSystemOracle,
-        })}
-        onReset={oracleReset}
-      />
-
       <WalletStandingIssuerPanel />
-      <SocialVouchFeeds
-        accountConnected={accountConnected}
-        feedLoading={feedLoading}
-        receivedVouches={receivedVouches}
-        givenVouches={givenVouches}
-      />
+
+      {/* Oracle registration moved to Settings → Oracle (Advanced).
+          Kept here behind a collapsed details for operators who expect it. */}
+      <details style={{ marginTop: 16 }}>
+        <summary className="c-stat__label" style={{ cursor: 'pointer', color: 'var(--c-mid)', fontSize: 10 }}>
+          Oracle Registration (Advanced — also available in Settings → Oracle)
+        </summary>
+        <div style={{ marginTop: 12 }}>
+          <SocialOraclePanel
+            accountConnected={accountConnected}
+            busy={busy}
+            existingOracle={existingOracle}
+            oracleCheckLoading={oracleCheckLoading}
+            oracleName={oracleName}
+            oracleSchemas={oracleSchemas}
+            requestedSystemOracle={requestedSystemOracle}
+            canRegisterSystem={canRegisterSystem}
+            teeVerified={teeVerified}
+            teeHash={teeHash}
+            oracleState={oracleState}
+            setOracleName={setOracleName}
+            setOracleSchemas={setOracleSchemas}
+            setIsSystemOracle={setIsSystemOracle}
+            setTeeVerified={setTeeVerified}
+            setTeeHash={setTeeHash}
+            onRegisterOracle={() => void registerOracle({
+              name: oracleName.trim(),
+              initialSchemas: oracleSchemas.split(',').map(s => s.trim()).filter(Boolean),
+              stakeMist: minStake,
+              teeVerified,
+              teeAttestationHash: teeHash || 'none',
+              isSystemOracle: requestedSystemOracle,
+            })}
+            onReset={oracleReset}
+          />
+        </div>
+      </details>
     </>
   );
 }
