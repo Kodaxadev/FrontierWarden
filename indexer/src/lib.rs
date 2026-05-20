@@ -1,9 +1,12 @@
 pub mod config;
 pub mod db;
+pub mod event_source;
 pub mod gate_policy_bindings;
+pub mod graphql_events;
 #[cfg(test)]
 mod gate_policy_bindings_tests;
 pub mod rpc;
+pub mod shadow_event_source;
 #[cfg(test)]
 #[allow(dead_code)]
 mod trust_db;

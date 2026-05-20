@@ -3,6 +3,7 @@
 
 [network]
 rpc_url = "https://fullnode.testnet.sui.io:443"
+graphql_url = "https://graphql.testnet.sui.io/graphql"
 
 [package]
 id = "0xPLACEHOLDER"
@@ -15,6 +16,8 @@ max_connections = 20
 [indexer]
 batch_size = 50
 poll_interval_ms = 2000
+# event_source_mode: set EFREP_EVENT_SOURCE_MODE=shadow on Railway to enable
+# GraphQL parity checking without changing production event ingestion.
 
 [trust]
 default_gate_schema = "TRIBE_STANDING"

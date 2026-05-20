@@ -3,23 +3,23 @@ use anyhow::Result;
 use crate::rpc::{EventId, EventPage, RpcClient};
 
 // Adapter boundary: all Sui event fetching goes through this trait.
-// TODO: GraphQL cutover point — replace RpcClient impl with a GraphQL-backed source.
+// GraphQL cutover point — GraphQLEventClient implements this trait.
 // See Documents/SUI_JSON_RPC_DEPRECATION_SPIKE.md, Phase 3.
 pub trait SuiEventSource: Send + Sync {
-    async fn query_events(
+    fn query_events(
         &self,
         package_id: &str,
         module: &str,
         cursor: Option<&EventId>,
         limit: u32,
-    ) -> Result<EventPage>;
+    ) -> impl std::future::Future<Output = Result<EventPage>> + Send;
 
-    async fn query_events_by_type(
+    fn query_events_by_type(
         &self,
         event_type: &str,
         cursor: Option<&EventId>,
         limit: u32,
-    ) -> Result<EventPage>;
+    ) -> impl std::future::Future<Output = Result<EventPage>> + Send;
 }
 
 impl SuiEventSource for RpcClient {

@@ -29,6 +29,17 @@ pub struct ProvenanceConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct NetworkConfig {
     pub rpc_url: String,
+    /// Sui GraphQL endpoint for the GraphQL event source.
+    /// Default: https://graphql.testnet.sui.io/graphql
+    /// Override: EFREP_SUI_GRAPHQL_URL env var.
+    #[serde(default = "NetworkConfig::default_graphql_url")]
+    pub graphql_url: String,
+}
+
+impl NetworkConfig {
+    fn default_graphql_url() -> String {
+        "https://graphql.testnet.sui.io/graphql".into()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -46,10 +57,27 @@ pub struct DatabaseConfig {
     pub max_connections: u32,
 }
 
+/// Event source mode for the ingester.
+/// - `jsonrpc` (default): use JSON-RPC suix_queryEvents
+/// - `graphql`: use Sui GraphQL events query (not yet production-ready)
+/// - `shadow`: use JSON-RPC as primary, fire GraphQL in background for parity comparison
+#[derive(Debug, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum EventSourceMode {
+    #[default]
+    Jsonrpc,
+    Graphql,
+    Shadow,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct IndexerConfig {
     pub batch_size: u32,
     pub poll_interval_ms: u64,
+    /// Which event source to use. Default: jsonrpc.
+    /// Override: EFREP_EVENT_SOURCE_MODE env var.
+    #[serde(default)]
+    pub event_source_mode: EventSourceMode,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -166,6 +194,18 @@ impl Config {
         }
         if let Ok(s) = std::env::var("EFREP_START_CHECKPOINT") {
             cfg.package.start_checkpoint = s.parse().unwrap_or(0);
+        }
+        // Env var overrides for network config
+        if let Ok(s) = std::env::var("EFREP_SUI_GRAPHQL_URL") {
+            cfg.network.graphql_url = s;
+        }
+        // Env var override for event source mode
+        if let Ok(s) = std::env::var("EFREP_EVENT_SOURCE_MODE") {
+            cfg.indexer.event_source_mode = match s.to_lowercase().as_str() {
+                "graphql" => EventSourceMode::Graphql,
+                "shadow" => EventSourceMode::Shadow,
+                _ => EventSourceMode::Jsonrpc,
+            };
         }
         // Env var overrides for trust schemas (TOML is optional, env wins when set)
         if let Ok(s) = std::env::var("EFREP_TRUST_GATE_SCHEMA") {

@@ -4,6 +4,9 @@
 
 [network]
 rpc_url = "https://fullnode.testnet.sui.io:443"
+# GraphQL endpoint for the GraphQL/shadow event source.
+# Override: EFREP_SUI_GRAPHQL_URL env var.
+graphql_url = "https://graphql.testnet.sui.io/graphql"
 
 [package]
 # Current testnet package ID (after v2 upgrade).
@@ -19,6 +22,10 @@ max_connections = 20
 [indexer]
 batch_size = 50
 poll_interval_ms = 2000
+# Event source mode: "jsonrpc" (default), "graphql", or "shadow".
+# shadow = JSON-RPC primary + GraphQL background parity check.
+# Override: EFREP_EVENT_SOURCE_MODE env var.
+# event_source_mode = "jsonrpc"
 
 # ── Native Kill Mail Ingestion ────────────────────────────────────────────────
 # Source: Alpha-Strike community API (verified 2026-05-17)

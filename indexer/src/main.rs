@@ -26,9 +26,11 @@ mod eve_identity;
 mod gate_binding_status_api_tests;
 mod gate_policy_bindings;
 mod event_source;
+mod graphql_events;
 mod ingester;
 mod processor;
 mod rpc;
+mod shadow_event_source;
 #[cfg(test)]
 mod trust_api_http_tests;
 mod trust_db;
@@ -112,6 +114,26 @@ async fn main() -> Result<()> {
     });
 
     // Indexer loop — runs forever; returns only on fatal error
-    let event_source = rpc::RpcClient::new(&cfg.network.rpc_url);
-    ingester::run(cfg, pool, event_source).await
+    match cfg.indexer.event_source_mode {
+        config::EventSourceMode::Graphql => {
+            tracing::info!("event source: GraphQL ({})", cfg.network.graphql_url);
+            let source = graphql_events::GraphQLEventClient::new(&cfg.network.graphql_url)?;
+            ingester::run(cfg, pool, source).await
+        }
+        config::EventSourceMode::Shadow => {
+            tracing::info!(
+                "event source: shadow (primary=JSON-RPC, shadow=GraphQL {})",
+                cfg.network.graphql_url
+            );
+            let primary = rpc::RpcClient::new(&cfg.network.rpc_url);
+            let shadow = graphql_events::GraphQLEventClient::new(&cfg.network.graphql_url)?;
+            let source = shadow_event_source::ShadowEventSource::new(primary, shadow);
+            ingester::run(cfg, pool, source).await
+        }
+        config::EventSourceMode::Jsonrpc => {
+            tracing::info!("event source: JSON-RPC ({})", cfg.network.rpc_url);
+            let source = rpc::RpcClient::new(&cfg.network.rpc_url);
+            ingester::run(cfg, pool, source).await
+        }
+    }
 }
