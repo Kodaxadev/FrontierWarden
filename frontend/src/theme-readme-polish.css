@@ -259,6 +259,143 @@
   color: var(--fw-readme-amber);
 }
 
+.c-panel,
+.c-card,
+.c-stat,
+.ns-block,
+.c-table {
+  outline: 1px solid rgba(238, 228, 210, 0.025);
+}
+
+.c-panel,
+.c-card,
+.c-stat,
+.ns-block {
+  position: relative;
+}
+
+.c-panel::before,
+.c-card::before,
+.c-stat::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  border-left: 1px solid rgba(242, 118, 34, 0.38);
+  border-top: 1px solid rgba(242, 118, 34, 0.38);
+  pointer-events: none;
+}
+
+.ns-block::before {
+  border-color: rgba(242, 118, 34, 0.38);
+}
+
+.c-panel::after,
+.c-card::after,
+.c-stat::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  border-right: 1px solid rgba(242, 118, 34, 0.22);
+  border-bottom: 1px solid rgba(242, 118, 34, 0.22);
+  pointer-events: none;
+}
+
+.c-table {
+  background:
+    linear-gradient(90deg, rgba(242, 118, 34, 0.025), transparent 42%),
+    rgba(6, 4, 3, 0.42);
+}
+
+.c-table th {
+  color: rgba(238, 228, 210, 0.58);
+  border-bottom-color: rgba(242, 118, 34, 0.2);
+}
+
+.c-table td {
+  border-bottom-color: rgba(242, 118, 34, 0.055);
+}
+
+.c-table tr:hover td {
+  background: rgba(242, 118, 34, 0.055);
+}
+
+.c-input {
+  background:
+    linear-gradient(90deg, rgba(242, 118, 34, 0.035), transparent 68%),
+    rgba(5, 4, 3, 0.92);
+  border-color: rgba(242, 118, 34, 0.18);
+}
+
+.c-badge,
+.c-binding-badge,
+.ns-tag,
+.ns-advisory-badge,
+.ns-overall-badge {
+  box-shadow: inset 0 1px 0 rgba(238, 228, 210, 0.035);
+}
+
+.c-badge--open,
+.c-badge--ok,
+.c-binding-badge--green {
+  background: rgba(165, 205, 129, 0.075);
+}
+
+.c-badge--crit,
+.c-badge--camped {
+  background: rgba(210, 56, 24, 0.09);
+}
+
+.c-stat__value {
+  letter-spacing: 0;
+}
+
+.c-stat__label,
+.c-stat__tier,
+.ns-chain-label,
+.ns-rec-code,
+.ns-change-kind {
+  color: rgba(238, 228, 210, 0.48);
+}
+
+.ns-chain-node,
+.ns-risk-row,
+.ns-rec-row,
+.ns-change-row,
+.ns-warn-row {
+  border-bottom-color: rgba(242, 118, 34, 0.05);
+}
+
+.ns-chain-node {
+  background:
+    linear-gradient(90deg, rgba(242, 118, 34, 0.035), transparent),
+    rgba(255, 255, 255, 0.01);
+}
+
+.ns-terminal-footer {
+  color: rgba(238, 228, 210, 0.42);
+}
+
+@media (min-width: 1500px) {
+  .c-view {
+    padding: 36px 56px;
+  }
+
+  .c-context-cell {
+    min-width: 172px;
+    padding: 12px 16px;
+  }
+
+  .ns-grid {
+    gap: 28px;
+  }
+}
+
 @media (max-width: 860px) {
   .c-header {
     padding: 10px 16px;
