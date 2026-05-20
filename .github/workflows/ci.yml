@@ -115,8 +115,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Code-Warden
-        uses: Kodaxadev/Code-Warden@v3.4.0
+        uses: Kodaxadev/Code-Warden@912d86c
         with:
+          config: codewarden.json
           summary: "true"
           upload-artifact: "true"
           sarif: "true"
