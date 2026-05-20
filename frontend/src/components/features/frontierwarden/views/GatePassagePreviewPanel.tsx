@@ -2,9 +2,7 @@
 // Extracted from PolicyView to keep files under 400 lines.
 
 import type { FwPolicy, FwPilot, FwGate, FwProof } from '../fw-data';
-
-const formatSui = (mist: number) =>
-  mist === 0 ? '0 SUI' : `${(mist / 1_000_000_000).toFixed(3)} SUI`;
+import { formatLux } from '../../../../lib/format';
 const shortId = (value: string) =>
   value.length <= 14 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
 
@@ -53,7 +51,7 @@ export function GatePassagePreviewPanel({
           <div style={{ textAlign: 'right' }}>
             <div className="c-stat__label">Toll Due</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: tollMist > 0 ? 'var(--c-amber)' : 'var(--c-hi)' }}>
-              {formatSui(tollMist)}
+              {formatLux(tollMist)}
             </div>
           </div>
         </div>

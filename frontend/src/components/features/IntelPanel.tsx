@@ -32,7 +32,7 @@ const SCHEMA_DISPLAY: Record<IntelKey, SchemaCfg> = {
   gate_hostile:     { label: 'GATE HOSTILE',   color: 'text-frontier-crimson', border: 'border-l-frontier-crimson/55' },
   gate_camped:      { label: 'GATE CAMPED',    color: 'text-frontier-amber',   border: 'border-l-frontier-amber/50'   },
   gate_clear:       { label: 'GATE CLEAR',     color: 'text-status-clear',     border: 'border-l-status-clear/50'     },
-  gate_toll:        { label: 'TOLL  (MIST)',   color: 'text-frontier-gold',    border: 'border-l-frontier-gold/45'    },
+  gate_toll:        { label: 'TOLL  (LUX)',    color: 'text-frontier-gold',    border: 'border-l-frontier-gold/45'    },
   heat_trap:        { label: 'HEAT INDEX',     color: 'text-frontier-amber',   border: 'border-l-frontier-amber/50'   },
   route_verified:   { label: 'ROUTE VERIFIED', color: 'text-standing-ally',    border: 'border-l-standing-ally/50'    },
   system_contested: { label: 'CONTESTED',      color: 'text-alloy-silver',     border: 'border-l-alloy-silver/30'     },

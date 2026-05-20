@@ -1,4 +1,5 @@
 import type { FwData, FwGate } from '../fw-data';
+import { formatLux } from '../../../../lib/format';
 import { GateBindingStatusBadge } from './GateBindingStatusBadge';
 
 interface GateOperationsOverviewProps {
@@ -77,7 +78,7 @@ export function GateOperationsOverview({ data, selectedGate }: GateOperationsOve
         <OverviewCard
           label="Active GatePolicy"
           value={summaryValue(selectedGate?.id ?? policy?.gateId)}
-          detail={policy ? `Threshold ${policy.allyThreshold} / toll ${policy.baseTollMist} MIST` : 'No GatePolicy selected.'}
+          detail={policy ? `Threshold ${policy.allyThreshold} / toll ${formatLux(policy.baseTollMist)}` : 'No GatePolicy selected.'}
         />
         <OverviewCard
           label="Passage preview"

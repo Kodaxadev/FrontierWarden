@@ -3,6 +3,7 @@
 // Does NOT duplicate the full PolicyView — just the read + quick-edit surface.
 
 import type { FwPolicy, FwGate } from '../fw-data';
+import { formatLux } from '../../../../lib/format';
 
 interface Props {
   gate: FwGate;
@@ -12,12 +13,6 @@ interface Props {
 
 function shortId(value: string): string {
   return value.length <= 14 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
-}
-
-function formatMist(value: number): string {
-  if (value === 0) return 'FREE';
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)} SUI`;
-  return `${value.toLocaleString()} MIST`;
 }
 
 export function GateInlinePolicy({ gate, policy, onNavigatePolicy }: Props) {
@@ -69,7 +64,7 @@ export function GateInlinePolicy({ gate, policy, onNavigatePolicy }: Props) {
               BASE TOLL
             </div>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--c-hi)' }}>
-              {formatMist(policy.baseTollMist)}
+              {policy.baseTollMist === 0 ? 'FREE' : formatLux(policy.baseTollMist)}
             </div>
             <div style={{ fontSize: 10, color: 'var(--c-mid)', marginTop: 2 }}>
               Charged to pilots who pass the threshold

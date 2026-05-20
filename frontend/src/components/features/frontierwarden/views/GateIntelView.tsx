@@ -7,6 +7,7 @@ import type { GatePassageRow } from '../../../../types/api.types';
 import { useCheckPassage } from '../../../../hooks/useCheckPassage';
 import { useSortable, sortArrow } from '../../../../hooks/useSortable';
 import { LiveStatus } from '../LiveStatus';
+import { formatLux } from '../../../../lib/format';
 import type { FwData, FwGate } from '../fw-data';
 import type { Provenance } from '../LiveStatus';
 import { GateBindingStatusBadge } from './GateBindingStatusBadge';
@@ -298,7 +299,7 @@ function PassageFeed({
             <td>{shortAddr(p.traveler)}</td>
             <td>{p.allowed ? statusBadge('open') : statusBadge('camped')}</td>
             <td>{p.score ?? '-'}</td>
-            <td>{formatMist(p.toll_paid)}</td>
+            <td>{formatLux(p.toll_paid)}</td>
             <td>{p.epoch}</td>
             <td style={{ textAlign: 'right' }}>{shortAddr(p.tx_digest)}</td>
           </tr>

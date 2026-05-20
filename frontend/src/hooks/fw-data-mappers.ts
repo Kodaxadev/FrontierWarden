@@ -1,0 +1,274 @@
+// fw-data-mappers — Pure mapping helpers for useFrontierWardenData.
+// Extracted to keep the hook file under the line limit.
+
+import { formatLux } from '../lib/format';
+import { networkTitle, SUI_NETWORK_LABEL } from '../lib/network';
+import { FW_DATA } from '../components/features/frontierwarden/fw-data';
+import type { FwAlert, FwContract, FwData, FwGate, FwKill, FwPilot, FwPolicy, FwProof, FwVouch } from '../components/features/frontierwarden/fw-data';
+import type { Provenance } from '../components/features/frontierwarden/LiveStatus';
+import type { AttestationFeedRow, AttestationRow, EveIdentity, FraudChallengeRow, GateBindingStatusResponse, GatePolicyRow, GateSummaryRow, IdentityEnrichmentMap, KillMailItem, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
+import { fetchGateBindingStatus } from '../lib/api';
+
+export function shortId(id: string): string {
+  if (id.length <= 14) return id;
+  return `${id.slice(0, 6)}...${id.slice(-4)}`;
+}
+
+function gateStatus(gate: GateSummaryRow): FwGate['status'] {
+  if (gate.denies_24h > 0) return 'camped';
+  if ((gate.base_toll_mist ?? 0) > 0) return 'toll';
+  return 'open';
+}
+
+const formatToll = (mist: number | null | undefined): string => mist ? formatLux(mist) : '0';
+
+function formatUpdated(value: string | null | undefined): string {
+  return value ?? new Date().toISOString();
+}
+
+function ageLabel(iso: string): string {
+  const ts = Date.parse(iso);
+  if (!Number.isFinite(ts)) return 'indexed';
+  const minutes = Math.max(0, Math.floor((Date.now() - ts) / 60_000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+export function mapGate(gate: GateSummaryRow, binding?: GateBindingStatusResponse): FwGate {
+  const threshold = gate.ally_threshold;
+  const status = gateStatus(gate);
+  return {
+    id: shortId(gate.gate_id),
+    sourceId: gate.gate_id,
+    from: `${networkTitle(SUI_NETWORK_LABEL.toLowerCase())} gate`,
+    to: shortId(gate.gate_id),
+    status,
+    toll: formatToll(gate.base_toll_mist),
+    traffic: gate.passages_24h,
+    policy: threshold == null ? 'OBSERVE' : `ALLY >= ${threshold}`,
+    updated: formatUpdated(gate.config_updated_at),
+    threat: gate.denies_24h > 0 ? `${gate.denies_24h} denied / 24h` : undefined,
+    checkpoint: gate.latest_checkpoint,
+    binding,
+  };
+}
+
+export function challengeAlert(challenge: FraudChallengeRow): FwAlert {
+  const time = (challenge.resolved_at ?? challenge.created_at).split('T')[1]?.replace('Z', '') ?? '--:--:--';
+  const id = shortId(challenge.challenge_id);
+  if (!challenge.resolved) {
+    return { lvl: 'WARN', t: time, msg: `Open fraud challenge ${id} against oracle ${shortId(challenge.oracle)}` };
+  }
+  return {
+    lvl: challenge.guilty ? 'CRIT' : 'INFO',
+    t: time,
+    msg: `Fraud challenge ${id} resolved ${challenge.guilty ? 'guilty' : 'cleared'}`,
+  };
+}
+
+function liveScore(scores: ScoreRow[], fallback: LeaderboardEntry): ScoreRow | null {
+  return scores.find(s => s.schema_id === 'CREDIT')
+    ?? scores.find(s => s.schema_id === 'TRIBE_STANDING')
+    ?? scores[0]
+    ?? {
+      profile_id: fallback.profile_id,
+      schema_id: 'CREDIT',
+      value: fallback.value,
+      issuer: fallback.issuer,
+      last_tx_digest: '',
+      last_checkpoint: 0,
+    };
+}
+
+export function mapPilot(entry: LeaderboardEntry, scores: ScoreRow[], eveIdentity?: EveIdentity | null): FwPilot {
+  const primary = liveScore(scores, entry);
+  const checkpoint = primary?.last_checkpoint ?? null;
+  const characterName = eveIdentity?.character_name ?? null;
+  const tribeDisplay = eveIdentity?.tribe_name
+    ? `${eveIdentity.tribe_name} (${eveIdentity.tribe_id})`
+    : eveIdentity?.tribe_id
+      ? eveIdentity.tribe_id
+      : `Issuer ${shortId(primary?.issuer ?? entry.issuer)}`;
+  return {
+    ...FW_DATA.pilot,
+    name: characterName ?? `Live Profile ${shortId(entry.profile_id)}`,
+    handle: shortId(entry.profile_id),
+    syndicate: `${networkTitle(SUI_NETWORK_LABEL.toLowerCase())} indexed profile`,
+    syndicateTag: primary?.schema_id ?? 'LIVE',
+    tribe: tribeDisplay,
+    standing: primary?.schema_id ?? 'INDEXED',
+    score: primary?.value ?? entry.value,
+    scoreDelta: 0,
+    walletLux: 0,
+    timestamp: checkpoint ? `checkpoint ${checkpoint}` : FW_DATA.pilot.timestamp,
+    sourceId: entry.profile_id,
+    checkpoint,
+    characterName,
+  };
+}
+
+export function mapVouches(rows: VouchRow[]): FwVouch[] {
+  const maxStake = Math.max(...rows.map(row => row.stake_amount), 1);
+  return rows.map(row => ({
+    from: `Voucher ${shortId(row.voucher)}`,
+    weight: Math.max(0.05, Math.min(1, row.stake_amount / maxStake)),
+    by: `${shortId(row.created_tx)}${row.redeemed ? ' · redeemed' : ' · active'}`,
+    ts: row.redeemed_at ?? row.created_at,
+    voucherWallet: row.voucher,
+    voucheeWallet: row.vouchee,
+  }));
+}
+
+export function mapProofs(rows: AttestationRow[]): FwProof[] {
+  return rows.map(row => ({
+    id: shortId(row.attestation_id),
+    schema: row.schema_id,
+    issuer: shortId(row.issuer),
+    value: row.value,
+    tx: shortId(row.issued_tx),
+    revoked: row.revoked,
+  }));
+}
+
+// Native kill mails are combat telemetry — not trust scores or attestations.
+export function mapKillMails(rows: KillMailItem[], attestedVictims: Set<string>): FwKill[] {
+  return rows.map(row => {
+    const victimName = row.victimName ?? null;
+    const killerName = row.killerName ?? null;
+    return {
+      id: String(row.killMailId),
+      t: row.killTimestamp ?? row.indexedAt,
+      victim: victimName ?? (row.victimAddress ? shortId(row.victimAddress) : '—'),
+      victimWallet: victimName && row.victimAddress ? shortId(row.victimAddress) : undefined,
+      victimCorp: row.victimTribe ?? undefined,
+      killer: killerName ?? (row.killerAddress ? shortId(row.killerAddress) : undefined),
+      killerWallet: killerName && row.killerAddress ? shortId(row.killerAddress) : undefined,
+      killerCorp: row.killerTribe ?? undefined,
+      system: row.solarSystemName ?? 'unknown',
+      lossType: row.lossType ?? undefined,
+      ship: row.lossType ?? 'Kill mail',
+      lux: 0,
+      attackers: 1,
+      hash: String(row.sourceId),
+      verified: true,
+      attested: row.victimAddress ? attestedVictims.has(row.victimAddress.toLowerCase()) : false,
+    };
+  });
+}
+
+export function mapPolicy(row: GatePolicyRow | null): FwPolicy | undefined {
+  if (!row) return undefined;
+  return {
+    gateId: row.gate_id,
+    allyThreshold: row.ally_threshold,
+    baseTollMist: row.base_toll_mist,
+    txDigest: row.tx_digest,
+    checkpoint: row.checkpoint_seq,
+    indexedAt: row.indexed_at,
+  };
+}
+
+function bountyLabel(value: number): string {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)} SUI`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  return value.toLocaleString();
+}
+
+function contractPriority(value: number): FwContract['priority'] {
+  if (value >= 1_000_000_000) return 'CRIT';
+  if (value >= 100_000_000) return 'HIGH';
+  if (value >= 10_000_000) return 'MED';
+  return 'LOW';
+}
+
+export function mapContracts(rows: AttestationFeedRow[]): FwContract[] {
+  return rows.map(row => ({
+    id: shortId(row.attestation_id),
+    kind: 'BOUNTY',
+    target: shortId(row.subject),
+    bounty: bountyLabel(row.value),
+    age: ageLabel(row.issued_at),
+    priority: contractPriority(row.value),
+    state: row.revoked ? 'EXPIRED' : 'OPEN',
+    issuer: shortId(row.issuer),
+    tx: shortId(row.issued_tx),
+  }));
+}
+
+export function collectIdentityWallets(
+  accountAddress: string | undefined,
+  vouches: VouchRow[],
+  attestations: AttestationRow[],
+  feeds: AttestationFeedRow[],
+): string[] {
+  const wallets = new Set<string>();
+  if (accountAddress) wallets.add(accountAddress);
+  for (const row of vouches) { wallets.add(row.voucher); wallets.add(row.vouchee); }
+  for (const row of attestations) { wallets.add(row.issuer); wallets.add(row.subject); }
+  for (const row of feeds) { wallets.add(row.issuer); wallets.add(row.subject); }
+  return [...wallets];
+}
+
+export async function fetchGateBindings(
+  gates: GateSummaryRow[],
+): Promise<Record<string, GateBindingStatusResponse>> {
+  const entries = await Promise.all(gates.map(async gate => {
+    try { return [gate.gate_id, await fetchGateBindingStatus(gate.gate_id)] as const; }
+    catch { return null; }
+  }));
+  return Object.fromEntries(entries.filter(entry => entry != null));
+}
+
+export function mergeLiveData(
+  gates: GateSummaryRow[],
+  gateBindings: Record<string, GateBindingStatusResponse>,
+  challenges: FraudChallengeRow[],
+  profile: LeaderboardEntry | null,
+  scores: ScoreRow[],
+  vouches: VouchRow[],
+  attestations: AttestationRow[],
+  nativeKills: KillMailItem[],
+  shipKillAttestations: AttestationFeedRow[],
+  policy: GatePolicyRow | null,
+  contracts: AttestationFeedRow[],
+  eveIdentity: EveIdentity | null,
+  identityMap: IdentityEnrichmentMap,
+): { data: FwData; provenance: Record<string, Provenance> } {
+  const liveGates = gates.map(gate => mapGate(gate, gateBindings[gate.gate_id]));
+  const liveAlerts = challenges.slice(0, 5).map(challengeAlert);
+  const liveVouches = mapVouches(vouches);
+  const liveProofs = mapProofs(attestations);
+  const attestedVictims = new Set(shipKillAttestations.map(a => a.subject.toLowerCase()));
+  const liveKills = mapKillMails(nativeKills, attestedVictims);
+  const livePolicy = mapPolicy(policy);
+  const liveContracts = mapContracts(contracts);
+
+  const gateProv: Provenance = liveGates.length > 0 ? 'LIVE' : 'EMPTY';
+  const killProv: Provenance = liveKills.length > 0 ? 'LIVE' : 'EMPTY';
+  const contractProv: Provenance = liveContracts.length > 0 ? 'LIVE' : 'EMPTY';
+  const repProv: Provenance = profile ? 'LIVE' : 'EMPTY';
+  const policyProv: Provenance = livePolicy ? 'LIVE' : 'EMPTY';
+
+  return {
+    data: {
+      ...FW_DATA,
+      pilot: profile ? mapPilot(profile, scores, eveIdentity) : { ...FW_DATA.pilot, score: 0, scoreDelta: 0, timestamp: 'no profile', sourceId: undefined, checkpoint: null },
+      policy: livePolicy ?? undefined,
+      gates: liveGates,
+      kills: liveKills,
+      contracts: liveContracts,
+      vouches: liveVouches,
+      proofs: liveProofs,
+      alerts: liveAlerts,
+    },
+    provenance: {
+      gateNetwork: gateProv,
+      reputation: repProv,
+      killboard: killProv,
+      contracts: contractProv,
+      policy: policyProv,
+    },
+  };
+}

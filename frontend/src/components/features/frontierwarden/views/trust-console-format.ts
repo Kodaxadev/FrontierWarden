@@ -30,6 +30,8 @@ export function humanReadableWarning(raw: string): { label: string; critical: bo
   return { label: raw, critical: false };
 }
 
+export { formatLux as formatTollLux } from '../../../../lib/format';
+
 export const formatMist = (mist: number | null | undefined) => {
   if (mist == null) return '-';
   if (mist === 0) return '0 SUI';

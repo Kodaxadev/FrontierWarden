@@ -147,7 +147,7 @@ export function GatePolicyProvisionPanel() {
           />
         </label>
         <label htmlFor="provision-toll">
-          <div className="c-policy__label">Base Toll (MIST)</div>
+          <div className="c-policy__label">Base Toll (LUX)</div>
           <input
             id="provision-toll"
             name="provision-toll"

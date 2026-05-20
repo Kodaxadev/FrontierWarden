@@ -36,6 +36,20 @@ export function fmtSui(mist: number): string {
   return `${(mist / 1_000_000_000).toFixed(3)} SUI`;
 }
 
+/**
+ * Format a toll value as LUX.
+ * Tolls are in-universe access fees denominated in LUX, not SUI/EVT.
+ * The raw value stored on-chain is in MIST, but displayed to operators as LUX.
+ * Use this for gate tolls, market fees, service fees, and infrastructure fees.
+ */
+export function formatLux(mist: number | null | undefined): string {
+  if (mist == null || mist === 0) return '0 LUX';
+  if (mist >= 1_000_000_000) return `${(mist / 1_000_000).toFixed(1)}M LUX`;
+  if (mist >= 1_000_000) return `${(mist / 1_000_000).toFixed(1)}M LUX`;
+  if (mist >= 1_000) return `${(mist / 1_000).toFixed(0)}K LUX`;
+  return `${mist.toLocaleString()} LUX`;
+}
+
 /** Zero-pad checkpoint number for monospace display. */
 export function fmtCheckpoint(cp: number): string {
   return cp.toString().padStart(8, '0');

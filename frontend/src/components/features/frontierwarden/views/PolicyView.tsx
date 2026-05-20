@@ -5,6 +5,7 @@ import { useWallets } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import type { UiWallet } from '@wallet-standard/ui';
 import { fetchGateWithdrawals } from '../../../../lib/api';
+import { formatLux } from '../../../../lib/format';
 import { useUpdateGatePolicy } from '../../../../hooks/useUpdateGatePolicy';
 import { useWithdrawTolls } from '../../../../hooks/useWithdrawTolls';
 import { useOperatorGatePolicies } from '../../../../hooks/useOperatorGatePolicies';
@@ -137,9 +138,9 @@ export function PolicyView({ data, live = false, loading = false, error = null, 
         value: policy.baseTollMist,
         pct: Math.min(1, policy.baseTollMist / 10_000_000_000),
         min: 'Free',
-        max: '10 SUI',
+        max: '10B LUX',
         note: `Policy tx ${shortId(policy.txDigest)}`,
-        unit: formatSui(policy.baseTollMist),
+        unit: formatLux(policy.baseTollMist),
       },
       {
         label: 'Gate Policy Source',
@@ -234,7 +235,7 @@ export function PolicyView({ data, live = false, loading = false, error = null, 
             />
           </label>
           <label htmlFor="policy-base-toll">
-            <div className="c-policy__label">Base Toll (MIST)</div>
+            <div className="c-policy__label">Base Toll (LUX)</div>
             <input
               id="policy-base-toll"
               name="policy-base-toll"

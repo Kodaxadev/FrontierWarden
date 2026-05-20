@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { TrustEvaluateResponse } from '../../../../types/api.types';
-import { badgeClass, formatMist, shortId } from './trust-console-format';
+import { badgeClass, formatMist, formatTollLux, shortId } from './trust-console-format';
 import { TrustWarnings } from './TrustWarnings';
 
 interface TrustResultPanelProps {
@@ -86,7 +86,7 @@ export function TrustResultPanel({
             <Metric label="Score" value={result.score?.toString() ?? '-'} />
             <Metric label="Threshold" value={result.threshold?.toString() ?? '-'} />
             {result.action === 'gate_access' && (
-              <Metric label="Toll" value={formatMist(result.tollMist ?? null)} />
+              <Metric label="Toll" value={formatTollLux(result.tollMist ?? null)} />
             )}
           </div>
 
