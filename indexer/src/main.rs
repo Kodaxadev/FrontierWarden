@@ -7,6 +7,7 @@ mod api_common;
 mod api_eve;
 mod api_gate_ops;
 mod api_gates;
+mod api_health;
 mod api_rate_limit;
 mod api_registry;
 mod api_reputation;
@@ -28,6 +29,8 @@ mod gate_binding_status_api_tests;
 mod gate_policy_bindings;
 mod event_source;
 mod graphql_event_client;
+#[cfg(test)]
+mod health_freshness_api_tests;
 mod ingester;
 mod processor;
 mod rpc;
@@ -95,7 +98,10 @@ async fn main() -> Result<()> {
         default_bounty_schema: cfg.trust.default_bounty_schema.clone(),
         provenance: cfg.provenance.clone(),
     };
-    let app = api::router(pool.clone(), trust_cfg, cfg.eve.clone());
+    let health_cfg = api_health::HealthConfig {
+        sui_rpc_url: Some(cfg.network.rpc_url.clone()),
+    };
+    let app = api::router_with_health(pool.clone(), trust_cfg, cfg.eve.clone(), health_cfg);
     tokio::spawn(async move {
         axum::serve(listener, app)
             .await

@@ -1,16 +1,31 @@
 use axum::http::{header, HeaderValue, Method};
-use axum::{middleware, routing::get, Json, Router};
-use serde::Serialize;
+use axum::{middleware, Router};
 use sqlx::PgPool;
-use std::time::Instant;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::api_trust::TrustConfig;
 use crate::config::EveConfig;
 
-static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+#[cfg(test)]
+pub fn router(
+    pool: PgPool,
+    trust_cfg: TrustConfig,
+    eve_cfg: Option<EveConfig>,
+) -> Router {
+    router_with_health(
+        pool,
+        trust_cfg,
+        eve_cfg,
+        crate::api_health::HealthConfig::default(),
+    )
+}
 
-pub fn router(pool: PgPool, trust_cfg: TrustConfig, eve_cfg: Option<EveConfig>) -> Router {
+pub fn router_with_health(
+    pool: PgPool,
+    trust_cfg: TrustConfig,
+    eve_cfg: Option<EveConfig>,
+    health_cfg: crate::api_health::HealthConfig,
+) -> Router {
     let sessions = crate::api_sessions::SessionState::new();
     router_with_security(
         pool,
@@ -18,6 +33,7 @@ pub fn router(pool: PgPool, trust_cfg: TrustConfig, eve_cfg: Option<EveConfig>) 
         sessions,
         trust_cfg,
         eve_cfg,
+        health_cfg,
     )
 }
 
@@ -27,9 +43,8 @@ pub(crate) fn router_with_security(
     sessions: crate::api_sessions::SessionState,
     trust_cfg: TrustConfig,
     eve_cfg: Option<EveConfig>,
+    health_cfg: crate::api_health::HealthConfig,
 ) -> Router {
-    START.get_or_init(Instant::now);
-
     let sensitive_limit = crate::api_rate_limit::RateLimitState::sensitive_from_env();
     let elevated_limit = crate::api_rate_limit::RateLimitState::elevated_from_env();
 
@@ -66,7 +81,7 @@ pub(crate) fn router_with_security(
     let auth_routes = apply_rate_limit(auth_routes, rate_limit);
 
     Router::new()
-        .route("/health", get(health))
+        .merge(crate::api_health::router(health_cfg))
         .merge(auth_routes)
         .merge(api_routes)
         .layer(middleware::from_fn(crate::api_request_log::log_request))
@@ -106,7 +121,8 @@ fn cors_layer() -> CorsLayer {
     let raw = std::env::var("EFREP_CORS_ALLOWED_ORIGINS")
         .or_else(|_| std::env::var("EFREP_ALLOWED_ORIGINS"))
         .unwrap_or_else(|_| {
-            "http://localhost:5173,http://localhost:3000,https://frontierwarden.kodaxa.dev".to_owned()
+            "http://localhost:5173,http://localhost:3000,https://frontierwarden.kodaxa.dev"
+                .to_owned()
         });
     let allowed: Vec<HeaderValue> = raw
         .split(',')
@@ -118,18 +134,4 @@ fn cors_layer() -> CorsLayer {
         .allow_methods(allowed_methods)
         .allow_headers(allowed_headers)
         .allow_origin(allowed)
-}
-
-#[derive(Serialize)]
-struct HealthResponse {
-    status: &'static str,
-    uptime_secs: u64,
-}
-
-async fn health() -> Json<HealthResponse> {
-    let uptime = START.get().map(|t| t.elapsed().as_secs()).unwrap_or(0);
-    Json(HealthResponse {
-        status: "ok",
-        uptime_secs: uptime,
-    })
 }

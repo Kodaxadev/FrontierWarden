@@ -128,6 +128,7 @@ mod tests {
             crate::api_sessions::SessionState::new(),
             crate::api_trust::TrustConfig::default(),
             None,
+            crate::api_health::HealthConfig::default(),
         );
         let response = app
             .oneshot(
