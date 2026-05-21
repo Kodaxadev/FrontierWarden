@@ -323,8 +323,17 @@ export const fetchEveTribes = (limit = 500): Promise<EveTribe[]> =>
 export const fetchEveShips = (limit = 500): Promise<EveShip[]> =>
   get(`/eve/ships?limit=${limit}`);
 
-export const fetchEveIdentity = (wallet: string): Promise<EveIdentity> =>
-  get(`/eve/identity/${encodeURIComponent(wallet)}?refresh=true`);
+export interface EveIdentityOptions {
+  refresh?: boolean;
+}
+
+export const fetchEveIdentity = (
+  wallet: string,
+  options: EveIdentityOptions = {},
+): Promise<EveIdentity> => {
+  const refresh = options.refresh ? '?refresh=true' : '';
+  return get(`/eve/identity/${encodeURIComponent(wallet)}${refresh}`);
+};
 
 export const fetchBatchIdentities = (wallets: string[]): Promise<IdentityEnrichmentMap> =>
   post('/eve/identity/batch', { wallets });

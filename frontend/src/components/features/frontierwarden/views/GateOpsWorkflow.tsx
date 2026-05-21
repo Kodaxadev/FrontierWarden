@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { GateIntelView } from './GateIntelView';
 import { GateNetworkGrid } from './GateNetworkGrid';
-import { WorkflowSubNav } from './DashboardWorkflow';
+import { WorkflowSubNav } from '../WorkflowSubNav';
 import { useGateGroups } from '../../../../hooks/useGateGroups';
 import type { FwData } from '../fw-data';
 import type { Provenance } from '../LiveStatus';

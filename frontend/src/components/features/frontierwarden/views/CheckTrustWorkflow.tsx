@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { TrustConsoleView } from './TrustConsoleView';
 import { ReputationView } from './ReputationView';
 import { KillboardView } from './KillboardView';
-import { WorkflowSubNav } from './DashboardWorkflow';
+import { WorkflowSubNav } from '../WorkflowSubNav';
 import type { FwData } from '../fw-data';
 import type { Provenance } from '../LiveStatus';
 

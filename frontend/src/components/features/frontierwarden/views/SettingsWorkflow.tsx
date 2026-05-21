@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { PolicyView } from './PolicyView';
 import { DisputesView } from './DisputesView';
 import { OracleView } from './OracleView';
-import { WorkflowSubNav } from './DashboardWorkflow';
+import { WorkflowSubNav } from '../WorkflowSubNav';
 import type { FwData } from '../fw-data';
 import type { Provenance } from '../LiveStatus';
 

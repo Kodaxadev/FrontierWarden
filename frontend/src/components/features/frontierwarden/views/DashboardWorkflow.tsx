@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { NodeSentinelView } from './NodeSentinelView';
 import { OnboardingWizardShell } from '../OnboardingWizardShell';
 import { AlertFeed } from '../AlertFeed';
+import { WorkflowSubNav } from '../WorkflowSubNav';
 import type { FwData } from '../fw-data';
 import type { EveIdentity, IdentityEnrichmentMap } from '../../../../types/api.types';
 import type { OperatorContextSignals } from '../operator-context-signals';
@@ -61,24 +62,6 @@ export function DashboardWorkflow(props: Props) {
           onNavigate={(target) => onboardingNavBridge(target, props.onWorkflowNavigate)}
         />
       )}
-    </div>
-  );
-}
-
-// ── Reusable sub-tab bar ─────────────────────────────────────────────────────
-
-interface SubNavTab<T extends string> { id: T; label: string }
-
-export function WorkflowSubNav<T extends string>(
-  { active, onChange, tabs }: { active: T; onChange: (t: T) => void; tabs: SubNavTab<T>[] },
-) {
-  return (
-    <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-      {tabs.map(t => (
-        <button key={t.id} className={`c-filter${active === t.id ? ' c-filter--active' : ''}`} onClick={() => onChange(t.id)}>
-          {t.label}
-        </button>
-      ))}
     </div>
   );
 }

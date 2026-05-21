@@ -9,7 +9,7 @@ import { SocialView } from './SocialView';
 import { CounterpartyLookupView } from './CounterpartyLookupView';
 import { WatchlistView } from './WatchlistView';
 import { LoanPortfolioView } from './LoanPortfolioView';
-import { WorkflowSubNav } from './DashboardWorkflow';
+import { WorkflowSubNav } from '../WorkflowSubNav';
 import { useWatchlist } from '../../../../hooks/useWatchlist';
 import { useLoanPortfolio } from '../../../../hooks/useLoanPortfolio';
 import type { FwData } from '../fw-data';
