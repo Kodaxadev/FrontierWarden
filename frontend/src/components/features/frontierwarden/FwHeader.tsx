@@ -2,7 +2,6 @@
 // Brand | Chain status | Pilot | Score | Wallet connect | Crit badge
 
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
-import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import type { FwData } from './fw-data';
 import { SUI_NETWORK_LABEL } from '../../../lib/network';
 
@@ -65,8 +64,8 @@ export function FwHeader({ data }: FwHeaderProps) {
             {shortAddr(account.address)}
           </span>
         ) : (
-          <span className="c-wallet-connect" style={{ display: 'inline-block' }}>
-            <ConnectButton>CONNECT</ConnectButton>
+          <span style={{ fontSize: 10, fontFamily: 'var(--c-mono)', color: 'var(--c-mid)' }}>
+            NO WALLET
           </span>
         )}
       </span>

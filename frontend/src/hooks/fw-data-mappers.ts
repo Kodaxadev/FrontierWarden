@@ -9,6 +9,8 @@ import type { Provenance } from '../components/features/frontierwarden/LiveStatu
 import type { AttestationFeedRow, AttestationRow, EveIdentity, FraudChallengeRow, GateBindingStatusResponse, GatePolicyRow, GateSummaryRow, IdentityEnrichmentMap, KillMailItem, LeaderboardEntry, ScoreRow, VouchRow } from '../types/api.types';
 import { fetchGateBindingStatus } from '../lib/api';
 
+const GATE_BINDING_BATCH_SIZE = 4;
+
 export function shortId(id: string): string {
   if (id.length <= 14) return id;
   return `${id.slice(0, 6)}...${id.slice(-4)}`;
@@ -214,10 +216,15 @@ export function collectIdentityWallets(
 export async function fetchGateBindings(
   gates: GateSummaryRow[],
 ): Promise<Record<string, GateBindingStatusResponse>> {
-  const entries = await Promise.all(gates.map(async gate => {
-    try { return [gate.gate_id, await fetchGateBindingStatus(gate.gate_id)] as const; }
-    catch { return null; }
-  }));
+  const entries: Array<readonly [string, GateBindingStatusResponse] | null> = [];
+  for (let i = 0; i < gates.length; i += GATE_BINDING_BATCH_SIZE) {
+    const chunk = gates.slice(i, i + GATE_BINDING_BATCH_SIZE);
+    const chunkEntries = await Promise.all(chunk.map(async gate => {
+      try { return [gate.gate_id, await fetchGateBindingStatus(gate.gate_id)] as const; }
+      catch { return null; }
+    }));
+    entries.push(...chunkEntries);
+  }
   return Object.fromEntries(entries.filter(entry => entry != null));
 }
 

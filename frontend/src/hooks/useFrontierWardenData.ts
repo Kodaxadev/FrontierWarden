@@ -1,7 +1,7 @@
 // Hydrates the FrontierWarden shell with live indexer data when available.
 // Static design data remains the empty-indexer fallback.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { fetchAttestationFeed, fetchAttestations, fetchBatchIdentities, fetchChallenges, fetchEveIdentity, fetchGatePolicy, fetchGates, fetchKillMails, fetchLeaderboard, fetchScores, fetchVouches } from '../lib/api';
 import type { AttestationFeedRow, AttestationRow, EveIdentity, IdentityEnrichmentMap, ScoreRow, VouchRow } from '../types/api.types';
@@ -9,6 +9,7 @@ import { FW_DATA } from '../components/features/frontierwarden/fw-data';
 import type { FwData } from '../components/features/frontierwarden/fw-data';
 import type { Provenance } from '../components/features/frontierwarden/LiveStatus';
 import { collectIdentityWallets, fetchGateBindings, mergeLiveData } from './fw-data-mappers';
+import { useGuardedPolling } from './useGuardedPolling';
 
 const POLL_MS = 10_000;
 
@@ -24,7 +25,7 @@ export interface FrontierWardenDataState {
   error: string | null;
   eveIdentity: EveIdentity | null;
   eveIdentityMap: IdentityEnrichmentMap;
-  refresh: () => void;
+  refresh: () => Promise<void>;
 }
 
 export type UseFrontierWardenDataOptions = Record<string, never>;
@@ -45,7 +46,9 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
   const [eveIdentity, setEveIdentity] = useState<EveIdentity | null>(null);
   const [eveIdentityMap, setEveIdentityMap] = useState<IdentityEnrichmentMap>({});
 
-  const refresh = useCallback(async () => {
+  const accountAddress = account?.address;
+
+  const refreshTask = useCallback(async (isCurrent: () => boolean) => {
     try {
       const [gates, challenges, creditLeaders, standingLeaders, killMailsResp, bountyContracts, shipKillAttestations] = await Promise.all([
         fetchGates(),
@@ -72,11 +75,11 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       const policy = firstGateId ? await fetchGatePolicy(firstGateId) : null;
 
       // Fetch EVE identity for the connected wallet
-      const identity = account?.address
-        ? await fetchEveIdentity(account.address).catch(() => null)
+      const identity = accountAddress
+        ? await fetchEveIdentity(accountAddress).catch(() => null)
         : null;
       const identityWallets = collectIdentityWallets(
-        account?.address,
+        accountAddress,
         vouches,
         attestations,
         bountyContracts,
@@ -84,6 +87,8 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       const identityMap = identityWallets.length > 0
         ? await fetchBatchIdentities(identityWallets).catch(() => ({}))
         : {};
+      if (!isCurrent()) return;
+
       setEveIdentity(identity);
       setEveIdentityMap(identityMap);
 
@@ -97,6 +102,7 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       setContractsLive(bountyContracts.length > 0);
       setError(null);
     } catch (err) {
+      if (!isCurrent()) return;
       setData(FW_DATA);
       setLive(false);
       setReputationLive(false);
@@ -113,15 +119,11 @@ export function useFrontierWardenData(options: UseFrontierWardenDataOptions = {}
       setError(err instanceof Error ? err.message : 'fetch failed');
       setEveIdentityMap({});
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [account]);
+  }, [accountAddress]);
 
-  useEffect(() => {
-    refresh();
-    const id = setInterval(refresh, POLL_MS);
-    return () => clearInterval(id);
-  }, [refresh]);
+  const refresh = useGuardedPolling(refreshTask, { intervalMs: POLL_MS });
 
   return { data, live, loading, reputationLive, killboardLive, policyLive, contractsLive, provenance, error, eveIdentity, eveIdentityMap, refresh };
 }
