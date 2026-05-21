@@ -19,6 +19,8 @@ on 2026-05-20.
 
 - Pending: split temporary overlength files listed in `codewarden.json` and
   remove their allowlist entries as each file returns under the 400-line gate.
+- Documented Trust API freshness warning semantics so operators can distinguish
+  proof-input age, tracked-event quiet periods, and actual indexer health.
 
 ## 2026-05-20
 

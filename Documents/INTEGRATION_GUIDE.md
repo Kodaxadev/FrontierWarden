@@ -212,6 +212,11 @@ All successful responses also include `X-RateLimit-Limit` and
 | `PROOF_CHECKPOINT_UNKNOWN` | No checkpoint was associated with this decision |
 | `INDEXER_CHECKPOINT_UNKNOWN` | Could not determine the indexer's latest checkpoint |
 
+`PROOF_CHECKPOINT_BEHIND_LATEST_INDEX` compares the decision proof's input
+checkpoint to FrontierWarden's newest indexed raw event. It is not the same as
+Sui fullnode checkpoint lag. Older but still-active attestations and policies
+can produce this warning after newer unrelated events are indexed.
+
 **Important:** On testnet, `INDEXER_LAST_EVENT_STALE_SECONDS` with a large
 value (hours or days) typically means low protocol activity, not an outage. If
 `/health` returns `200`, the indexer is running — it simply has no new events to
